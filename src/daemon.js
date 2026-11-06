@@ -80,7 +80,7 @@ async function main() {
       if (url.pathname === '/api/health') {
         const counts = {};
         for (const [o, l] of store.logs) counts[o] = l.length;
-        send(res, 200, { ok: true, version: VERSION, nodeId: self, nickname: cfg.nickname, tagged: ts.tagged, peers: ts.peers, sync: syncer.lastResults, lastScan, events: counts, tracked: cfg.tracked.map((t) => ({ provider: t.provider, label: t.label, sub: t.sub, since: t.since })), tunnel: tunnel.status(), synced: syncer.ready });
+        send(res, 200, { ok: true, version: VERSION, nodeId: self, nickname: cfg.nickname, tagged: ts.tagged, peers: ts.peers, sync: syncer.lastResults, lastScan, events: counts, tracked: cfg.tracked.map((t) => ({ provider: t.provider, label: t.label, sub: t.sub, since: t.since })), tunnel: tunnel.status(), synced: syncer.ready, tailscaleError: syncer.tsError });
         return true;
       }
     }
@@ -127,7 +127,12 @@ async function main() {
   try {
     await listen(web, cfg.webPort, '127.0.0.1');
   } catch (e) {
-    if (e.code === 'EADDRINUSE') { log(`port ${cfg.webPort} in use: daemon already running`); process.exit(0); }
+    if (e.code === 'EADDRINUSE') {
+      const h = await require('./install').health(cfg.webPort);
+      if (h && h.nodeId === self) { log(`daemon already running on port ${cfg.webPort}`); process.exit(0); }
+      log(`port ${cfg.webPort} is used by another program. Free it, or pick another port: plainsight init ... --web-port N`);
+      process.exit(1);
+    }
     throw e;
   }
   const viewPort = Number(cfg.viewPort) || cfg.webPort + 1;

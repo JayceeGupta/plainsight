@@ -136,6 +136,7 @@ class Syncer {
     this.lastPeers = [];
     this.lastResults = {};
     this.ready = false; // true after the first round that reached a peer, or found none to reach
+    this.tsError = null; // why Tailscale could not be asked, if it could not
   }
 
   async run() {
@@ -145,7 +146,12 @@ class Syncer {
       do {
         this.again = false;
         let st;
-        try { st = await status(); } catch (e) { log('tailscale status failed:', e.message); return; }
+        try { st = await status(); this.tsError = null; } catch (e) {
+          const msg = String(e.message || e).split('\n')[0].slice(0, 200);
+          if (msg !== this.tsError) log('tailscale unavailable:', msg);
+          this.tsError = msg;
+          return;
+        }
         this.lastPeers = st.peers;
         const others = st.peers.filter((p) => p.ip !== st.selfIp);
         let anyOk = false;

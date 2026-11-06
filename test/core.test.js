@@ -111,6 +111,18 @@ test('pool: rules from the old tailnet dashboard are removed, hand-written tests
   assert.ok(policy.tests.some((t) => JSON.stringify(t) === JSON.stringify({ src: 'tag:plainsight', deny: ['100.9.9.9:80'] })));
 });
 
+test('pool: re-running bootstrap is stable (no duplicate grants/tests); members reach boxes on 4747 only', () => {
+  const start = { grants: [{ src: ['*'], dst: ['*'], ip: ['*'] }], ssh: [{ action: 'check' }], tests: [{ src: 'tag:plainsight', deny: ['100.9.9.9:80'] }] };
+  const once = buildPolicy(start).policy;
+  const twice = buildPolicy(once).policy;
+  assert.deepStrictEqual(twice.grants, once.grants);
+  assert.deepStrictEqual(twice.tests, once.tests);
+  assert.strictEqual(new Set(once.grants.map((g) => JSON.stringify(g))).size, once.grants.length);
+  assert.ok(once.grants.some((g) => g.src[0] === 'autogroup:member' && g.dst[0] === 'tag:plainsight' && g.ip.join() === 'tcp:4747'));
+  assert.ok(!once.grants.some((g) => g.dst.includes('tag:plainsight') && g.ip.includes('*')));
+  assert.deepStrictEqual(once.ssh, [{ action: 'check' }]);
+});
+
 test('gate worker shows the offline page when the tunnel has no connector', async () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'web', 'gate-worker.js'), 'utf8');
   const mod = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));

@@ -24,16 +24,78 @@ function health(port, timeout = 1500) {
   });
 }
 
-// Start the daemon in the background if it is not answering. Never throws (used from hooks).
+const UNIT = () => path.join(os.homedir(), '.config', 'systemd', 'user', 'plainsight.service');
+const PLIST = () => path.join(os.homedir(), 'Library', 'LaunchAgents', 'com.plainsight.daemon.plist');
+const LABEL = 'com.plainsight.daemon';
+const sh = (cmd, args) => { try { execFileSync(cmd, args, { stdio: 'ignore', timeout: 20000 }); return true; } catch { return false; } };
+
+// Which supervisor owns the daemon on this machine, if any. When one does, plainsight must go
+// through it: starting a second copy by hand fights the supervisor (it restarts its own copy).
+function supervisor() {
+  if (process.platform === 'linux' && fs.existsSync(UNIT()) && sh('systemctl', ['--user', 'is-enabled', 'plainsight'])) return 'systemd';
+  if (process.platform === 'darwin' && fs.existsSync(PLIST())) return 'launchd';
+  return null;
+}
+
+function postStop(port) {
+  return new Promise((resolve) => {
+    const req = http.request({ host: '127.0.0.1', port, method: 'POST', path: '/api/stop', timeout: 3000, headers: { 'content-length': 0 } }, (res) => { res.resume(); res.on('end', resolve); });
+    req.on('timeout', () => req.destroy());
+    req.on('error', resolve);
+    req.end();
+  });
+}
+
+async function waitFor(fn, ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) { if (await fn()) return true; await new Promise((r) => setTimeout(r, 300)); }
+  return false;
+}
+
+// Start the daemon if it is not answering. Never throws (used from hooks).
 async function ensure() {
   const cfg = loadConfig();
   if (!cfg) return { started: false, reason: 'not initialised' };
   if (await health(cfg.webPort)) return { started: false, reason: 'already running' };
+  const sup = supervisor();
+  if (sup === 'systemd' && sh('systemctl', ['--user', 'start', 'plainsight'])) return { started: true, via: 'systemd' };
+  if (sup === 'launchd') {
+    const uid = process.getuid();
+    if (sh('launchctl', ['kickstart', `gui/${uid}/${LABEL}`]) || sh('launchctl', ['bootstrap', `gui/${uid}`, PLIST()])) return { started: true, via: 'launchd' };
+  }
   fs.mkdirSync(paths.home, { recursive: true });
   const out = fs.openSync(paths.daemonLog, 'a');
   const child = spawn(NODE, [BIN, 'daemon'], { detached: true, stdio: ['ignore', out, out], windowsHide: true });
   child.unref();
   return { started: true, pid: child.pid };
+}
+
+// Stop until the next ensure()/login. With a supervisor, stop it there so it does not respawn.
+async function stop() {
+  const cfg = loadConfig();
+  if (!cfg) return 'not initialised';
+  const sup = supervisor();
+  if (sup === 'systemd') { sh('systemctl', ['--user', 'stop', 'plainsight']); }
+  else if (sup === 'launchd') { sh('launchctl', ['bootout', `gui/${process.getuid()}`, PLIST()]); }
+  if (await health(cfg.webPort)) await postStop(cfg.webPort);
+  const down = await waitFor(async () => !(await health(cfg.webPort, 800)), 8000);
+  return down ? `stopped${sup ? ` (${sup})` : ''}` : 'asked the daemon to stop, but it still answers';
+}
+
+// Restart so new code or config takes effect.
+async function restart() {
+  const cfg = loadConfig();
+  if (!cfg) return 'not initialised';
+  const sup = supervisor();
+  if (sup === 'systemd') { sh('systemctl', ['--user', 'restart', 'plainsight']); }
+  else if (sup === 'launchd') { sh('launchctl', ['kickstart', '-k', `gui/${process.getuid()}/${LABEL}`]) || sh('launchctl', ['bootstrap', `gui/${process.getuid()}`, PLIST()]); }
+  else {
+    if (await health(cfg.webPort)) await postStop(cfg.webPort);
+    await waitFor(async () => !(await health(cfg.webPort, 800)), 8000);
+    await ensure();
+  }
+  const up = await waitFor(() => health(cfg.webPort, 800), 15000);
+  return up ? `restarted${sup ? ` (${sup})` : ''}` : `restart requested; the daemon is not answering yet (see ${paths.daemonLog})`;
 }
 
 function installService() {
@@ -52,8 +114,10 @@ function installService() {
     } catch {
       return 'systemd --user is not available here. The Claude Code SessionStart hook will start the daemon instead (run `plainsight ensure` manually otherwise).';
     }
-    try { execFileSync('loginctl', ['enable-linger', os.userInfo().username], { stdio: 'ignore' }); } catch {}
-    return 'Installed systemd user service `plainsight` (systemctl --user status plainsight).';
+    let linger = '';
+    try { execFileSync('loginctl', ['enable-linger', os.userInfo().username], { stdio: 'ignore' }); }
+    catch { linger = ' WARNING: could not enable lingering, so the daemon stops when you log out. Run: sudo loginctl enable-linger $USER'; }
+    return `Installed systemd user service \`plainsight\` (systemctl --user status plainsight).${linger}`;
   }
   if (p === 'darwin') {
     const plist = path.join(os.homedir(), 'Library', 'LaunchAgents', 'com.plainsight.daemon.plist');
@@ -102,7 +166,9 @@ function uninstallService() {
   } catch { /* already gone */ }
 }
 
-const HOOK_CMD = `${q(NODE)} ${q(BIN)} ensure`;
+const HOOK_CMD = `${q(NODE)} ${q(BIN)} ensure --quiet`;
+
+const isOurs = (cmd) => /plainsight(\.js)?"?\s+ensure/.test(String(cmd || ''));
 
 // Claude Code: SessionStart hook (keeps the daemon alive), MCP server, skill. Per tracked instance.
 function integrateClaude(dir) {
@@ -111,22 +177,18 @@ function integrateClaude(dir) {
   const s = readJSON(settingsFile, {});
   if (fs.existsSync(settingsFile)) fs.copyFileSync(settingsFile, `${settingsFile}.bak-plainsight`);
   s.hooks = s.hooks || {};
-  const ss = (s.hooks.SessionStart = s.hooks.SessionStart || []);
-  const has = ss.some((m) => (m.hooks || []).some((h) => String(h.command || '').includes('plainsight')));
-  if (!has) ss.push({ hooks: [{ type: 'command', command: HOOK_CMD, timeout: 10 }] });
+  // replace any earlier plainsight hook (older versions were not --quiet)
+  s.hooks.SessionStart = (s.hooks.SessionStart || [])
+    .map((m) => ({ ...m, hooks: (m.hooks || []).filter((h) => !isOurs(h.command)) }))
+    .filter((m) => m.hooks.length);
+  s.hooks.SessionStart.push({ hooks: [{ type: 'command', command: HOOK_CMD, timeout: 10 }] });
   // Keep transcripts long enough for history (default cleanup is 30 days).
   if (!s.cleanupPeriodDays || s.cleanupPeriodDays < 365) s.cleanupPeriodDays = 3650;
   writeJSON(settingsFile, s);
   done.push(`hook + cleanupPeriodDays in ${settingsFile}`);
 
   // MCP: use the claude CLI (it owns ~/.claude.json, which Claude Code rewrites constantly).
-  const env = { ...process.env };
-  if (path.resolve(dir) !== path.resolve(os.homedir(), '.claude')) env.CLAUDE_CONFIG_DIR = dir;
-  const opts = { env, stdio: 'ignore' };
-  // Windows: `claude` may be a .cmd shim, which needs a shell; pass one pre-quoted command string.
-  const run = (args) => (process.platform === 'win32'
-    ? execSync(['claude', ...args.map((a) => (/[\s"]/.test(a) ? q(a) : a))].join(' '), opts)
-    : execFileSync('claude', args, opts));
+  const run = claudeRunner(dir);
   try { run(['mcp', 'remove', '--scope', 'user', 'plainsight']); } catch {}
   try {
     run(['mcp', 'add', '--scope', 'user', 'plainsight', '--', NODE, BIN, 'mcp']);
@@ -153,6 +215,16 @@ function integrateCodex(dir) {
   return done;
 }
 
+// Windows: `claude` may be a .cmd shim, which needs a shell; pass one pre-quoted command string.
+function claudeRunner(dir) {
+  const env = { ...process.env };
+  if (path.resolve(dir) !== path.resolve(os.homedir(), '.claude')) env.CLAUDE_CONFIG_DIR = dir;
+  const opts = { env, stdio: 'ignore', timeout: 60000 };
+  return (args) => (process.platform === 'win32'
+    ? execSync(['claude', ...args.map((a) => (/[\s"]/.test(a) ? q(a) : a))].join(' '), opts)
+    : execFileSync('claude', args, opts));
+}
+
 function copySkill(skillsDir) {
   const src = path.resolve(__dirname, '..', 'skills', 'plainsight');
   const dst = path.join(skillsDir, 'plainsight');
@@ -173,4 +245,74 @@ function integrate(cfg) {
   return out;
 }
 
-module.exports = { ensure, health, installService, uninstallService, integrate, BIN, NODE };
+// Undo integrate(): hook, MCP registration, skills. cleanupPeriodDays is left as is (it only keeps
+// your own transcripts longer); settings.json.bak-plainsight holds the pre-install copy.
+function unintegrate(cfg) {
+  const out = [];
+  const seen = new Set();
+  for (const t of (cfg && cfg.tracked) || []) {
+    const key = `${t.provider}|${t.dir}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (t.provider === 'claude') {
+      const f = path.join(t.dir, 'settings.json');
+      const s = readJSON(f, null);
+      if (s && s.hooks && s.hooks.SessionStart) {
+        s.hooks.SessionStart = s.hooks.SessionStart.map((m) => ({ ...m, hooks: (m.hooks || []).filter((h) => !isOurs(h.command)) })).filter((m) => m.hooks.length);
+        if (!s.hooks.SessionStart.length) delete s.hooks.SessionStart;
+        writeJSON(f, s);
+        out.push(`hook removed from ${f}`);
+      }
+      try { claudeRunner(t.dir)(['mcp', 'remove', '--scope', 'user', 'plainsight']); out.push(`MCP server removed (${t.dir})`); } catch { out.push(`MCP: run claude mcp remove --scope user plainsight (${t.dir})`); }
+    } else {
+      const toml = path.join(t.dir, 'config.toml');
+      if (fs.existsSync(toml)) {
+        const cur = fs.readFileSync(toml, 'utf8');
+        const next = cur.replace(/\n?\[mcp_servers\.plainsight\][^[]*/m, '\n');
+        if (next !== cur) { fs.writeFileSync(toml, next.replace(/\n{3,}/g, '\n\n')); out.push(`MCP block removed from ${toml}`); }
+      }
+    }
+    fs.rmSync(path.join(t.dir, 'skills', 'plainsight'), { recursive: true, force: true });
+    out.push(`skill removed from ${path.join(t.dir, 'skills')}`);
+  }
+  return out;
+}
+
+// A `plainsight` command on PATH, so nobody has to type node + the full path.
+const SHIM_DIR = () => (process.platform === 'win32' ? path.join(paths.home, 'bin') : path.join(os.homedir(), '.local', 'bin'));
+function installShim() {
+  const dir = SHIM_DIR();
+  fs.mkdirSync(dir, { recursive: true });
+  if (process.platform === 'win32') {
+    fs.writeFileSync(path.join(dir, 'plainsight.cmd'), `@echo off\r\n"${NODE}" "${BIN}" %*\r\n`);
+    // add to the user PATH through .NET so open Explorer/new terminals see it (no admin needed)
+    try {
+      execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+        "$d=$env:PS_DIR; $p=[Environment]::GetEnvironmentVariable('Path','User'); if(-not $p){$p=''}; if(($p -split ';') -notcontains $d){[Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';') + ';' + $d).TrimStart(';'), 'User')}"],
+      { env: { ...process.env, PS_DIR: dir }, stdio: 'ignore', timeout: 30000 });
+      return `command \`plainsight\` installed (${dir}; open a new terminal to use it)`;
+    } catch { return `command shim at ${dir}\\plainsight.cmd; add ${dir} to your PATH to type just \`plainsight\``; }
+  }
+  const link = path.join(dir, 'plainsight');
+  try { fs.chmodSync(BIN, 0o755); } catch {}
+  try { fs.rmSync(link, { force: true }); fs.symlinkSync(BIN, link); } catch (e) { return `could not create ${link}: ${e.message}`; }
+  const onPath = String(process.env.PATH || '').split(':').includes(dir);
+  return `command \`plainsight\` installed (${link})${onPath ? '' : `; ${dir} is not on your PATH yet: add  export PATH="$HOME/.local/bin:$PATH"  to your shell profile`}`;
+}
+
+function removeShim() {
+  const dir = SHIM_DIR();
+  if (process.platform === 'win32') {
+    fs.rmSync(path.join(dir, 'plainsight.cmd'), { force: true });
+    try {
+      execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+        "$d=$env:PS_DIR; $p=[Environment]::GetEnvironmentVariable('Path','User'); if($p){[Environment]::SetEnvironmentVariable('Path', (($p -split ';') | Where-Object { $_ -and $_ -ne $d }) -join ';', 'User')}"],
+      { env: { ...process.env, PS_DIR: dir }, stdio: 'ignore', timeout: 30000 });
+    } catch {}
+  } else {
+    const link = path.join(dir, 'plainsight');
+    try { if (fs.lstatSync(link).isSymbolicLink() && fs.readlinkSync(link) === BIN) fs.rmSync(link); } catch {}
+  }
+}
+
+module.exports = { ensure, stop, restart, supervisor, health, installService, uninstallService, integrate, unintegrate, installShim, removeShim, BIN, NODE };

@@ -14,7 +14,8 @@ Setup
                                     Create/replace this machine's config. SINCE (ISO date) optional:
                                     usage before it is ignored. Repeat --track per subscription.
   install                           Background service + Claude/Codex hooks, MCP, skill; start daemon
-  uninstall [--purge]               Remove service and integrations (--purge also deletes data)
+  uninstall [--purge [--yes]]       Remove service, hook, MCP, skill, command and tunnel token
+                                    (--purge also deletes ~/.plainsight: data, code, ids, backups)
 
 Run
   daemon                            Run in the foreground (the service runs this)
@@ -36,10 +37,12 @@ Dashboard tunnel (every machine that should be able to show the dashboard)
   tunnel status                     Is this machine's connector running?
 
 Tailnet owner (once per pool): data sharing
-  pool bootstrap --token-file F [--admin-ip IP] [--apply] [--force]
-                                    Isolate tag:plainsight via the Tailscale API (sync only)
-  pool key --token-file F [--out FILE] [--days 90]
-                                    Mint a reusable, ephemeral, pre-approved tag:plainsight auth key
+  pool bootstrap --token-file F [--apply] [--force]
+                                    Isolate boxes (tag:plainsight) via the Tailscale API: boxes sync
+                                    with each other, your own devices connect out to them
+  pool key --token-file F [--out FILE] [--days 90] [--ephemeral]
+                                    Mint a reusable, pre-approved tag:plainsight auth key for boxes
+                                    (--ephemeral only for throwaway CI/containers)
 
 Cloudflare owner (once): the dashboard at https://HOSTNAME behind a login
   cloudflare setup --hostname H [--email E[,E..]] [--domain D] [--session 720h]
@@ -54,7 +57,7 @@ Who can sign in (owner; changes apply within seconds)
   access list                       Allowed emails and email domains
   access add EMAIL [EMAIL..]        Allow these addresses
   access remove EMAIL [EMAIL..]     Disallow, and sign them out everywhere now
-  access allow-domain DOMAIN        Allow every address @DOMAIN
+  access allow-domain DOMAIN        Allow every address @DOMAIN (refuses public providers like gmail.com)
   access remove-domain DOMAIN
   access login google|code|both     Which sign-in options the login page offers
   access google --client-id ID --client-secret-file F
@@ -147,7 +150,7 @@ async function cmdStatus(opt) {
   console.log(`daemon: ${h ? `running, dashboard http://127.0.0.1:${cfg.webPort}` : 'NOT running (plainsight ensure)'}`);
   if (ts.error) console.log(`tailscale: ${ts.error}`);
   else console.log(`tailscale: ${ts.backend}, ${ts.selfIp || 'no IP'}, ${ts.tagged ? 'tagged tag:plainsight (box)' : 'untagged (dials out only)'}; peers online: ${ts.peers.map((p) => p.name).join(', ') || 'none'}`);
-  if (h && h.tunnel) console.log(`dashboard tunnel: ${!h.tunnel.configured ? 'not joined (plainsight tunnel join)' : h.tunnel.running ? `connected (pid ${h.tunnel.pid})` : `not running${h.tunnel.error ? ': ' + h.tunnel.error : h.synced ? '' : ' (waiting for first sync)'}`}`);
+  if (h && h.tunnel) console.log(`dashboard tunnel: ${!h.tunnel.configured ? 'not joined (plainsight tunnel join)' : h.tunnel.running ? `connected (pid ${h.tunnel.pid})` : `not running${h.tunnel.error ? ': ' + h.tunnel.error : h.tailscaleError ? ' (Tailscale unavailable: '+ h.tailscaleError + ')' : h.synced ? '' : ' (waiting for first sync)'}`}`);
   if (h) {
     for (const [name, r] of Object.entries(h.sync || {})) console.log(`  sync ${name}: ${r.ok ? `ok ${new Date(r.at).toLocaleTimeString()}` : `FAILED ${r.error}`}`);
     const total = Object.values(h.events).reduce((a, b) => a + b, 0);
@@ -160,7 +163,7 @@ async function cmdDoctor() {
   const ok = (m) => console.log(`  OK   ${m}`);
   const bad = (m, fix) => console.log(`  FAIL ${m}\n       fix: ${fix}`);
   const [maj, min] = process.versions.node.split('.').map(Number);
-  (maj > 18 || (maj === 18 && min >= 17)) ? ok(`node ${process.versions.node}`) : bad(`node ${process.versions.node}`, 'install Node 18.17+ (20+ recommended)');
+  maj >= 20 ? ok(`node ${process.versions.node}`) : bad(`node ${process.versions.node}`, 'install Node 20 or newer (https://nodejs.org)');
   const cfg = loadConfig();
   if (!cfg) return bad('not initialised', 'plainsight discover, then plainsight init ...');
   ok(`config ${paths.config}`);
@@ -170,19 +173,21 @@ async function cmdDoctor() {
     cur === t.sub ? ok(`${t.provider} "${t.label}" logged into the tracked account`) : bad(`${t.provider} at ${t.dir} is ${cur ? 'logged into a DIFFERENT account' : 'not logged in'}`, 'log back into the tracked account, or re-run plainsight init with what you want tracked');
   }
   const { status } = require('../src/sync');
-  let ts;
-  try { ts = await status(); ok(`tailscale ${ts.backend} ${ts.selfIp}`); } catch (e) { return bad(`tailscale: ${e.message}`, 'install Tailscale and run tailscale up (see docs/JOIN.md)'); }
-  if (ts.backend !== 'Running') bad('tailscale not running', 'tailscale up --auth-key=... --advertise-tags=tag:plainsight');
-  ts.tagged ? ok('this machine is tagged tag:plainsight (a box: accepts sync from other boxes)') : console.log('  INFO untagged machine: it syncs by dialing out to boxes');
-  ts.peers.length ? ok(`peers online: ${ts.peers.map((p) => p.name).join(', ')}`) : console.log('  INFO no other plainsight machines online right now (fine for the first one)');
+  let ts = null;
+  try { ts = await status(); ok(`tailscale ${ts.backend} ${ts.selfIp || ''}`); } catch (e) { bad(`tailscale: ${e.message.split('\n')[0]}`, 'install Tailscale and sign in (see docs/JOIN.md); sharing pauses until it works, the local dashboard keeps going'); }
+  if (ts) {
+    if (ts.backend !== 'Running') bad(`tailscale is ${ts.backend}`, ts.tagged ? 'tailscale up' : 'open Tailscale and sign in (on a box: tailscale up --auth-key=file:KEYFILE --advertise-tags=tag:plainsight)');
+    ts.tagged ? ok('this machine is a box (tagged tag:plainsight): other boxes and your devices sync with it') : console.log('  INFO personal machine (untagged): it syncs by connecting out to boxes; at least one box must exist for anything to sync');
+    ts.peers.length ? ok(`boxes online: ${ts.peers.map((p) => p.name).join(', ')}`) : console.log('  INFO no box online right now (nothing to sync with until one is)');
+  }
   const { health } = require('../src/install');
   const h = await health(cfg.webPort);
   h ? ok(`daemon running (v${h.version})`) : bad('daemon not running', 'plainsight ensure; logs in ' + paths.daemonLog);
-  if (h) for (const [n, r] of Object.entries(h.sync || {})) r.ok ? ok(`sync with ${n}`) : bad(`sync with ${n}: ${r.error}`, 'check that both run the same version and the tailnet policy allows tag:plainsight -> tag:plainsight tcp:4747');
+  if (h) for (const [n, r] of Object.entries(h.sync || {})) r.ok ? ok(`sync with ${n}`) : bad(`sync with ${n}: ${r.error}`, `both must run the same plainsight version, and the tailnet policy must allow ${ts && ts.tagged ? 'tag:plainsight -> tag:plainsight' : 'your devices (autogroup:member) -> tag:plainsight'} on tcp:4747 (re-run plainsight pool bootstrap)`);
   if (h && h.tunnel) {
     if (!h.tunnel.configured) console.log('  INFO not in the dashboard tunnel: this machine does not show the dashboard to others (plainsight tunnel join)');
     else if (h.tunnel.running) ok('dashboard tunnel connector running');
-    else bad(`dashboard tunnel not running${h.tunnel.error ? ': ' + h.tunnel.error : h.synced ? '' : ' (waiting for the first sync)'}`, `see ${path.join(paths.home, 'cloudflared.log')}; plainsight restart`);
+    else bad(`dashboard tunnel not running${h.tunnel.error ? ': ' + h.tunnel.error : h.tailscaleError ? ' (Tailscale is unavailable, so this machine cannot sync first)' : h.synced ? '' : ' (waiting for the first sync with a box)'}`, `see ${path.join(paths.home, 'cloudflared.log')}; plainsight restart`);
   }
 }
 
@@ -209,18 +214,8 @@ async function main() {
       try { const r = await require('../src/install').ensure(); if (!opt.quiet) console.log(r.started ? `started daemon (pid ${r.pid})` : r.reason); } catch (e) { if (!opt.quiet) console.error(e.message); }
       return;
     }
-    case 'stop': {
-      try { await local('POST', '/api/stop'); console.log('stopped'); } catch (e) { console.log(e.message); }
-      return;
-    }
-    case 'restart': {
-      try { await local('POST', '/api/stop'); } catch {}
-      await new Promise((r) => setTimeout(r, 1500));
-      const svc = process.platform === 'linux' ? (() => { try { execFileSync('systemctl', ['--user', 'is-enabled', 'plainsight'], { stdio: 'ignore' }); return true; } catch { return false; } })() : false;
-      if (svc) { execFileSync('systemctl', ['--user', 'restart', 'plainsight'], { stdio: 'inherit' }); return console.log('restarted (systemd)'); }
-      const r = await require('../src/install').ensure();
-      return console.log(r.started ? `restarted (pid ${r.pid})` : r.reason);
-    }
+    case 'stop': return console.log(await require('../src/install').stop());
+    case 'restart': return console.log(await require('../src/install').restart());
     case 'status': return cmdStatus(opt);
     case 'doctor': return cmdDoctor();
     case 'url': {
@@ -238,6 +233,7 @@ async function main() {
     case 'tunnel': {
       const tokenFile = (loadConfig() || {}).tunnelTokenFile || path.join(paths.home, 'tunnel-token');
       if (pos[0] === 'join') {
+        if (!loadConfig()) die('set up plainsight on this machine first (plainsight init ..., then plainsight install), then join the tunnel');
         const tf = opt['token-file'];
         if (!tf || tf === true) die('usage: plainsight tunnel join --token-file FILE   (the tunnel token from the owner; never paste it on the command line)');
         const tok = fs.readFileSync(tf, 'utf8').trim();
@@ -245,16 +241,12 @@ async function main() {
         fs.mkdirSync(paths.home, { recursive: true });
         fs.writeFileSync(tokenFile, tok + '\n', { mode: 0o600 });
         try { fs.chmodSync(tokenFile, 0o600); } catch {}
-        try { await local('POST', '/api/stop'); } catch {}
-        await new Promise((r) => setTimeout(r, 1500));
-        const r = await require('../src/install').ensure();
-        return console.log(`Tunnel token stored in ${tokenFile}. ${r.started ? 'Daemon restarted;' : 'Daemon running;'} it joins the dashboard tunnel after its first sync. You can delete ${tf} now.`);
+        console.log(await require('../src/install').restart());
+        return console.log(`Tunnel token stored in ${tokenFile}. The daemon joins the dashboard tunnel after its first sync (check: plainsight tunnel status). You can delete ${tf} now.`);
       }
       if (pos[0] === 'leave') {
         try { fs.unlinkSync(tokenFile); } catch {}
-        try { await local('POST', '/api/stop'); } catch {}
-        await new Promise((r) => setTimeout(r, 1500));
-        await require('../src/install').ensure();
+        if (loadConfig()) await require('../src/install').restart();
         return console.log('Left the dashboard tunnel and deleted the token. This machine still shares usage.');
       }
       if (pos[0] === 'status' || !pos[0]) {
@@ -283,9 +275,7 @@ async function main() {
         cfg.cloudflare = r.conf;
         writeJSON(paths.config, cfg);
         r.out.forEach((l) => console.log(l));
-        try { await local('POST', '/api/stop'); } catch {}
-        await new Promise((res) => setTimeout(res, 1500));
-        await require('../src/install').ensure();
+        console.log(await require('../src/install').restart());
         return console.log(`Done. Open https://${hostname} (this machine joins the tunnel after its first sync).`);
       }
       const c = cfg.cloudflare || die('run plainsight cloudflare setup first (on the machine that set it up, or copy the "cloudflare" block of its config)');
@@ -335,6 +325,8 @@ async function main() {
         }
         case 'allow-domain': {
           const d = String(pos[1] || '').replace(/^@/, '').toLowerCase(); if (!d.includes('.')) die('usage: plainsight access allow-domain example.com');
+          const PUBLIC = ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'yahoo.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'proton.me', 'protonmail.com', 'pm.me', 'gmx.com', 'gmx.net', 'mail.com', 'yandex.com', 'yandex.ru', 'zoho.com', 'qq.com', '163.com', 'rediffmail.com', 'fastmail.com', 'hey.com', 'tutanota.com'];
+          if (PUBLIC.includes(d) && !opt['i-understand']) die(`@${d} is a public email provider: allowing it lets anyone with such an address sign in. Add individual addresses instead (plainsight access add you@${d}), or pass --i-understand.`);
           domains = [...new Set([...domains, d])];
           await cf.setAccess(token, c, { emails, domains });
           return console.log(`every address @${d} is allowed`);
@@ -383,15 +375,13 @@ async function main() {
       t.label = label.slice(0, 60);
       writeJSON(paths.config, cfg);
       console.log('saved; restarting daemon to publish it');
-      try { await local('POST', '/api/stop'); } catch {}
-      await new Promise((r) => setTimeout(r, 1500));
-      await require('../src/install').ensure();
-      return;
+      return console.log(await require('../src/install').restart());
     }
     case 'install': {
       const cfg = loadConfig() || die('not initialised (plainsight init first)');
       const inst = require('../src/install');
       for (const line of inst.integrate(cfg)) console.log(`  ${line}`);
+      console.log(`  ${inst.installShim()}`);
       try { console.log(`  ${inst.installService()}`); } catch (e) { console.log(`  service not installed (${e.message.split('\n')[0]}); the SessionStart hook keeps the daemon alive instead`); }
       await new Promise((r) => setTimeout(r, 1500));
       const r = await inst.ensure();
@@ -400,20 +390,42 @@ async function main() {
       return;
     }
     case 'uninstall': {
-      try { await local('POST', '/api/stop'); } catch {}
-      require('../src/install').uninstallService();
-      console.log('Service removed. Remove the SessionStart hook ("plainsight ensure") from settings.json and run: claude mcp remove --scope user plainsight ; delete [mcp_servers.plainsight] from ~/.codex/config.toml.');
-      if (opt.purge) { fs.rmSync(paths.home, { recursive: true, force: true }); console.log(`deleted ${paths.home}`); }
+      const cfg = loadConfig();
+      if (opt.purge && cfg && cfg.cloudflare && !opt.yes) {
+        die(`--purge deletes ${paths.home}: the code, your usage history copy, the tunnel token, the Tailscale auth key file, policy backups, and the Cloudflare ids that "plainsight cloudflare teardown" needs.
+If this machine set up the dashboard and you want it gone too, run "plainsight cloudflare teardown --yes" first. Then re-run with --purge --yes.`);
+      }
+      const inst = require('../src/install');
+      console.log(`  ${await inst.stop()}`);
+      inst.uninstallService();
+      console.log('  background service / logon launcher removed');
+      for (const l of inst.unintegrate(cfg)) console.log(`  ${l}`);
+      inst.removeShim();
+      console.log('  plainsight command removed');
+      const tok = (cfg && cfg.tunnelTokenFile) || path.join(paths.home, 'tunnel-token');
+      if (fs.existsSync(tok)) { fs.rmSync(tok, { force: true }); console.log('  tunnel token deleted (this machine no longer serves the dashboard)'); }
+      if (opt.purge) {
+        // the code lives inside paths.home; remove it last
+        fs.rmSync(paths.home, { recursive: true, force: true });
+        console.log(`  deleted ${paths.home}`);
+      } else console.log(`  kept ${paths.home} (config, usage data, code). Delete it with: plainsight uninstall --purge`);
       return;
     }
     case 'mcp': return require('../src/mcp').serve();
     case 'update': {
       const root = path.resolve(__dirname, '..');
       execFileSync('git', ['-C', root, 'pull', '--ff-only'], { stdio: 'inherit' });
-      try { await local('POST', '/api/stop'); } catch {}
-      await new Promise((r) => setTimeout(r, 1500));
-      const r = await require('../src/install').ensure();
-      return console.log(r.started ? 'updated and restarted' : r.reason);
+      // run the freshly pulled code (this process still has the old modules loaded)
+      execFileSync(process.execPath, [path.join(root, 'bin', 'plainsight.js'), 'refresh'], { stdio: 'inherit' });
+      return;
+    }
+    case 'refresh': {
+      // after an update: re-copy skills, refresh hooks/MCP and the command shim, restart
+      const cfg = loadConfig() || die('not initialised');
+      const inst = require('../src/install');
+      try { inst.integrate(cfg); } catch (e) { console.log(`integrations not refreshed: ${e.message}`); }
+      try { inst.installShim(); } catch {}
+      return console.log(`updated; ${await inst.restart()}`);
     }
     case 'pool': {
       const pool = require('../src/pool');
@@ -427,8 +439,8 @@ async function main() {
       }
       if (pos[0] === 'key') {
         const file = opt.out && opt.out !== true ? opt.out : path.join(paths.home, 'tailscale-authkey.txt');
-        const r = await pool.mintKey(token, file, Number(opt.days) || 90);
-        return console.log(`Auth key ${r.id} saved to ${r.file} (expires ${r.expires}). It is not printed; hand the file's content to new boxes privately.`);
+        const r = await pool.mintKey(token, file, Number(opt.days) || 90, !!opt.ephemeral);
+        return console.log(`Auth key ${r.id} saved to ${r.file} (expires ${r.expires}; ${opt.ephemeral ? 'ephemeral: boxes are removed from the tailnet soon after going offline' : 'boxes stay in the tailnet while offline'}). It is not printed; hand it to new boxes privately.`);
       }
       return die('usage: plainsight pool bootstrap|key --token-file F');
     }

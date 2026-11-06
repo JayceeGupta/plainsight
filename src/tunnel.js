@@ -12,7 +12,6 @@ const { paths, log } = require('./util');
 
 const BIN_DIR = path.join(paths.home, 'bin');
 const LOG = path.join(paths.home, 'cloudflared.log');
-const RELEASE = 'https://github.com/cloudflare/cloudflared/releases/latest/download/';
 
 function asset() {
   const a = process.arch === 'arm64' ? 'arm64' : process.arch === 'arm' ? 'arm' : 'amd64';
@@ -40,9 +39,19 @@ async function locate(cfg) {
   if (fs.existsSync(dest)) return dest;
   fs.mkdirSync(BIN_DIR, { recursive: true });
   log(`downloading cloudflared (${a.name}) from GitHub releases`);
-  const res = await fetch(RELEASE + a.name, { signal: AbortSignal.timeout(120000) });
+  // The release notes list a SHA-256 per asset; verify against it before running anything.
+  const rel = await (await fetch('https://api.github.com/repos/cloudflare/cloudflared/releases/latest', { headers: { accept: 'application/vnd.github+json', 'user-agent': 'plainsight' }, signal: AbortSignal.timeout(30000) })).json();
+  const asset = (rel.assets || []).find((x) => x.name === a.name);
+  if (!asset) throw new Error(`no ${a.name} in the latest cloudflared release; install cloudflared yourself and set "cloudflared" in config`);
+  const line = String(rel.body || '').split(/\r?\n/).find((l) => l.trim().startsWith(`${a.name}:`));
+  const m = line && line.match(/:\s*([a-f0-9]{64})\s*$/i);
+  const res = await fetch(asset.browser_download_url, { signal: AbortSignal.timeout(180000) });
   if (!res.ok) throw new Error(`download ${a.name}: HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
+  const got = require('crypto').createHash('sha256').update(buf).digest('hex');
+  if (!m) throw new Error(`cloudflared ${rel.tag_name}: no published SHA-256 for ${a.name}, refusing to run an unverified download. Install cloudflared yourself (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and plainsight will use it from PATH.`);
+  if (m[1].toLowerCase() !== got) throw new Error(`cloudflared ${rel.tag_name} ${a.name}: SHA-256 mismatch (expected ${m[1]}, got ${got}); not used`);
+  log(`cloudflared ${rel.tag_name} verified (sha256 ${got.slice(0, 12)}...)`);
   const tmp = `${dest}.download`;
   if (a.tgz) {
     const tgz = `${tmp}.tgz`;
