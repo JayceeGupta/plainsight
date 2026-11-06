@@ -1,4 +1,4 @@
-# plainsight
+# <img src="assets/icon-512.png" width="40" height="40" alt="" align="top"> plainsight
 
 **See how your team's Claude Code and Codex subscriptions are used, across every machine that uses them. No server, no prompts, just numbers.**
 

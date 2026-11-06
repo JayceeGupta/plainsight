@@ -13,6 +13,14 @@ const { Tunnel } = require('./tunnel');
 const { paths, loadConfig, log, VERSION, PROTOCOL, SERVICE } = require('./util');
 
 const WEB = path.join(__dirname, '..', 'web', 'index.html');
+// Fixed allowlist of static files the view serves (manifest + icons). Never arbitrary paths.
+const ASSETS = Object.fromEntries([
+  ['/manifest.webmanifest', 'web/manifest.webmanifest', 'application/manifest+json'],
+  ['/icon-192.png', 'assets/icon-192.png', 'image/png'],
+  ['/icon-512.png', 'assets/icon-512.png', 'image/png'],
+  ['/apple-touch-icon.png', 'assets/apple-touch-icon.png', 'image/png'],
+  ['/favicon.ico', 'assets/favicon.ico', 'image/x-icon'],
+].map(([p, f, t]) => [p, [path.join(__dirname, '..', f), t]]));
 
 function readBody(req, limit) {
   return new Promise((resolve, reject) => {
@@ -65,6 +73,12 @@ async function main() {
     {
       if (url.pathname === '/' || url.pathname === '/index.html') {
         return send(res, 200, fs.readFileSync(WEB), 'text/html; charset=utf-8');
+      }
+      const asset = Object.hasOwn(ASSETS, url.pathname) && ASSETS[url.pathname];
+      if (asset) {
+        res.writeHead(200, { 'content-type': asset[1], 'cache-control': 'public, max-age=86400', 'x-content-type-options': 'nosniff' });
+        res.end(fs.readFileSync(asset[0]));
+        return true;
       }
       if (url.pathname === '/api/summary') {
         const q = Object.fromEntries(url.searchParams);

@@ -31,6 +31,7 @@ const PAGE = `<!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000"><meta name="color-scheme" content="dark">
 <title>plainsight</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cstyle%3E.m%7Bcolor:%23111%7D%40media (prefers-color-scheme:dark)%7B.m%7Bcolor:%23f5f5f5%7D%7D%3C/style%3E%3Cg class=%22m%22 fill=%22none%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M4.93 19.57A10 10 0 1 1 19.07 19.57%22 stroke=%22currentColor%22 stroke-width=%222.4%22 opacity=%22.45%22/%3E%3Cpath d=%22M4.93 19.57A10 10 0 0 1 16.54 3.59%22 stroke=%22%23e8794a%22 stroke-width=%222.2%22/%3E%3Cpath d=%22M12 12.5L14.95 6.71%22 stroke=%22currentColor%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%2212%22 cy=%2212.5%22 r=%221.9%22 fill=%22currentColor%22/%3E%3C/g%3E%3C/svg%3E">
 <style>
   html,body{margin:0;height:100%;background:#000;color:#f5f5f5;font:15px/1.5 "Inter","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
   main{min-height:100%;display:grid;place-items:center;padding:24px}
