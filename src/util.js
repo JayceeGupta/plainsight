@@ -8,9 +8,7 @@ const HOME = process.env.PLAINSIGHT_HOME || path.join(os.homedir(), '.plainsight
 const VERSION = require('../package.json').version;
 const PROTOCOL = 1;
 const TAG = 'tag:plainsight';
-const SERVICE = 'svc:plainsight';
-const VIEWER_TAG = 'tag:plainsight-viewer';
-const WEB_PORT = 4748; // dashboard: 127.0.0.1 locally, same port on the tailnet for untagged machines
+const SERVICE = 'svc:plainsight'; // only used to clean up what plainsight 0.1 published
 
 const paths = {
   home: HOME,
@@ -51,4 +49,4 @@ function loadConfig() {
   return readJSON(paths.config, null);
 }
 
-module.exports = { HOME, VERSION, PROTOCOL, TAG, VIEWER_TAG, SERVICE, WEB_PORT, paths, hash, subId, readJSON, writeJSON, log, loadConfig };
+module.exports = { HOME, VERSION, PROTOCOL, TAG, SERVICE, paths, hash, subId, readJSON, writeJSON, log, loadConfig };

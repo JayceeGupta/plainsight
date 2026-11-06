@@ -135,6 +135,7 @@ class Syncer {
     this.again = false;
     this.lastPeers = [];
     this.lastResults = {};
+    this.ready = false; // true after the first round that reached a peer, or found none to reach
   }
 
   async run() {
@@ -146,15 +147,19 @@ class Syncer {
         let st;
         try { st = await status(); } catch (e) { log('tailscale status failed:', e.message); return; }
         this.lastPeers = st.peers;
-        await Promise.all(st.peers.filter((p) => p.ip !== st.selfIp).map(async (p) => {
+        const others = st.peers.filter((p) => p.ip !== st.selfIp);
+        let anyOk = false;
+        await Promise.all(others.map(async (p) => {
           try {
             const r = await exchange(this.store, this.cfg.nodeId, p, this.cfg.port);
             this.lastResults[p.name] = { ok: true, at: Date.now(), ...r };
+            anyOk = true;
             if (r.sent || r.got) log(`sync ${p.name}: sent ${r.sent}, got ${r.got}`);
           } catch (e) {
             this.lastResults[p.name] = { ok: false, at: Date.now(), error: e.message };
           }
         }));
+        if (!others.length || anyOk) this.ready = true;
       } while (this.again);
     } finally { this.running = false; }
   }

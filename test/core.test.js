@@ -93,6 +93,36 @@ test('pool: default policy becomes isolated; custom policy is flagged', () => {
   assert.ok(isDefault);
   assert.ok(!policy.grants.some((g) => g.src[0] === '*'));
   assert.deepStrictEqual(policy.ssh, [1]);
-  assert.ok(policy.autoApprovers.services['svc:plainsight']);
+  assert.ok(policy.grants.some((g) => g.src[0] === 'tag:plainsight' && g.dst[0] === 'tag:plainsight' && g.ip[0] === 'tcp:4747'));
   assert.ok(!buildPolicy({ grants: [{ src: ['group:x'], dst: ['*'], ip: ['*'] }] }).isDefault);
+});
+
+test('pool: rules from the old tailnet dashboard are removed, hand-written tests kept', () => {
+  const cur = {
+    tagOwners: { 'tag:plainsight': ['autogroup:admin'], 'tag:plainsight-viewer': ['autogroup:admin'] },
+    grants: [{ src: ['autogroup:member'], dst: ['svc:plainsight'], ip: ['tcp:443'] }, { src: ['tag:plainsight-viewer'], dst: ['svc:plainsight'], ip: ['tcp:80'] }],
+    autoApprovers: { services: { 'svc:plainsight': ['tag:plainsight'] } },
+    tests: [{ src: 'tag:plainsight', deny: ['100.9.9.9:80'] }, { src: 'tag:plainsight-viewer', accept: ['100.1.2.3:80'] }],
+  };
+  const { policy } = buildPolicy(cur, '100.1.2.3');
+  const s = JSON.stringify(policy);
+  assert.ok(!s.includes('svc:plainsight') && !s.includes('plainsight-viewer'));
+  assert.ok(!policy.autoApprovers);
+  assert.ok(policy.tests.some((t) => JSON.stringify(t) === JSON.stringify({ src: 'tag:plainsight', deny: ['100.9.9.9:80'] })));
+});
+
+test('gate worker shows the offline page when the tunnel has no connector', async () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'web', 'gate-worker.js'), 'utf8');
+  const mod = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
+  const real = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response('error 1033', { status: 530 });
+    const page = await mod.default.fetch(new Request('https://u.example/'));
+    assert.strictEqual(page.status, 503);
+    assert.match(await page.text(), /No machine is online/);
+    const api = await mod.default.fetch(new Request('https://u.example/api/summary'));
+    assert.strictEqual(api.headers.get('content-type').split(';')[0], 'application/json');
+    globalThis.fetch = async () => new Response('ok', { status: 200 });
+    assert.strictEqual(await (await mod.default.fetch(new Request('https://u.example/'))).text(), 'ok');
+  } finally { globalThis.fetch = real; }
 });

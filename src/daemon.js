@@ -9,7 +9,7 @@ const { Collector } = require('./collect');
 const { Syncer, status, tailscale, giveFor, ingestAll } = require('./sync');
 const { summarize } = require('./aggregate');
 const prices = require('./prices');
-const { DnsFollower } = require('./dns');
+const { Tunnel } = require('./tunnel');
 const { paths, loadConfig, log, VERSION, PROTOCOL, SERVICE } = require('./util');
 
 const WEB = path.join(__dirname, '..', 'web', 'index.html');
@@ -55,9 +55,10 @@ async function main() {
   let ts = { tagged: false, peers: [] };
   let lastScan = 0;
 
-  // ---- read-only view: dashboard + GET API. Everything published on the tailnet points at a
-  // separate listener that serves only this, so no request from the tailnet can change anything,
-  // whatever headers it carries (raw TCP forwarding for custom domains adds none).
+  const tunnel = new Tunnel(cfg);
+
+  // ---- read-only view: dashboard + GET API. The Cloudflare Tunnel forwards to a separate
+  // listener that serves only this, so nothing arriving through it can change anything.
   function view(req, res, url) {
     if (req.method !== 'GET' && req.method !== 'HEAD') { send(res, 405, { error: 'read-only' }); return true; }
     {
@@ -78,7 +79,7 @@ async function main() {
       if (url.pathname === '/api/health') {
         const counts = {};
         for (const [o, l] of store.logs) counts[o] = l.length;
-        send(res, 200, { ok: true, version: VERSION, nodeId: self, nickname: cfg.nickname, tagged: ts.tagged, peers: ts.peers, sync: syncer.lastResults, lastScan, events: counts, tracked: cfg.tracked.map((t) => ({ provider: t.provider, label: t.label, sub: t.sub, dir: t.dir, since: t.since })) });
+        send(res, 200, { ok: true, version: VERSION, nodeId: self, nickname: cfg.nickname, tagged: ts.tagged, peers: ts.peers, sync: syncer.lastResults, lastScan, events: counts, tracked: cfg.tracked.map((t) => ({ provider: t.provider, label: t.label, sub: t.sub, since: t.since })), tunnel: tunnel.status(), synced: syncer.ready });
         return true;
       }
     }
@@ -132,8 +133,8 @@ async function main() {
   const viewServer = http.createServer((req, res) => {
     try { if (!view(req, res, new URL(req.url, 'http://x'))) send(res, 404, { error: 'not found' }); } catch (e) { send(res, 500, { error: e.message }); }
   });
-  try { await listen(viewServer, viewPort, '127.0.0.1'); } catch (e) { log(`view port ${viewPort} unavailable (${e.message}); dashboard not published on the tailnet. Set viewPort in config.`); cfg.serveTailnet = false; cfg.hostService = false; }
-  const VIEW = `127.0.0.1:${viewPort}`;
+  let viewOk = true;
+  try { await listen(viewServer, viewPort, '127.0.0.1'); } catch (e) { viewOk = false; log(`view port ${viewPort} unavailable (${e.message}); this machine will not join the dashboard tunnel. Set viewPort in config.`); }
   fs.writeFileSync(paths.pid, String(process.pid));
   log(`plainsight ${VERSION} node ${self} (${cfg.nickname}) dashboard http://127.0.0.1:${cfg.webPort}`);
 
@@ -159,10 +160,7 @@ async function main() {
       const st = await status();
       const becameTagged = st.tagged && !ts.tagged;
       ts = st;
-      if (!st.tagged && st.backend === 'Running' && cfg.serveTailnet !== false) {
-        await serveOnTailnet(st);
-        if (dns) await dns.tick(st.selfIp);
-      }
+      if (st.backend === 'Running') await cleanupServe();
       if (becameTagged) {
         // Userspace-networking tailscaled delivers inbound connections to 127.0.0.1.
         for (const host of [st.selfIp, '127.0.0.1']) {
@@ -170,50 +168,33 @@ async function main() {
           const srv = host === '127.0.0.1' ? syncServer : http.createServer(syncServer.listeners('request')[0]);
           try { await listen(srv, cfg.port, host); log(`sync listening ${host}:${cfg.port}`); } catch (e) { log(`sync listen ${host}:${cfg.port} failed: ${e.message}`); }
         }
-        if (cfg.hostService !== false) {
-          for (const [flag, target] of [['--https=443', `http://${VIEW}`], ['--tcp=80', `tcp://${VIEW}`]]) {
-            try { await tailscale(['serve', `--service=${SERVICE}`, flag, target], 20000); }
-            catch (e) { log(`tailscale serve ${flag} failed (dashboard service not hosted here): ${e.message}`); }
-          }
-        }
       }
     } catch (e) {
       log('tailscale not available:', e.message);
     }
   }
 
-  // Untagged machines (your own computer) publish the dashboard on their own tailnet name so your
-  // other devices (phone) can open it even when no box is online. Read-only: the proxy adds
-  // Tailscale-User-Login / X-Forwarded-For, so isLocal() refuses every POST from it.
-  // Ports plainsight itself published earlier point at one of these; anything else is not ours.
-  const ours = (t) => [VIEW, `127.0.0.1:${cfg.webPort}`].some((hp) => String(t || '').replace(/^\w+:\/\//, '') === hp);
-  // optional custom-domain follower (owner machines only; see src/dns.js)
-  const dns = cfg.dns && cfg.dns.recordId && cfg.tailnetHttpPort !== false ? new DnsFollower(cfg.dns) : null;
-  let served = false;
-  async function serveOnTailnet(st) {
-    if (served) return;
-    served = true;
+  // plainsight 0.1 published the dashboard through tailscale serve (a tailnet Service on boxes,
+  // ports on the owner's computer). The dashboard now goes through the Cloudflare Tunnel, so remove
+  // whatever serve entries point at plainsight's own listeners. Entries for anything else are left alone.
+  let cleaned = false;
+  async function cleanupServe() {
+    if (cleaned) return;
+    cleaned = true;
+    const ours = (t) => [`127.0.0.1:${viewPort}`, `127.0.0.1:${cfg.webPort}`, `localhost:${viewPort}`, `localhost:${cfg.webPort}`]
+      .some((hp) => String(t || '').replace(/^\w+:\/\//, '').replace(/\/$/, '') === hp);
     let cur;
-    try { cur = JSON.parse((await tailscale(['serve', 'status', '--json'])) || '{}'); }
-    catch (e) { return log(`tailscale serve failed (dashboard only on this machine): ${e.message}`); }
-    const funnel = (port) => Object.keys(cur.AllowFunnel || {}).some((hp) => hp.endsWith(`:${port}`));
-    const publish = async (port, flag, target, current, what) => {
-      if (current && !ours(current)) return log(`tailnet port ${port} already serves something else; ${what} not published (see tailnetPort/tailnetHttpPort in config)`);
-      if (funnel(port)) return log(`port ${port} is public via Funnel; refusing to publish ${what} there`);
-      if (current !== target) {
-        try { await tailscale(['serve', '--bg', flag, target], 20000); } catch (e) { return log(`tailscale serve ${flag} failed: ${e.message}`); }
-      }
-      log(`${what}: port ${port}`);
-    };
-    const port = Number(cfg.tailnetPort) || cfg.webPort;
-    const web = Object.entries(cur.Web || {}).find(([hp]) => hp.endsWith(`:${port}`));
-    const webTarget = web ? (Object.values(web[1].Handlers || {}).map((h) => h.Proxy).find(Boolean) || 'other') : (cur.TCP || {})[port] && !(cur.TCP[port] || {}).HTTPS ? 'other' : null;
-    await publish(port, `--https=${port}`, `http://${VIEW}`, webTarget, `dashboard https://${st.selfDns || st.selfIp}:${port}`);
-    if (cfg.tailnetHttpPort !== false) {
-      const hport = Number(cfg.tailnetHttpPort) || 80;
-      const tcp = (cur.TCP || {})[hport];
-      const hTarget = tcp ? (tcp.TCPForward ? `tcp://${tcp.TCPForward}` : 'other') : null;
-      await publish(hport, `--tcp=${hport}`, `tcp://${VIEW}`, hTarget, `dashboard http://${st.selfIp}:${hport} (point a custom domain's A record here)`);
+    try { cur = JSON.parse((await tailscale(['serve', 'status', '--json'])) || '{}'); } catch { return; }
+    const offs = [];
+    for (const [hp, w] of Object.entries(cur.Web || {})) {
+      if (Object.values(w.Handlers || {}).some((h) => ours(h.Proxy))) offs.push(['serve', `--https=${hp.split(':').pop()}`, 'off']);
+    }
+    for (const [port, t] of Object.entries(cur.TCP || {})) if (t.TCPForward && ours(t.TCPForward)) offs.push(['serve', `--tcp=${port}`, 'off']);
+    for (const [svc, conf] of Object.entries(cur.Services || {})) {
+      if (svc === SERVICE || JSON.stringify(conf).includes(`127.0.0.1:${viewPort}`) || JSON.stringify(conf).includes(`127.0.0.1:${cfg.webPort}`)) offs.push(['serve', 'clear', svc]);
+    }
+    for (const a of offs) {
+      try { await tailscale(a, 20000); log(`removed old tailscale serve entry: tailscale ${a.join(' ')}`); } catch (e) { log(`could not remove tailscale ${a.join(' ')}: ${e.message}`); }
     }
   }
 
@@ -240,6 +221,7 @@ async function main() {
   function shutdown() {
     if (stopping) return;
     stopping = true;
+    tunnel.stop();
     try { store.appendLocal(self, [{ k: 'bye' }]); } catch {}
     syncer.run().finally(() => {
       try { fs.unlinkSync(paths.pid); } catch {}
@@ -253,10 +235,13 @@ async function main() {
   await refreshTailscale();
   prices.refresh();
   await scan(); // first run = backfill
-  syncer.run();
+  // Join the dashboard tunnel only once this machine has a complete picture (first sync done, or
+  // nobody to sync with), so Cloudflare never sends a visitor to a half-empty copy.
+  const joinTunnel = () => { if (viewOk && syncer.ready && tunnel.configured()) tunnel.start(); };
+  syncer.run().then(joinTunnel);
 
   setInterval(scan, 5000);
-  setInterval(() => { refreshTailscale().then(() => syncer.run()); }, 60e3);
+  setInterval(() => { refreshTailscale().then(() => syncer.run()).then(joinTunnel); }, 60e3);
   setInterval(() => store.appendLocal(self, [{ k: 'hb' }]), 120e3);
   setInterval(() => prices.refresh(), 6 * 3600e3);
   setInterval(() => { for (const r of sse) r.write(': ping\n\n'); }, 25e3);
