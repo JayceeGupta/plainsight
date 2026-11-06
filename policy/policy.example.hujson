@@ -24,6 +24,9 @@
 		// Boxes reach only each other, only on the sync port.
 		{"src": ["tag:plainsight"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
 
+		// Boxes may open the dashboard too, only through the service.
+		{"src": ["tag:plainsight"], "dst": ["svc:plainsight"], "ip": ["tcp:80", "tcp:443"]},
+
 		// Your computer reaches boxes fully. Boxes cannot initiate back to it.
 		{"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["*"]},
 

@@ -137,13 +137,42 @@ Each key joins exactly one device. Viewer devices are not ephemeral, so they sta
 
 ## Custom domain
 
-`svc:plainsight` has a fixed tailnet IP (TailVIP). Find it in the admin console → Services, or in the output of `pool bootstrap --apply`.
+A custom name like `usage.example.com` only ever resolves to a `100.x` tailnet address, so it loads only for devices on your tailnet. Anyone else gets an address that goes nowhere. Publishing it in public DNS reveals nothing useful.
 
-1. At your DNS provider, add an **A** record `usage.example.com → <TailVIP IPv4>`.
-   - Cloudflare: **DNS only** (grey cloud). The proxy cannot reach tailnet IPs.
-   - A more specific record overrides a wildcard.
-2. Devices on your tailnet load `http://usage.example.com`. Anyone else resolves a `100.x` address that goes nowhere, so the page never loads off-tailnet. Publishing a `100.x` address in public DNS reveals nothing useful.
-3. **HTTPS on a custom domain** needs a certificate for that name. `tailscale serve` only has certificates for `*.ts.net`. The plain `http://` URL is still encrypted end to end by WireGuard. If your TLD forces HTTPS (`.dev`, `.app`), use the `https://plainsight.<tailnet>.ts.net` URL instead.
+**Where it should point:**
+
+| Situation | Point it at | Who can open it |
+|---|---|---|
+| At least one box is online | The service TailVIP (admin console → Services, or the output of `pool bootstrap --apply`) | Your devices, view-only devices, boxes |
+| No box online, your computer is on | Your computer's tailnet IP (`tailscale ip -4`) | Your devices, view-only devices |
+
+A DNS name holds one address, and both are needed at different times. Listing both does not work: an address with no host behind it hangs for about 20 seconds instead of failing, so half of all loads would stall. Instead, let your computer move the record automatically.
+
+### Automatic (Cloudflare)
+
+1. Create the record once: **A** `usage.example.com` → any `100.x` address, **DNS only** (grey cloud; Cloudflare's proxy cannot reach tailnet IPs). A more specific record overrides a wildcard.
+2. Create a Cloudflare API token: My Profile → API Tokens → *Create Token* → template **Edit zone DNS** → Zone Resources: *Specific zone* → your domain. Save it to `~/.plainsight/cloudflare-token` (private file).
+3. On your own (untagged) computer:
+   ```sh
+   node ~/.plainsight/app/bin/plainsight.js dns usage.example.com --token-file ~/.plainsight/cloudflare-token --service-ip <TailVIP>
+   node ~/.plainsight/app/bin/plainsight.js update
+   ```
+4. Every minute, while that computer is on, it checks whether the service answers:
+   - If it does (a box is hosting), the record points at the TailVIP.
+   - If it fails twice in a row, the record points at the computer itself.
+
+   TTL is 60 seconds. `daemon.log` shows each switch. Turn it off with `plainsight dns off`.
+
+Limitation: if your computer goes offline while the record points at it, the record stays there until the computer is back. In that time, use `https://plainsight.<tailnet>.ts.net`, which always reaches whichever box is online.
+
+### How each host answers on a custom name
+
+- **Boxes:** host the service with `https:443` (for the `ts.net` name) and raw `tcp:80` forwarding (for custom names).
+- **Your computer:** publishes `tcp:80` on its own tailnet IP.
+- Raw TCP forwarding matters because `tailscale serve`'s HTTP proxy only answers for `*.ts.net` names and returns 404 for anything else.
+- Every published port leads to a separate read-only listener, so no request from the tailnet can change anything.
+
+**HTTPS on a custom name** needs a certificate for that name, and `tailscale serve` only has certificates for `*.ts.net`. Use `http://usage.example.com`; the traffic is still encrypted end to end by WireGuard. If your TLD forces HTTPS (`.dev`, `.app`), use the `https://plainsight.<tailnet>.ts.net` URL instead.
 
 ## Plan limits and housekeeping
 

@@ -36,18 +36,24 @@ function buildPolicy(cur, adminIp) {
     { src: ['autogroup:member'], dst: ['autogroup:member', 'autogroup:internet'], ip: ['*'] },
     { src: ['autogroup:member'], dst: [SERVICE], ip: ['tcp:80', 'tcp:443'] },
     { src: [TAG], dst: [TAG], ip: ['tcp:4747'] },
+    // boxes may open the dashboard too (custom domain from a box), through the service only
+    { src: [TAG], dst: [SERVICE], ip: ['tcp:80', 'tcp:443'] },
     ...(adminIp ? [{ src: ['plainsight-admin'], dst: [TAG], ip: ['*'] }] : []),
     // view-only devices (e.g. phones): the dashboard and nothing else; nothing may connect to them
     { src: [VIEWER_TAG], dst: [SERVICE], ip: ['tcp:80', 'tcp:443'] },
-    ...(adminIp ? [{ src: [VIEWER_TAG], dst: ['plainsight-admin'], ip: [`tcp:${WEB_PORT}`] }] : []),
+    ...(adminIp ? [{ src: [VIEWER_TAG], dst: ['plainsight-admin'], ip: [`tcp:${WEB_PORT}`, 'tcp:80'] }] : []),
   ];
   p.autoApprovers = { ...(cur.autoApprovers || {}), services: { ...((cur.autoApprovers || {}).services || {}), [SERVICE]: [TAG] } };
+  // keep every existing test (some are added by hand, e.g. 'boxes cannot reach my phone'); add ours if missing
+  const have = new Set((cur.tests || []).map((t) => JSON.stringify(t)));
   p.tests = [
-    ...(cur.tests || []).filter((t) => !JSON.stringify(t).includes('plainsight')),
+    ...(cur.tests || []),
+  ];
+  for (const t of [
     { src: TAG, accept: [`${TAG}:4747`], deny: [`${TAG}:22`, ...(adminIp ? [`${adminIp}:445`] : [])] },
     ...(adminIp ? [{ src: adminIp, accept: [`${TAG}:4747`, `${TAG}:22`] }] : []),
-    { src: VIEWER_TAG, deny: [`${TAG}:4747`, `${TAG}:22`, ...(adminIp ? [`${adminIp}:22`, `${adminIp}:445`, `${adminIp}:443`] : [])], ...(adminIp ? { accept: [`${adminIp}:${WEB_PORT}`] } : {}) },
-  ];
+    { src: VIEWER_TAG, deny: [`${TAG}:4747`, `${TAG}:22`, ...(adminIp ? [`${adminIp}:22`, `${adminIp}:445`, `${adminIp}:443`] : [])], ...(adminIp ? { accept: [`${adminIp}:${WEB_PORT}`, `${adminIp}:80`] } : {}) },
+  ]) if (!have.has(JSON.stringify(t))) p.tests.push(t);
   return { policy: p, isDefault };
 }
 
@@ -70,7 +76,10 @@ async function bootstrap(token, { adminIp, apply, force }) {
   if (!apply) { out.push('Dry run. Re-run with --apply to save it.'); return { out, applied: false }; }
   await api(token, 'POST', '/tailnet/-/acl', { body: policy, headers: etag ? { 'if-match': etag } : {} });
   out.push('Policy applied.');
-  const svc = await api(token, 'PUT', `/tailnet/-/vip-services/${SERVICE}`, { body: { name: SERVICE, comment: 'plainsight dashboard (any tagged box can host)', ports: ['tcp:80', 'tcp:443'], tags: [TAG] } });
+  // updating an existing service must repeat its addresses
+  let addrs;
+  try { addrs = (await api(token, 'GET', `/tailnet/-/vip-services/${SERVICE}`)).json.addrs; } catch {}
+  const svc = await api(token, 'PUT', `/tailnet/-/vip-services/${SERVICE}`, { body: { name: SERVICE, comment: 'plainsight dashboard (any tagged box can host)', ports: ['tcp:80', 'tcp:443'], tags: [TAG], ...(addrs && addrs.length ? { addrs } : {}) } });
   out.push(`Service ${SERVICE} defined. TailVIP: ${(svc.json.addrs || []).join(', ')}`);
   return { out, applied: true, addrs: svc.json.addrs || [] };
 }

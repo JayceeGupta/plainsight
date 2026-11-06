@@ -26,6 +26,8 @@ Run
   announce "MESSAGE" [--hours N] [--light]
                                     Tell all machines this one is starting heavy work
   color MACHINE #rrggbb             Set a machine's dashboard colour everywhere
+  dns NAME --token-file F --service-ip IP | dns off
+                                    Keep a Cloudflare A record on whichever dashboard host is up (owner machine)
   label SUB "NEW LABEL"             Rename a subscription (by id or current label) everywhere
   mcp                               MCP server on stdio (registered by install)
   update                            git pull + restart
@@ -210,6 +212,17 @@ async function main() {
       if (!msg) die('usage: plainsight announce "MESSAGE" [--hours N] [--light]');
       const r = await local('POST', '/api/announce', { msg, hours: Number(opt.hours) || 4, heavy: !opt.light });
       return console.log(`announced until ${new Date(r.until).toLocaleString()}`);
+    }
+    case 'dns': {
+      const cfg = loadConfig() || die('not initialised');
+      if (pos[0] === 'off') { delete cfg.dns; writeJSON(paths.config, cfg); return console.log('custom domain follower off (restart: plainsight update or reboot)'); }
+      const tf = opt['token-file'];
+      if (!pos[0] || !tf || tf === true || !opt['service-ip'] || opt['service-ip'] === true) die('usage: plainsight dns NAME --token-file CLOUDFLARE_TOKEN_FILE --service-ip TAILVIP   |   plainsight dns off');
+      const r = await require('../src/dns').lookup(fs.readFileSync(tf, 'utf8').trim(), pos[0]);
+      if (r.proxied) die(`${pos[0]} is proxied (orange cloud); set it to DNS only first`);
+      cfg.dns = { name: pos[0], zoneId: r.zoneId, recordId: r.recordId, serviceIp: opt['service-ip'], tokenFile: path.resolve(tf) };
+      writeJSON(paths.config, cfg);
+      return console.log(`${pos[0]} (now ${r.content}) will follow whichever dashboard host is up: the Service ${opt['service-ip']} when a box hosts it, else this machine. Restart the daemon to start: plainsight update`);
     }
     case 'color': {
       if (pos.length < 2 || !/^#?[0-9a-fA-F]{6}$/.test(pos[1])) die('usage: plainsight color MACHINE #rrggbb');

@@ -9,6 +9,7 @@ const { Collector } = require('./collect');
 const { Syncer, status, tailscale, giveFor, ingestAll } = require('./sync');
 const { summarize } = require('./aggregate');
 const prices = require('./prices');
+const { DnsFollower } = require('./dns');
 const { paths, loadConfig, log, VERSION, PROTOCOL, SERVICE } = require('./util');
 
 const WEB = path.join(__dirname, '..', 'web', 'index.html');
@@ -158,7 +159,10 @@ async function main() {
       const st = await status();
       const becameTagged = st.tagged && !ts.tagged;
       ts = st;
-      if (!st.tagged && st.backend === 'Running' && cfg.serveTailnet !== false) await serveOnTailnet(st);
+      if (!st.tagged && st.backend === 'Running' && cfg.serveTailnet !== false) {
+        await serveOnTailnet(st);
+        if (dns) await dns.tick(st.selfIp);
+      }
       if (becameTagged) {
         // Userspace-networking tailscaled delivers inbound connections to 127.0.0.1.
         for (const host of [st.selfIp, '127.0.0.1']) {
@@ -183,6 +187,8 @@ async function main() {
   // Tailscale-User-Login / X-Forwarded-For, so isLocal() refuses every POST from it.
   // Ports plainsight itself published earlier point at one of these; anything else is not ours.
   const ours = (t) => [VIEW, `127.0.0.1:${cfg.webPort}`].some((hp) => String(t || '').replace(/^\w+:\/\//, '') === hp);
+  // optional custom-domain follower (owner machines only; see src/dns.js)
+  const dns = cfg.dns && cfg.dns.recordId && cfg.tailnetHttpPort !== false ? new DnsFollower(cfg.dns) : null;
   let served = false;
   async function serveOnTailnet(st) {
     if (served) return;

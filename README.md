@@ -127,7 +127,7 @@ Open it at any of:
 - `http://127.0.0.1:4748` on any machine running plainsight
 - `https://plainsight.<your-tailnet>.ts.net` from any device on your tailnet (phone included), while at least one box is online
 - `https://<your-computer>.<your-tailnet>.ts.net:4748` while your own (untagged) computer is on. Its daemon publishes the dashboard there automatically, tailnet-only, so your phone works even when no box is online. `plainsight url` prints the exact address.
-- your custom domain, if you set one up ([docs/TAILNET.md](docs/TAILNET.md#custom-domain))
+- your custom domain, e.g. `http://usage.example.com`, if you set one up. Your computer can keep it pointed at whichever host is up ([docs/TAILNET.md](docs/TAILNET.md#custom-domain)).
 
 Every way in is **read-only**: anything that arrives through Tailscale can only view. To give a phone (yours or someone else's) access to the dashboard and nothing else, see [View-only devices](docs/TAILNET.md#view-only-devices-phones).
 
@@ -214,6 +214,9 @@ Config (`~/.plainsight/config.json`):
 | `webPort` | Dashboard port, 4748 (localhost) |
 | `hostService` | Set `false` to stop this box from hosting the dashboard service |
 | `serveTailnet` | Untagged machines only. Set `false` to stop publishing the dashboard at `https://<this-machine>.<tailnet>.ts.net:4748` |
+| `tailnetHttpPort` | Untagged machines: raw TCP port for custom domains (default 80, `false` disables) |
+| `viewPort` | Local read-only listener that everything on the tailnet is forwarded to (default `webPort + 1`) |
+| `dns` | Custom-domain follower, set by `plainsight dns` |
 | `tailnetPort` | Port for that address (default: `webPort`). plainsight never takes over a port something else already serves, and never a Funnel (public) port |
 | `tracked[]` | `{provider, dir, sub, label, since}` |
 
