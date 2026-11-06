@@ -34,6 +34,9 @@ Tailnet owner (once per pool)
                                     Isolate tag:plainsight, define svc:plainsight via the Tailscale API
   pool key --token-file F [--out FILE] [--days 90]
                                     Mint a reusable, ephemeral, pre-approved tag:plainsight auth key
+  pool key --viewer --token-file F [--out FILE] [--days 30]
+                                    Mint a single-use tag:plainsight-viewer key for one view-only device
+  pool viewer DEVICE --token-file F Make an existing device (name or Tailscale IP) view-only
 
 Data: ${paths.home}   Docs: https://github.com/JayceeGupta/plainsight`;
 
@@ -193,7 +196,11 @@ async function main() {
     case 'url': {
       const cfg = loadConfig() || die('not initialised');
       console.log(`this machine: http://127.0.0.1:${cfg.webPort}`);
-      try { const st = await require('../src/sync').status(); if (st.tailnet) console.log(`tailnet:      https://plainsight.${st.tailnet}  (any device in your tailnet)`); } catch {}
+      try {
+        const st = await require('../src/sync').status();
+        if (st.tailnet) console.log(`tailnet:      https://plainsight.${st.tailnet}  (served by any online box)`);
+        if (!st.tagged && st.selfDns && cfg.serveTailnet !== false) console.log(`this machine on the tailnet: https://${st.selfDns}:${Number(cfg.tailnetPort) || cfg.webPort}  (while this machine is on)`);
+      } catch {}
       console.log('custom domain: whatever DNS name you pointed at the service TailVIP (docs/TAILNET.md)');
       return;
     }
@@ -256,11 +263,17 @@ async function main() {
         return;
       }
       if (pos[0] === 'key') {
-        const file = opt.out && opt.out !== true ? opt.out : path.join(paths.home, 'tailscale-authkey.txt');
-        const r = await pool.mintKey(token, file, Number(opt.days) || 90);
-        return console.log(`Auth key ${r.id} saved to ${r.file} (expires ${r.expires}). It is not printed; hand the file's content to new boxes privately.`);
+        const viewer = !!opt.viewer;
+        const file = opt.out && opt.out !== true ? opt.out : path.join(paths.home, viewer ? 'tailscale-viewer-key.txt' : 'tailscale-authkey.txt');
+        const r = await pool.mintKey(token, file, Number(opt.days) || (viewer ? 30 : 90), viewer);
+        return console.log(`Auth key ${r.id} saved to ${r.file} (expires ${r.expires}). It is not printed; hand the file's content ${viewer ? 'to the one view-only device' : 'to new boxes'} privately.`);
       }
-      return die('usage: plainsight pool bootstrap|key --token-file F');
+      if (pos[0] === 'viewer') {
+        if (!pos[1]) die('usage: plainsight pool viewer DEVICE --token-file F');
+        const r = await pool.makeViewer(token, pos[1]);
+        return console.log(`${r.name} is now tag:plainsight-viewer: it can open the dashboard and nothing else, and nothing can connect to it. Undo: admin console > Machines > ${r.name} > Edit ACL tags.`);
+      }
+      return die('usage: plainsight pool bootstrap|key|viewer --token-file F');
     }
     case undefined: case 'help': case '--help': case '-h': return console.log(HELP);
     case '--version': case 'version': return console.log(VERSION);

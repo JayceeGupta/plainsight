@@ -130,6 +130,7 @@ async function main() {
       const st = await status();
       const becameTagged = st.tagged && !ts.tagged;
       ts = st;
+      if (!st.tagged && st.backend === 'Running' && cfg.serveTailnet !== false) await serveOnTailnet(st);
       if (becameTagged) {
         // Userspace-networking tailscaled delivers inbound connections to 127.0.0.1.
         for (const host of [st.selfIp, '127.0.0.1']) {
@@ -146,6 +147,29 @@ async function main() {
       }
     } catch (e) {
       log('tailscale not available:', e.message);
+    }
+  }
+
+  // Untagged machines (your own computer) publish the dashboard on their own tailnet name so your
+  // other devices (phone) can open it even when no box is online. Read-only: the proxy adds
+  // Tailscale-User-Login / X-Forwarded-For, so isLocal() refuses every POST from it.
+  let served = false;
+  async function serveOnTailnet(st) {
+    if (served) return;
+    const port = Number(cfg.tailnetPort) || cfg.webPort;
+    const target = `http://127.0.0.1:${cfg.webPort}`;
+    try {
+      const cur = JSON.parse((await tailscale(['serve', 'status', '--json'])) || '{}');
+      const used = Object.entries(cur.Web || {}).find(([hp]) => hp.endsWith(`:${port}`));
+      const mine = used && Object.values(used[1].Handlers || {}).some((h) => h.Proxy === target);
+      if (used && !mine) { served = true; return log(`tailnet port ${port} already serves something else; dashboard not published there (set tailnetPort in config)`); }
+      if ((cur.AllowFunnel || {})[`${st.selfDns}:${port}`]) { served = true; return log(`port ${port} is public via Funnel; refusing to publish the dashboard there`); }
+      if (!mine) await tailscale(['serve', '--bg', `--https=${port}`, target], 20000);
+      served = true;
+      log(`dashboard on the tailnet: https://${st.selfDns || st.selfIp}:${port}`);
+    } catch (e) {
+      served = true;
+      log(`tailscale serve failed (dashboard only on this machine): ${e.message}`);
     }
   }
 

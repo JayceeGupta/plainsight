@@ -78,6 +78,7 @@ function summarize(events, q = {}, now = Date.now()) {
   const byModel = new Map();
   const byMachine = new Map();
   const buckets = new Map();
+  const bucketsM = new Map();
   const sessionSets = new Map();
   const sessions = new Map(); // all-time per session, for live view
   const machineSubs = new Map();
@@ -118,12 +119,19 @@ function summarize(events, q = {}, now = Date.now()) {
     const b = buckets.get(bt);
     if (!b[ev.sub]) b[ev.sub] = emptyTotals();
     add(b[ev.sub], ev, c);
+    // per-machine split of the same bucket (dashboard stacks machines inside one subscription)
+    if (!bucketsM.has(bt)) bucketsM.set(bt, {});
+    const bm2 = bucketsM.get(bt);
+    const pm = (bm2[ev.sub] = bm2[ev.sub] || {});
+    const cell = (pm[mname] = pm[mname] || { cost: 0, tokens: 0 });
+    cell.tokens += (ev.in || 0) + (ev.cr || 0) + (ev.cw || 0) + (ev.out || 0);
+    if (c) cell.cost += c.input + c.cacheRead + c.cacheWrite + c.output;
   }
   for (const [sub, set] of sessionSets) bySub.get(sub).totals.sessions = set.size;
 
   // Continuous bucket axis
   const series = [];
-  for (let t = align(from); t <= now; t += step) series.push({ t, v: buckets.get(t) || {} });
+  for (let t = align(from); t <= now; t += step) series.push({ t, v: buckets.get(t) || {}, m: bucketsM.get(t) || {} });
 
   const machines = [...groupMachines(nodes, machineSubs, now).values()]
     .filter((m) => !machF || machF.has(m.nick))
@@ -151,6 +159,8 @@ function summarize(events, q = {}, now = Date.now()) {
     options: {
       subscriptions: [...subs.values()].map(({ sub, label, provider }) => ({ sub, label, provider })),
       machines: [...new Set([...nodes.values()].map((n) => n.nick))].sort(),
+      // oldest first: a machine keeps its dashboard colour when new machines join
+      machineOrder: [...new Set([...nodes.values()].sort((a, b) => a.firstSeen - b.firstSeen).map((n) => n.nick))],
       providers: [...new Set(usage.map((e) => e.p))].sort(),
     },
   };

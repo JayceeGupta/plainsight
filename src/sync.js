@@ -37,6 +37,7 @@ async function status() {
     backend: j.BackendState,
     selfIp: v4(self.TailscaleIPs),
     selfName: self.HostName,
+    selfDns: (self.DNSName || '').replace(/\.$/, ''),
     tagged: (self.Tags || []).includes(TAG),
     tailnet: (j.CurrentTailnet || {}).MagicDNSSuffix || null,
     peers,
