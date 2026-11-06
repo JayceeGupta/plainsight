@@ -161,7 +161,7 @@ Expect:
 - sync OK with each online peer
 - on boxes: hosting `svc:plainsight`
 
-The dashboard is at `http://127.0.0.1:4748` locally. Inside the tailnet it is at `https://plainsight.<tailnet>.ts.net` and at any custom domain.
+The dashboard is at `http://127.0.0.1:4748` locally. Inside the tailnet it is at `https://plainsight.<tailnet>.ts.net` and at any custom domain. On an untagged (owner) machine the daemon also publishes it, tailnet-only, at `https://<machine>.<tailnet>.ts.net:4748`, so phones work with no box online; `plainsight url` prints it. To give a phone view-only access (dashboard and nothing else), follow docs/TAILNET.md "View-only devices"; tagging the owner's own phone cuts it off from their other devices, so ask first.
 
 The first box hosting the service may show "not hosting" for a minute until Tailscale approves it (auto-approved by the pool policy).
 

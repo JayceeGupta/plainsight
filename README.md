@@ -125,8 +125,13 @@ Agents should follow [skills/plainsight-setup/SKILL.md](skills/plainsight-setup/
 
 Open it at any of:
 - `http://127.0.0.1:4748` on any machine running plainsight
-- `https://plainsight.<your-tailnet>.ts.net` from any device on your tailnet (phone included)
+- `https://plainsight.<your-tailnet>.ts.net` from any device on your tailnet (phone included), while at least one box is online
+- `https://<your-computer>.<your-tailnet>.ts.net:4748` while your own (untagged) computer is on. Its daemon publishes the dashboard there automatically, tailnet-only, so your phone works even when no box is online. `plainsight url` prints the exact address.
 - your custom domain, if you set one up ([docs/TAILNET.md](docs/TAILNET.md#custom-domain))
+
+Every way in is **read-only**: anything that arrives through Tailscale can only view. To give a phone (yours or someone else's) access to the dashboard and nothing else, see [View-only devices](docs/TAILNET.md#view-only-devices-phones).
+
+The page is built for phones too. Open it once and use the browser's *Add to Home screen* for a full-screen black app.
 
 **Top bar:**
 - **Filters:** `plainsight / Subscriptions ▾ / Machines ▾ / Providers ▾` (multi-select).
@@ -137,10 +142,11 @@ Open it at any of:
 **Sections:**
 - **Announcements:** heavy-work banners with machine, operator, message and end time.
 - **Using it right now:** sessions active in the last 10 minutes. Shows machine, subscription, model, how long the current stretch of activity has run, time since last activity, tokens and cost.
-- **Headline and chart:** one subscription selected shows its total. Several selected shows each separately, with a chart stacked by subscription and a hover tooltip.
-- **Totals:** a table with one row per subscription: processed tokens, cached input, uncached input, cache write, output, cost and cache savings.
+- **Machine colours:** every machine gets its own colour, assigned oldest-first so it never changes as machines come and go. It is used in the chart, the filter menu, the live cards, the breakdown and the machine cards.
+- **Headline and chart:** the total per subscription with a per-machine split. One chart per subscription, stacked by machine, with a tooltip (hover, or tap on a phone).
+- **Totals:** per subscription: processed tokens, cached input, uncached input, output and cache savings.
 - **Cost or tokens by type:** one bar per subscription.
-- **Breakdown:** by model, by day or hour, or by machine. Shares are computed within each subscription.
+- **Breakdown:** by model, by machine, or by day or hour. Shares are computed within each subscription. Click a model for its detail: cost, tokens, cost per 1M tokens, cache hit rate, cost and tokens by type.
 - **Machines:** online state, last seen, operator, OS, version, subscriptions used.
 
 Filters, period and metric are remembered per browser.
@@ -207,6 +213,8 @@ Config (`~/.plainsight/config.json`):
 | `port` | Sync port, 4747 |
 | `webPort` | Dashboard port, 4748 (localhost) |
 | `hostService` | Set `false` to stop this box from hosting the dashboard service |
+| `serveTailnet` | Untagged machines only. Set `false` to stop publishing the dashboard at `https://<this-machine>.<tailnet>.ts.net:4748` |
+| `tailnetPort` | Port for that address (default: `webPort`). plainsight never takes over a port something else already serves, and never a Funnel (public) port |
 | `tracked[]` | `{provider, dir, sub, label, since}` |
 
 ---
@@ -258,8 +266,9 @@ The first daemon start reads every existing transcript, so the dashboard has his
   - The policy contains tests, so a future edit that breaks this is rejected by Tailscale.
 - **Listeners:**
   - Sync listens only on the box's Tailscale IP and 127.0.0.1.
-  - The dashboard listens only on 127.0.0.1 and is exposed through `tailscale serve`.
-- **Read-only from outside.** Control endpoints (announce, stop) only accept direct localhost requests. They refuse anything arriving through the Tailscale Service proxy.
+  - The dashboard listens only on 127.0.0.1 and is exposed through `tailscale serve`: the Service on boxes, and `https://<computer>.<tailnet>.ts.net:4748` on untagged machines. Both are tailnet-only, never Funnel.
+  - View-only devices (`tag:plainsight-viewer`) can open the dashboard and nothing else, and nothing can connect to them.
+- **Read-only from outside.** Control endpoints (announce, stop) only accept direct localhost requests. They refuse anything arriving through a `tailscale serve` proxy.
 - **Incoming events are validated:** schema, sizes, sequence numbers, no writing as another machine's own origin.
 - **Trust:**
   - Every box in the pool is trusted to report honestly. A malicious box could publish fake numbers for its own origin; it cannot alter other machines' history.

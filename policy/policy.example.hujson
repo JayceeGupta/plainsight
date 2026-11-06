@@ -4,6 +4,8 @@
 	"tagOwners": {
 		// Only admins may tag devices (and mint tagged auth keys).
 		"tag:plainsight": ["autogroup:admin"],
+		// View-only devices (e.g. phones): the dashboard and nothing else.
+		"tag:plainsight-viewer": ["autogroup:admin"],
 	},
 
 	"hosts": {
@@ -24,6 +26,11 @@
 
 		// Your computer reaches boxes fully. Boxes cannot initiate back to it.
 		{"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["*"]},
+
+		// View-only devices: the dashboard service and your computer's dashboard port, nothing else.
+		// No grant has them as dst, so nothing can open a connection to them.
+		{"src": ["tag:plainsight-viewer"], "dst": ["svc:plainsight"], "ip": ["tcp:80", "tcp:443"]},
+		{"src": ["tag:plainsight-viewer"], "dst": ["plainsight-admin"], "ip": ["tcp:4748"]},
 	],
 
 	"autoApprovers": {
@@ -37,5 +44,6 @@
 	"tests": [
 		{"src": "tag:plainsight", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22", "100.x.y.z:445"]},
 		{"src": "100.x.y.z", "accept": ["tag:plainsight:4747", "tag:plainsight:22"]},
+		{"src": "tag:plainsight-viewer", "accept": ["100.x.y.z:4748"], "deny": ["tag:plainsight:4747", "tag:plainsight:22", "100.x.y.z:22", "100.x.y.z:445", "100.x.y.z:443"]},
 	],
 }

@@ -92,6 +92,49 @@ Your own computer (untagged) can also share its usage. It never accepts connecti
 
 ---
 
+## View-only devices (phones)
+
+There are two ways to look at the dashboard from a phone. Pick one per device.
+
+| | Your own phone, as it is | View-only device (`tag:plainsight-viewer`) |
+|---|---|---|
+| Who | A device logged into Tailscale as you | Your phone, or someone else's |
+| Can open the dashboard | Yes | Yes |
+| Can reach anything else | Your other devices, as before | Nothing |
+| Can be reached | By your other devices, as before | By nothing |
+| Setup | None | One command (needs an API token) |
+
+Either way the dashboard is **read-only**: requests that come through Tailscale cannot announce, stop or change anything.
+
+The dashboard is at:
+- `https://plainsight.<tailnet>.ts.net` while a box is online, and
+- `https://<your-computer>.<tailnet>.ts.net:4748` while your computer is on. The daemon on any untagged machine publishes this automatically, tailnet-only. `plainsight url` prints both.
+
+### Make an existing device view-only
+
+```sh
+# the policy must include the viewer rules: re-run bootstrap once after updating plainsight
+node ~/.plainsight/app/bin/plainsight.js pool bootstrap --token-file ~/.plainsight/ts-api-token --admin-ip 100.x.y.z --apply --force
+node ~/.plainsight/app/bin/plainsight.js pool viewer <device-name-or-tailscale-ip> --token-file ~/.plainsight/ts-api-token
+```
+
+The device is re-tagged `tag:plainsight-viewer`. **A tagged device stops being "yours" in Tailscale**: it loses access to your other devices and to exit nodes. Only do this to a phone that should do nothing but view the dashboard. Undo: admin console → Machines → the device → *Edit ACL tags* → remove the tag.
+
+### Add someone else's phone (view-only)
+
+1. Mint a single-use viewer key (30 days by default, `--days N` to change):
+   ```sh
+   node ~/.plainsight/app/bin/plainsight.js pool key --viewer --token-file ~/.plainsight/ts-api-token
+   ```
+   It is saved to `~/.plainsight/tailscale-viewer-key.txt` and never printed.
+2. Send the key privately. On the phone, install Tailscale and log in **with the auth key** instead of an account. On Android: sign-in screen → ⋮ menu → *Use an auth key*. If the app offers no auth-key login, invite the person to your tailnet as a user instead and run `pool viewer` on their device.
+3. Open `https://plainsight.<tailnet>.ts.net` (or your computer's address) and *Add to Home screen*.
+4. Remove access any time: admin console → Machines → the device → *Remove*.
+
+Each key joins exactly one device. Viewer devices are not ephemeral, so they stay listed while offline.
+
+---
+
 ## Custom domain
 
 `svc:plainsight` has a fixed tailnet IP (TailVIP). Find it in the admin console → Services, or in the output of `pool bootstrap --apply`.
