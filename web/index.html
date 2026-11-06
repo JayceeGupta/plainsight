@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plainsight</title>
+<meta name="color-scheme" content="dark light">
+<style>
+:root {
+  --bg: #000; --panel: #0c0c0c; --raised: #151515; --line: #232323; --line2: #2e2e2e;
+  --text: #f2f2f2; --muted: #9a9a9a; --faint: #6b6b6b; --accent: #e8794a; --ok: #4ade80; --warn: #f5b041; --bad: #f87171;
+  --font: ui-sans-serif, "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --bg: #fafafa; --panel: #fff; --raised: #f1f1f1; --line: #e6e6e6; --line2: #d9d9d9; --text: #111; --muted: #5f5f5f; --faint: #8a8a8a; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px 60px; }
+header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1240px; margin: 0 auto; padding: 12px 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.crumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 260px; }
+.brand { font-weight: 650; letter-spacing: -.01em; }
+.sep { color: var(--faint); }
+.dd { position: relative; }
+.dd > button { font-weight: 560; padding: 4px 6px; border-radius: 6px; }
+.dd > button:hover, .dd.open > button { background: var(--raised); }
+.dd > button::after { content: "▾"; color: var(--muted); margin-left: 6px; font-size: 11px; }
+.menu { display: none; position: absolute; top: calc(100% + 6px); left: 0; min-width: 240px; max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--line2); border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.dd.open .menu { display: block; }
+.menu label { display: flex; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.menu label:hover { background: var(--raised); }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.menu .sub { color: var(--muted); font-size: 12px; margin-left: auto; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
+.seg button { padding: 4px 11px; border-radius: 6px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); font-weight: 560; }
+.icon-btn { padding: 6px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+.icon-btn[aria-pressed="true"] { color: var(--text); border-color: var(--ok); }
+.livedot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); margin-right: 6px; vertical-align: 1px; }
+.icon-btn[aria-pressed="true"] .livedot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+section { margin-top: 28px; }
+h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+.muted { color: var(--muted); } .faint { color: var(--faint); }
+.num { font-variant-numeric: tabular-nums; }
+.banner { margin-top: 18px; display: grid; gap: 8px; }
+.ann { border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); background: color-mix(in srgb, var(--warn) 8%, var(--panel)); border-radius: 10px; padding: 10px 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.ann b { color: var(--warn); }
+.live { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.lc .top { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.lc .meta { color: var(--muted); font-size: 13px; margin-top: 6px; display: grid; gap: 2px; }
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: p 1.6s infinite; flex: none; }
+.idle { background: var(--warn); animation: none; }
+@keyframes p { 50% { opacity: .35; } }
+.grid { display: grid; grid-template-columns: minmax(280px, 400px) 1fr; gap: 36px; margin-top: 30px; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.hero { font-size: 52px; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; }
+.subs { margin-top: 24px; display: grid; gap: 20px; }
+.srow { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; }
+.srow .name { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 560; min-width: 0; }
+.srow .name span.l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow .val { font-size: 17px; font-weight: 620; text-align: right; }
+.srow .det { grid-column: 1 / -1; color: var(--muted); font-size: 14px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.glyph { font-size: 15px; width: 18px; text-align: center; flex: none; }
+.chart { position: relative; }
+.chart svg { width: 100%; height: 300px; display: block; overflow: visible; }
+.chart .axis text { fill: var(--faint); font-size: 11px; font-family: var(--font); }
+.chart .grid line { stroke: var(--line); }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: none; min-width: 170px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.tip .r { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; color: var(--muted); font-weight: 500; font-size: 13px; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 12px 8px; border-bottom: 1px solid var(--line); }
+th.r, td.r { text-align: right; }
+.tbl { overflow-x: auto; }
+.model { display: inline-flex; flex-direction: column; gap: 6px; }
+.share { height: 2px; border-radius: 2px; }
+.typebar { display: flex; height: 9px; border-radius: 5px; overflow: hidden; background: var(--raised); max-width: 640px; }
+.typebar i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.legend b { color: var(--text); font-weight: 560; margin-left: 4px; }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.machines { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.status { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.on { background: var(--ok); } .off { background: var(--faint); }
+.head2 { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.empty { color: var(--muted); padding: 18px; border: 1px dashed var(--line2); border-radius: 12px; }
+footer { margin-top: 40px; color: var(--faint); font-size: 13px; }
+.err { color: var(--bad); margin-top: 16px; }
+@media (max-width: 600px) { .hero { font-size: 40px; } .wrap, .bar { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <nav class="crumbs" aria-label="Filters">
+      <span class="brand">plainsight</span><span class="sep">/</span>
+      <div class="dd" id="dd-subs"><button type="button" aria-haspopup="true">All subscriptions</button><div class="menu" role="menu"></div></div>
+      <span class="sep">/</span>
+      <div class="dd" id="dd-machines"><button type="button" aria-haspopup="true">All machines</button><div class="menu" role="menu"></div></div>
+      <span class="sep">/</span>
+      <div class="dd" id="dd-providers"><button type="button" aria-haspopup="true">All providers</button><div class="menu" role="menu"></div></div>
+    </nav>
+    <div class="seg" id="range" role="group" aria-label="Period">
+      <button data-v="5h" title="Matches the 5-hour rolling limit window">5h</button><button data-v="24h">24h</button><button data-v="7d">7 days</button><button data-v="30d">30 days</button><button data-v="90d">90 days</button>
+    </div>
+    <div class="seg" id="metric" role="group" aria-label="Metric"><button data-v="cost">Cost</button><button data-v="tokens">Tokens</button></div>
+    <button class="icon-btn" id="liveBtn" aria-pressed="false" title="Stream updates as they happen"><span class="livedot"></span>Live</button>
+    <button class="icon-btn" id="refresh" title="Refresh">↻</button>
+  </div>
+</header>
+<main class="wrap">
+  <div class="banner" id="anns"></div>
+  <section id="liveSec">
+    <div class="head2"><h2>Using it right now</h2><span class="muted" id="liveNote"></span></div>
+    <div class="live" id="live"></div>
+  </section>
+  <div class="grid">
+    <div>
+      <div class="hero num" id="hero">…</div>
+      <div class="muted" id="heroSub"></div>
+      <div class="subs" id="subs"></div>
+    </div>
+    <div>
+      <h2 id="chartTitle">Daily cost</h2>
+      <div class="chart" id="chart"><svg id="svg" role="img"></svg><div class="tip" id="tip"></div></div>
+    </div>
+  </div>
+  <section>
+    <h2>Totals</h2>
+    <div class="tbl"><table id="totals"></table></div>
+  </section>
+  <section>
+    <h2 id="typeTitle">Cost by type</h2>
+    <div id="types"></div>
+  </section>
+  <section>
+    <div class="head2"><h2>Breakdown</h2><div class="seg" id="bd" role="group" aria-label="Breakdown"><button data-v="model">Model</button><button data-v="time">Day</button><button data-v="machine">Machine</button></div></div>
+    <div class="tbl"><table id="breakdown"></table></div>
+  </section>
+  <section>
+    <h2>Machines</h2>
+    <div class="machines" id="machines"></div>
+  </section>
+  <div class="err" id="err"></div>
+  <footer id="foot"></footer>
+</main>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const PALETTE = ['#e8794a', '#5aa9e6', '#e5e5e5', '#a78bfa', '#4ade80', '#facc15', '#f472b6', '#2dd4bf'];
+const GLYPH = { claude: '✳', codex: '◎' };
+const store = { get(k, d) { try { const v = localStorage.getItem('ps:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('ps:' + k, JSON.stringify(v)); } catch {} } };
+const S = { range: store.get('range', '7d'), metric: store.get('metric', 'cost'), bd: store.get('bd', 'model'), subs: store.get('subs', []), machines: store.get('machines', []), providers: store.get('providers', []), live: store.get('live', false) };
+let data = null, colors = {}, es = null;
+
+const fmtN = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 2).replace(/\.00$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K' : String(Math.round(n));
+const fmtC = (n) => '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const val = (t) => S.metric === 'cost' ? t.cost : t.tokens;
+const fmtV = (n) => S.metric === 'cost' ? fmtC(n) : fmtN(n);
+const dur = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`; };
+const ago = (ms) => ms < 60e3 ? 'just now' : ms < 3600e3 ? Math.round(ms / 60e3) + 'm ago' : ms < 864e5 ? Math.round(ms / 3600e3) + 'h ago' : Math.round(ms / 864e5) + 'd ago';
+const color = (sub) => colors[sub] || '#888';
+const subLabel = (sub) => (data.options.subscriptions.find((s) => s.sub === sub) || { label: sub.slice(0, 6) }).label;
+
+function seg(id, key, onChange) {
+  const el = $(id);
+  const paint = () => el.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === S[key])));
+  el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.v; store.set(key, S[key]); paint(); onChange(); });
+  paint();
+}
+
+function dropdown(id, key, items, allLabel, noun) {
+  const dd = $(id), btn = dd.querySelector('button'), menu = dd.querySelector('.menu');
+  const sel = new Set(S[key].filter((v) => items.some((i) => i.v === v)));
+  btn.textContent = !sel.size ? allLabel : sel.size === 1 ? items.find((i) => sel.has(i.v)).label : `${sel.size} ${noun}`;
+  menu.innerHTML = `<label><input type="checkbox" data-all ${sel.size ? '' : 'checked'}> ${esc(allLabel)}</label><hr>` +
+    items.map((i) => `<label><input type="checkbox" value="${esc(i.v)}" ${sel.has(i.v) ? 'checked' : ''}> ${i.html || esc(i.label)}${i.note ? `<span class="sub">${esc(i.note)}</span>` : ''}</label>`).join('');
+  menu.onchange = (e) => {
+    if (e.target.dataset.all !== undefined) S[key] = [];
+    else S[key] = [...menu.querySelectorAll('input[value]:checked')].map((x) => x.value);
+    store.set(key, S[key]);
+    load();
+  };
+}
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.dd').forEach((dd) => { if (dd.contains(e.target)) { if (e.target.closest('button') && e.target.closest('.dd > button')) dd.classList.toggle('open'); } else dd.classList.remove('open'); });
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.dd').forEach((d) => d.classList.remove('open')); });
+
+async function load() {
+  const p = new URLSearchParams({ range: S.range, tz: String(new Date().getTimezoneOffset()) });
+  if (S.subs.length) p.set('subs', S.subs.join(','));
+  if (S.machines.length) p.set('machines', S.machines.join(','));
+  if (S.providers.length) p.set('providers', S.providers.join(','));
+  try {
+    const r = await fetch('/api/summary?' + p);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    data = await r.json();
+    $('err').textContent = '';
+    render();
+  } catch (e) { $('err').textContent = 'Could not load data: ' + e.message; }
+}
+
+function render() {
+  const all = data.options.subscriptions;
+  all.forEach((s, i) => { colors[s.sub] = PALETTE[i % PALETTE.length]; });
+  dropdown('dd-subs', 'subs', all.map((s) => ({ v: s.sub, label: s.label, html: `<span class="dot" style="background:${color(s.sub)}"></span><span class="glyph">${GLYPH[s.provider] || '•'}</span>${esc(s.label)}`, note: s.provider })), 'All subscriptions', 'subscriptions');
+  dropdown('dd-machines', 'machines', data.options.machines.map((m) => ({ v: m, label: m })), 'All machines', 'machines');
+  dropdown('dd-providers', 'providers', data.options.providers.map((p) => ({ v: p, label: p === 'claude' ? 'Claude Code' : p === 'codex' ? 'Codex' : p, html: `<span class="glyph">${GLYPH[p] || '•'}</span>${p === 'claude' ? 'Claude Code' : p === 'codex' ? 'Codex' : esc(p)}` })), 'All providers', 'providers');
+  renderAnns(); renderLive(); renderHero(); renderChart(); renderTotals(); renderTypes(); renderBreakdown(); renderMachines();
+  const online = data.machines.filter((m) => m.online).length;
+  $('foot').innerHTML = `API-equivalent estimate from public model prices; subscriptions are billed flat. ${data.machines.length} machines known, ${online} online. Served by <b>${esc(data.self.nick)}</b>. Each subscription is shown separately and never added to another.`;
+}
+
+function renderAnns() {
+  $('anns').innerHTML = data.announcements.map((a) => `<div class="ann"><b>${a.heavy ? 'Heavy work' : 'Heads up'}</b><span><b style="color:var(--text)">${esc(a.machine)}</b>${a.op ? ` (${esc(a.op)})` : ''}: ${esc(a.msg)}</span><span class="muted">until ${new Date(a.until).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${a.heavy ? ' · the 5h limit will likely be used up' : ''}</span></div>`).join('');
+}
+
+function renderLive() {
+  const now = Date.now();
+  $('liveNote').textContent = data.live.length ? '' : 'nobody in the last 10 minutes';
+  $('live').innerHTML = data.live.length ? data.live.map((s) => {
+    const active = now - s.last < 3 * 60e3;
+    return `<div class="card lc"><div class="top"><span class="pulse ${active ? '' : 'idle'}"></span>${esc(s.machine)}<span class="faint" style="font-weight:400">·</span><span class="dot" style="background:${color(s.sub)}"></span><span style="font-weight:500">${esc(s.label)}</span></div>
+      <div class="meta"><span>${esc(s.model)}</span><span>running <b class="num" data-since="${s.streak}">${dur(now - s.streak)}</b>${s.start < s.streak ? ` <span class="faint">(session from ${ago(now - s.start)})</span>` : ''} · last activity <span data-ago="${s.last}">${ago(now - s.last)}</span></span><span class="num">${fmtN(s.totals.tokens)} tokens · ${fmtC(s.totals.cost)}</span></div></div>`;
+  }).join('') : '<div class="empty">Nobody is using any tracked subscription right now.</div>';
+}
+
+function renderHero() {
+  const subs = data.subscriptions;
+  const unit = S.metric === 'cost' ? 'cost' : 'tokens';
+  if (subs.length === 1) {
+    const t = subs[0].totals;
+    $('hero').textContent = fmtV(val(t));
+    $('heroSub').innerHTML = `${t.sessions} sessions${S.metric === 'cost' ? ' · API estimate' : ''} · ${esc(subs[0].label)}`;
+  } else {
+    $('hero').textContent = subs.length ? `${subs.length} subscriptions` : 'No usage';
+    $('heroSub').textContent = subs.length ? 'Shown separately, never added together' : `Nothing recorded in the last ${data.range}`;
+  }
+  $('subs').innerHTML = subs.map((s) => {
+    const t = s.totals;
+    const machines = data.machineUsage.filter((m) => m.sub === s.sub);
+    return `<div class="srow"><div class="name"><span class="dot" style="background:${color(s.sub)}"></span><span class="glyph">${GLYPH[s.provider] || '•'}</span><span class="l">${esc(s.label)}</span><span class="muted" style="font-size:14px;font-weight:400">${t.sessions} sessions</span></div>
+      <div class="val num">${fmtV(val(t))}</div>
+      <div class="det num">${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''} · ${machines.map((m) => esc(m.machine)).join(', ')}</div></div>`;
+  }).join('');
+}
+
+function renderChart() {
+  const svg = $('svg'), tip = $('tip');
+  const W = svg.clientWidth || 800, H = 300, L = 64, R = 8, T = 10, B = 26;
+  const step = data.step, series = data.series;
+  const keys = data.subscriptions.map((s) => s.sub);
+  const label = step >= 864e5 ? 'Daily' : step >= 3600e3 ? 'Hourly' : step >= 900e3 ? '15-minute' : '5-minute';
+  $('chartTitle').textContent = `${label} ${S.metric === 'cost' ? 'cost' : 'processed tokens'}`;
+  const stacks = series.map((b) => { let acc = 0; return keys.map((k) => { const v = b.v[k] ? val(b.v[k]) : 0; const y0 = acc; acc += v; return [y0, acc]; }); });
+  const max = Math.max(1e-9, ...stacks.map((s) => (s.length ? s[s.length - 1][1] : 0)));
+  const nice = niceMax(max);
+  const x = (i) => L + (series.length <= 1 ? 0 : (i * (W - L - R)) / (series.length - 1));
+  const y = (v) => T + (H - T - B) * (1 - v / nice);
+  let g = '<g class="grid">';
+  for (let i = 0; i <= 4; i++) { const v = (nice * i) / 4; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`; }
+  g += '</g><g class="axis">';
+  for (let i = 0; i <= 4; i++) { const v = (nice * i) / 4; g += `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : fmtV(v)}</text>`; }
+  const ticks = [0, Math.floor((series.length - 1) / 2), series.length - 1].filter((v, i, a) => a.indexOf(v) === i && v >= 0);
+  for (const i of ticks) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === series.length - 1 ? 'end' : 'middle'}">${esc(tickLabel(series[i].t, step))}</text>`;
+  g += '</g>';
+  let paths = '';
+  keys.forEach((k, ki) => {
+    const top = stacks.map((s, i) => `${x(i)},${y(s[ki][1])}`);
+    const bot = stacks.map((s, i) => `${x(i)},${y(s[ki][0])}`).reverse();
+    const c = color(k);
+    paths += `<path d="M${top.join('L')}L${bot.join('L')}Z" fill="${c}" fill-opacity="0.13"/><path d="M${top.join('L')}" fill="none" stroke="${c}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('aria-label', `${label} ${S.metric} by subscription`);
+  svg.innerHTML = g + paths + `<line id="cursor" y1="${T}" y2="${H - B}" stroke="var(--line2)" visibility="hidden"/>`;
+  svg.onmousemove = (e) => {
+    const rect = svg.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * W;
+    const i = Math.max(0, Math.min(series.length - 1, Math.round(((px - L) / (W - L - R)) * (series.length - 1))));
+    const cur = svg.querySelector('#cursor');
+    cur.setAttribute('x1', x(i)); cur.setAttribute('x2', x(i)); cur.setAttribute('visibility', 'visible');
+    const b = series[i];
+    tip.innerHTML = `<div class="muted" style="margin-bottom:4px">${esc(tickLabel(b.t, step, true))}</div>` + (keys.length ? keys.map((k) => `<div class="r"><span><span class="sw" style="background:${color(k)}"></span>${esc(subLabel(k))}</span><b class="num">${fmtV(b.v[k] ? val(b.v[k]) : 0)}</b></div>`).join('') : '<span class="muted">no data</span>');
+    tip.style.display = 'block';
+    const left = (x(i) / W) * rect.width;
+    tip.style.left = Math.min(rect.width - tip.offsetWidth, Math.max(0, left + 12)) + 'px';
+    tip.style.top = '10px';
+  };
+  svg.onmouseleave = () => { tip.style.display = 'none'; const c = svg.querySelector('#cursor'); if (c) c.setAttribute('visibility', 'hidden'); };
+}
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p; return 10 * p; }
+function tickLabel(t, step, long) {
+  const d = new Date(t);
+  if (step >= 864e5) return d.toLocaleDateString([], { month: 'short', day: 'numeric', ...(long ? { weekday: 'short' } : {}) }).toUpperCase();
+  return d.toLocaleTimeString([], { hour: 'numeric', ...(step < 3600e3 || long ? { minute: '2-digit' } : {}) }).toUpperCase();
+}
+
+function renderTotals() {
+  const rows = data.subscriptions;
+  $('totals').innerHTML = rows.length ? `<thead><tr><th>Subscription</th><th class="r">Processed tokens</th><th class="r">Cached input</th><th class="r">Uncached input</th><th class="r">Cache write</th><th class="r">Output</th><th class="r">Cost</th><th class="r">Cache savings</th></tr></thead><tbody>` +
+    rows.map((s) => { const t = s.totals; return `<tr><td><span class="dot" style="display:inline-block;background:${color(s.sub)};margin-right:8px"></span>${esc(s.label)}</td><td class="r num">${fmtN(t.tokens)}</td><td class="r num">${fmtN(t.cr)}</td><td class="r num">${fmtN(t.in)}</td><td class="r num">${fmtN(t.cw)}</td><td class="r num">${fmtN(t.out)}</td><td class="r num">${fmtC(t.cost)}</td><td class="r num">${fmtC(t.savings)}</td></tr>`; }).join('') + '</tbody>'
+    : '<tbody><tr><td class="muted">No usage in this period.</td></tr></tbody>';
+}
+
+function renderTypes() {
+  const cost = S.metric === 'cost';
+  $('typeTitle').textContent = cost ? 'Cost by type' : 'Tokens by type';
+  const parts = (t) => cost
+    ? [['Input', t.costInput, '#8a8a8a'], ['Cache read', t.costCacheRead, '#4b4b4b'], ['Cache write', t.costCacheWrite, '#bdbdbd'], ['Output', t.costOutput, '#f2f2f2']]
+    : [['Input', t.in, '#8a8a8a'], ['Cache read', t.cr, '#4b4b4b'], ['Cache write', t.cw, '#bdbdbd'], ['Output', t.out, '#f2f2f2']];
+  $('types').innerHTML = data.subscriptions.map((s) => {
+    const p = parts(s.totals); const sum = p.reduce((a, b) => a + b[1], 0) || 1;
+    return `<div style="margin-bottom:18px">${data.subscriptions.length > 1 ? `<div style="margin-bottom:8px"><span class="dot" style="display:inline-block;background:${color(s.sub)};margin-right:8px"></span>${esc(s.label)}</div>` : ''}
+      <div class="typebar">${p.map(([, v, c]) => `<i style="width:${(v / sum) * 100}%;background:${c}"></i>`).join('')}</div>
+      <div class="legend">${p.map(([n, v, c]) => `<span><span class="sw" style="background:${c}"></span>${n}<b class="num">${cost ? fmtC(v) : fmtN(v)}</b></span>`).join('')}</div></div>`;
+  }).join('') || '<div class="muted">No usage in this period.</div>';
+}
+
+function renderBreakdown() {
+  const day = data.step >= 864e5;
+  $('bd').querySelector('[data-v="time"]').textContent = day ? 'Day' : 'Time';
+  const subTot = Object.fromEntries(data.subscriptions.map((s) => [s.sub, val(s.totals)]));
+  let rows = [];
+  if (S.bd === 'model') rows = data.models.map((m) => ({ sub: m.sub, name: m.model, glyph: GLYPH[m.provider], t: m.totals, priced: m.priced }));
+  else if (S.bd === 'machine') rows = data.machineUsage.map((m) => ({ sub: m.sub, name: m.machine, t: m.totals, priced: true }));
+  else rows = data.series.slice().reverse().flatMap((b) => Object.entries(b.v).map(([sub, t]) => ({ sub, name: tickLabel(b.t, data.step, true), t, priced: true })));
+  rows.sort((a, b) => S.bd === 'time' ? 0 : val(b.t) - val(a.t) || b.t.tokens - a.t.tokens);
+  const multi = data.subscriptions.length > 1;
+  $('breakdown').innerHTML = rows.length ? `<thead><tr><th>#</th><th>${S.bd === 'model' ? 'Model' : S.bd === 'machine' ? 'Machine' : day ? 'Day' : 'Time'}</th>${multi ? '<th>Subscription</th>' : ''}<th class="r">Cost</th><th class="r">Share</th><th class="r">Tokens</th></tr></thead><tbody>` +
+    rows.map((r, i) => {
+      const share = subTot[r.sub] ? val(r.t) / subTot[r.sub] : 0;
+      return `<tr><td class="muted">${i + 1}</td><td><span class="model"><span>${r.glyph ? `<span class="glyph" style="color:${color(r.sub)}">${r.glyph}</span> ` : ''}${esc(r.name)}</span><span class="share" style="width:${Math.max(2, share * 260)}px;background:${color(r.sub)}"></span></span></td>${multi ? `<td class="muted">${esc(subLabel(r.sub))}</td>` : ''}<td class="r num">${r.priced ? fmtC(r.t.cost) : '<span class="muted">Unpriced</span>'}</td><td class="r num">${(share * 100).toFixed(1)}%</td><td class="r num">${fmtN(r.t.tokens)}</td></tr>`;
+    }).join('') + '</tbody>' : '<tbody><tr><td class="muted">No usage in this period.</td></tr></tbody>';
+}
+
+function renderMachines() {
+  const now = Date.now();
+  $('machines').innerHTML = data.machines.map((m) => `<div class="card"><div style="font-weight:600"><span class="status ${m.online ? 'on' : 'off'}"></span>${esc(m.nick)}${m.nick === data.self.nick ? ' <span class="faint" style="font-weight:400">(serving this page)</span>' : ''}</div>
+    <div class="muted" style="font-size:13px;margin-top:6px">${m.online ? 'online' : 'offline · last seen ' + ago(now - m.lastSeen)}${m.op ? ' · ' + esc(m.op) : ''}<br>${esc(m.os || '')}${m.ver ? ' · v' + esc(m.ver) : ''}<br>${m.subs.map((s) => `<span class="dot" style="display:inline-block;background:${color(s)};margin-right:4px"></span>${esc(subLabel(s))}`).join(' &nbsp;') || 'no usage yet'}</div></div>`).join('') || '<div class="empty">No machines yet.</div>';
+}
+
+function setLive(on) {
+  S.live = on; store.set('live', on);
+  $('liveBtn').setAttribute('aria-pressed', String(on));
+  if (es) { es.close(); es = null; }
+  if (on) {
+    let pending = null;
+    es = new EventSource('/api/live');
+    es.addEventListener('change', () => { if (!pending) pending = setTimeout(() => { pending = null; load(); }, 800); });
+  }
+}
+
+seg('range', 'range', load);
+seg('metric', 'metric', () => data && render());
+seg('bd', 'bd', () => data && renderBreakdown());
+$('liveBtn').onclick = () => setLive(!S.live);
+$('refresh').onclick = load;
+setLive(S.live);
+load();
+setInterval(() => {
+  const now = Date.now();
+  document.querySelectorAll('[data-since]').forEach((el) => { el.textContent = dur(now - Number(el.dataset.since)); });
+  document.querySelectorAll('[data-ago]').forEach((el) => { el.textContent = ago(now - Number(el.dataset.ago)); });
+}, 1000);
+setInterval(() => { if (!S.live) load(); }, 60e3);
+addEventListener('resize', () => data && renderChart());
+</script>
+</body>
+</html>

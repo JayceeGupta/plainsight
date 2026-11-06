@@ -1,0 +1,41 @@
+// plainsight tailnet policy (example). Merge into your existing policy; keep your own ssh/nodeAttrs/etc.
+// Replace 100.x.y.z with your own computer's Tailscale IP, or delete the plainsight-admin lines.
+{
+	"tagOwners": {
+		// Only admins may tag devices (and mint tagged auth keys).
+		"tag:plainsight": ["autogroup:admin"],
+	},
+
+	"hosts": {
+		// Your own computer: may reach boxes fully and share its own usage by dialing out.
+		"plainsight-admin": "100.x.y.z",
+	},
+
+	"grants": [
+		// Your devices reach each other and the internet (exit nodes), but NOT plainsight boxes directly.
+		// (Replaces Tailscale's default {"src":["*"],"dst":["*"],"ip":["*"]}.)
+		{"src": ["autogroup:member"], "dst": ["autogroup:member", "autogroup:internet"], "ip": ["*"]},
+
+		// Your devices open the dashboard only through the Tailscale Service.
+		{"src": ["autogroup:member"], "dst": ["svc:plainsight"], "ip": ["tcp:80", "tcp:443"]},
+
+		// Boxes reach only each other, only on the sync port.
+		{"src": ["tag:plainsight"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
+
+		// Your computer reaches boxes fully. Boxes cannot initiate back to it.
+		{"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["*"]},
+	],
+
+	"autoApprovers": {
+		// Any box may host the dashboard service without manual approval.
+		"services": {
+			"svc:plainsight": ["tag:plainsight"],
+		},
+	},
+
+	// Tailscale refuses to save a policy whose tests fail, so isolation cannot silently regress.
+	"tests": [
+		{"src": "tag:plainsight", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22", "100.x.y.z:445"]},
+		{"src": "100.x.y.z", "accept": ["tag:plainsight:4747", "tag:plainsight:22"]},
+	],
+}

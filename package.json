@@ -1,0 +1,11 @@
+{
+  "name": "plainsight",
+  "version": "0.1.0",
+  "description": "Peer-to-peer, privacy-first AI coding usage sharing (Claude Code, Codex) across your machines over Tailscale. No server, no content, just numbers.",
+  "license": "MIT",
+  "bin": { "plainsight": "bin/plainsight.js" },
+  "engines": { "node": ">=18.17" },
+  "scripts": { "test": "node --test test/*.test.js" },
+  "files": ["bin", "src", "web", "skills", "docs", "policy"],
+  "keywords": ["claude-code", "codex", "usage", "tailscale", "mcp", "dashboard"]
+}
