@@ -67,11 +67,11 @@ MagicDNS and HTTPS certificates are not needed. Sync uses tailnet IPs directly.
     // boxes reach only each other, only on the sync port
     {"src": ["tag:plainsight"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
     // optional: your computer reaches boxes (sync by dialing out, ssh, debugging)
-    {"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["*"]}
+    {"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]}
   ],
   "tests": [
     {"src": "tag:plainsight", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22", "100.x.y.z:445"]},
-    {"src": "100.x.y.z", "accept": ["tag:plainsight:4747", "tag:plainsight:22"]}
+    {"src": "100.x.y.z", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22"]}
   ]
 }
 ```
@@ -84,7 +84,7 @@ MagicDNS and HTTPS certificates are not needed. Sync uses tailnet IPs directly.
 | Box | Your devices, the internet via your exit nodes | Nothing. Boxes cannot even see your devices in `tailscale status` |
 | Your devices | Each other | Everything, as before |
 | Your devices | Boxes | Nothing |
-| `plainsight-admin` (optional) | Boxes | Everything. Boxes can only reply |
+| `plainsight-admin` (optional) | Boxes | tcp:4747 only (it syncs by dialing out). Boxes can only reply |
 
 Tailscale shows a device to another only if one may connect to the other. So boxes only see each other and, if configured, the admin device.
 

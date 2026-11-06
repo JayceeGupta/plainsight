@@ -24,13 +24,13 @@
 
 		// Optional: your computer reaches boxes (sync by dialing out, ssh, debugging).
 		// Boxes cannot open connections back to it.
-		{"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["*"]},
+		{"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
 	],
 
 	// Tailscale refuses to save a policy whose tests fail, so isolation cannot silently regress.
 	// bootstrap keeps any tests you add by hand (e.g. "boxes cannot reach my phone").
 	"tests": [
 		{"src": "tag:plainsight", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22", "100.x.y.z:445"]},
-		{"src": "100.x.y.z", "accept": ["tag:plainsight:4747", "tag:plainsight:22"]},
+		{"src": "100.x.y.z", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22"]},
 	],
 }
