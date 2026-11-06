@@ -51,6 +51,12 @@ function buildPolicy(cur, adminIp) {
   const seen = new Set();
   p.grants = [...grants.filter((g) => !ALLOW_ALL(g) && !JSON.stringify(g).includes('plainsight') && !mine.has(JSON.stringify(g))), ...ours]
     .filter((g) => { const k = JSON.stringify(g); if (seen.has(k)) return false; seen.add(k); return true; });
+  // "plainsight-admin" host from older plainsight versions: drop it once nothing refers to it
+  if (!adminIp && cur.hosts && cur.hosts['plainsight-admin'] && !JSON.stringify({ g: p.grants, t: cur.tests, s: cur.ssh }).includes('plainsight-admin')) {
+    p.hosts = { ...cur.hosts };
+    delete p.hosts['plainsight-admin'];
+    if (!Object.keys(p.hosts).length) delete p.hosts;
+  }
   if (cur.autoApprovers && cur.autoApprovers.services) {
     const services = { ...cur.autoApprovers.services };
     delete services[LEGACY_SERVICE];
@@ -63,7 +69,9 @@ function buildPolicy(cur, adminIp) {
   // Your computer only gets the sync port on boxes, so tests expecting more are adjusted.
   const keep = (cur.tests || [])
     .filter((t) => !JSON.stringify(t).includes(LEGACY_VIEWER) && !JSON.stringify(t).includes(LEGACY_SERVICE))
-    .map((t) => (adminIp && t.src === adminIp && Array.isArray(t.accept) ? { ...t, accept: t.accept.filter((d) => d !== `${TAG}:22`) } : t));
+    // no grant opens ssh on boxes any more, so a test expecting it (other than from a box) would fail
+    .map((t) => (t.src !== TAG && Array.isArray(t.accept) && t.accept.includes(`${TAG}:22`) ? { ...t, accept: t.accept.filter((d) => d !== `${TAG}:22`) } : t))
+    .filter((t) => (t.accept || []).length || (t.deny || []).length);
   // drop a test when another test for the same source already checks everything it checks
   const covers = (big, small) => big !== small && big.src === small.src
     && (small.accept || []).every((d) => (big.accept || []).includes(d)) && (small.deny || []).every((d) => (big.deny || []).includes(d))

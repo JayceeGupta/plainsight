@@ -15,7 +15,7 @@
 | `src/aggregate.js` | Events → per-subscription totals, series, live sessions, machines |
 | `src/prices.js` | LiteLLM price table, cached, with local overrides |
 | `src/mcp.js` | MCP server over stdio |
-| `src/install.js` | Service install (systemd user unit / launchd agent / Windows Startup-folder launcher), Claude/Codex integration |
+| `src/install.js` | Service install (systemd user unit / launchd agent / Windows Startup-folder launcher), the `plainsight` command (`~/.local/bin/plainsight` symlink, or `%USERPROFILE%\.plainsight\bin\plainsight.cmd` on the user PATH), Claude/Codex integration, and their removal. `ensure`/`stop`/`restart` go through `systemctl --user` / `launchctl` when the service is installed, so there is never a second daemon next to the supervised one |
 | `src/pool.js` | Tailnet policy bootstrap and auth keys via the Tailscale API |
 | `web/index.html` | Dashboard (single file, no build) |
 | `web/gate-worker.js` | Cloudflare Worker `plainsight-gate`: the "No machine is online" page |
@@ -71,7 +71,8 @@ A → B   POST /sync/exchange {have: vvA, give: {origin: {from, lines[]}}}
 - **Ingest.** Accepts the longest valid contiguous prefix. Overlaps are skipped, gaps are refused (the next round resends from the right offset). A peer can never write the receiver's own origin.
 - **Validation.** Kind, sizes, numeric ranges, time in `[2017, now + 1 day]`, `o`, and `s` must equal the expected next sequence.
 - **Triggers.** Every 60 s, and 2 s after local events. Peers = online devices tagged `tag:plainsight` (`tailscale status --json`).
-- **Untagged devices** run no sync server. They only dial out, so boxes never need to reach them.
+- **Untagged devices** run no sync server. They only dial out to boxes, so boxes never need to reach them, and they never sync with each other. A pool therefore needs at least one box. The policy allows `tag:plainsight → tag:plainsight` and `autogroup:member → tag:plainsight`, both tcp:4747 only.
+- **Tailscale unavailable.** If `tailscale status` fails, the round is skipped and the reason is kept (`tailscaleError` in `/api/health`, shown by `status` and `doctor`); the collector and local dashboard keep running.
 - **Convergence.** Each origin's log is a grow-only sequence with one writer, so state is a union of per-origin prefixes. Any exchange order converges; there is no consensus, no leader and no quorum.
 
 ## Serving
@@ -90,6 +91,7 @@ Every machine runs two HTTP listeners, both on 127.0.0.1 only:
   - `GET /api/health` → status (version, peers, sync results, event counts, tracked subscriptions, tunnel state); on the tunnel-facing view listener only `{ok, version, nickname}`
 - **Control endpoints (4748 only):** `POST /api/announce`, `/api/color`, `/api/stop`, `/api/poke`. They also require a direct localhost request (Host `127.0.0.1`/`localhost`, no `Tailscale-User-Login` or `X-Forwarded-For` header).
 - If port 4749 is taken, the daemon logs `view port ... unavailable` and that machine does not join the tunnel.
+- If port 4748 is taken by another program, the daemon logs `port 4748 is used by another program` and exits with code 1 (pick another with `init ... --web-port N`). If it is taken by this machine's own daemon, the second start exits 0.
 
 ### Dashboard tunnel
 
@@ -98,8 +100,8 @@ browser ─► Cloudflare Access (login) ─► Worker plainsight-gate (/ and /i
         ─► Tunnel "plainsight" ─► any connected cloudflared ─► 127.0.0.1:4749 on that machine
 ```
 
-- **Connector.** If `~/.plainsight/tunnel-token` (or `tunnelTokenFile`) exists, the daemon runs `cloudflared tunnel --no-autoupdate run` with `TUNNEL_TOKEN` in its environment. Binary: config `cloudflared`, else `PATH`, else downloaded once from the latest GitHub release into `~/.plainsight/bin`. Output goes to `~/.plainsight/cloudflared.log`. On exit it is restarted after 5 s, doubling up to 5 min.
-- **Join gate.** The connector starts only once the syncer is *ready*: a sync round reached at least one peer, or there were no peers to reach. Checked after the first round and then every 60 s.
+- **Connector.** If `~/.plainsight/tunnel-token` (or `tunnelTokenFile`) exists, the daemon runs `cloudflared tunnel --no-autoupdate run` with `TUNNEL_TOKEN` in its environment. Binary: config `cloudflared`, else `PATH`, else downloaded once from the latest GitHub release into `~/.plainsight/bin` and checked against the SHA-256 listed in the release notes (a missing or different checksum means it is not used). Output goes to `~/.plainsight/cloudflared.log`. On exit it is restarted after 5 s, doubling up to 5 min.
+- **Join gate.** The connector starts only once the syncer is *ready*: a sync round reached at least one peer, or there were no peers to reach. Checked after the first round and then every 60 s. Until then `status` and `doctor` say why it waits (first sync, or Tailscale unavailable).
 - **Replicas.** All connectors belong to the same tunnel; Cloudflare sends each request to one that is connected. Every machine has the full data set, so any of them can answer. Requests from one visit may be answered by different machines.
 - **Gate Worker.** On `/` and `/index.html` it passes the request through, and replaces a 502/503/504/530 response (or a failed fetch) with a 503 "No machine is online" page that reloads every 20 s. Other paths do not run through the Worker, which keeps usage at about one Worker request per visit.
 - **Owner setup** is done by `src/cloudflare.js` through the Cloudflare API; every step is idempotent. Only non-secret ids are kept in `config.json` (`cloudflare.{accountId, zoneId, hostname, tunnelId, appId, policyId, authDomain, session}`).
@@ -119,6 +121,8 @@ plainsight 0.1 published the dashboard with `tailscale serve`. Once Tailscale is
 | Situation | Behaviour |
 |---|---|
 | Machine offline | Its events are already on peers; it catches up when it returns |
+| No box online | Personal machines have nothing to sync with; each keeps collecting and catches up when a box returns |
+| Tailscale down on a machine | Sync pauses there; collection and the local dashboard keep running |
 | All tunnel machines offline | `https://<hostname>` shows the "No machine is online" page and retries every 20 s; each machine's local dashboard still works |
 | One tunnel machine offline | Cloudflare sends visitors to the remaining connectors |
 | Machine cannot sync yet | It does not join the tunnel until it has synced once, so it never serves a partial copy |

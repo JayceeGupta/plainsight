@@ -55,9 +55,11 @@ Tailscale is not involved in any of this. It only carries usage sync between mac
 | What | Notes |
 |---|---|
 | A Cloudflare account | Free plan is enough |
-| A domain whose DNS is on Cloudflare | The zone must be active on Cloudflare (nameservers pointed at Cloudflare). You use one hostname in it, e.g. `usage.example.com` |
+| A domain whose DNS is on Cloudflare | The zone must be active on Cloudflare (nameservers pointed at Cloudflare). You use one hostname in it, e.g. `usage.example.com`. The domain is the only part that costs money |
 | Zero Trust enabled on the account | Once: open [one.dash.cloudflare.com](https://one.dash.cloudflare.com), pick a **team name** and the **Free** plan. It may ask for a payment card; nothing is charged unless you choose a paid plan. The team name gives your login domain, `https://<team>.cloudflareaccess.com` |
-| plainsight installed and initialised on the machine you run setup from | Usually your own computer (`plainsight init` + `plainsight install`). Setup saves its ids in this machine's `config.json` and this machine becomes the first connector |
+| plainsight installed and initialised on the machine you run setup from | Usually your own computer (`init` + `install`, see [JOIN.md](JOIN.md)). Setup saves its ids in this machine's `config.json` and this machine becomes the first connector |
+
+Below, `plainsight` is the command that `plainsight install` puts on your PATH (Windows: open a new terminal after install). On Windows, write file paths as `"$env:USERPROFILE\.plainsight\cf-token"` instead of `~/.plainsight/cf-token`.
 
 **Hostname choice.** Pick a name one level below your domain (`usage.example.com`, not `a.b.example.com`). Cloudflare's free Universal SSL certificate covers only one level of subdomain. Setup **replaces** any existing `A`, `AAAA` or `CNAME` record on that exact name; it stops if the name has any other record type (TXT, MX, …).
 
@@ -77,6 +79,7 @@ Create it: [dash.cloudflare.com](https://dash.cloudflare.com) → My Profile →
 | Account | Access: Apps and Policies | Edit |
 | Account | Access: Organizations, Identity Providers, and Groups | Edit |
 | Account | Workers Scripts | Edit |
+| Zone | Zone | Read (finds the zone for your hostname by name) |
 | Zone | Workers Routes | Edit |
 | Zone | DNS | Edit |
 | User | User Details | Read (optional: lets setup default to your Cloudflare email when you pass no `--email`) |
@@ -87,7 +90,9 @@ Create it: [dash.cloudflare.com](https://dash.cloudflare.com) → My Profile →
 |---|---|---|
 | Account | Access: Apps and Policies | Edit |
 | Account | Access: Organizations, Identity Providers, and Groups | Edit |
-| Account | Cloudflare Tunnel | Read (every `access` command and `cloudflare status` read the tunnel's connections) |
+| Account | Cloudflare Tunnel | Read (every `access` command reads the status first, including the tunnel's connections) |
+
+`cloudflare tunnel-token` needs the setup token (Cloudflare Tunnel › Edit), not the smaller one.
 
 Then:
 - **Account Resources:** Include → your account.
@@ -97,8 +102,14 @@ Then:
 Save it to a private file:
 
 ```sh
-# paste the token into the file with an editor, then
+# macOS / Linux: paste the token into the file with an editor, then
 chmod 600 ~/.plainsight/cf-token
+```
+
+```powershell
+# Windows: paste the token into the file with an editor; it is in your own user folder,
+# which other users cannot read. To make that explicit:
+icacls "$env:USERPROFILE\.plainsight\cf-token" /inheritance:r /grant:r "${env:USERNAME}:F"
 ```
 
 Create a token when you need one and revoke it afterwards (My Profile → API Tokens → ⋯ → *Delete*). Nothing in plainsight keeps working off it.
@@ -107,7 +118,7 @@ Create a token when you need one and revoke it afterwards (My Profile → API To
 
 ## Setup
 
-On the machine you initialised (below, `plainsight` means `node ~/.plainsight/app/bin/plainsight.js`):
+On the machine you initialised:
 
 ```sh
 plainsight cloudflare setup --hostname usage.example.com --token-file ~/.plainsight/cf-token \
@@ -118,7 +129,7 @@ plainsight cloudflare setup --hostname usage.example.com --token-file ~/.plainsi
 |---|---|
 | `--hostname H` | Required the first time. The dashboard address |
 | `--email E[,E..]` | Who may sign in, comma-separated. Without `--email` and `--domain`, setup allows the Cloudflare account's own email (needs *User Details: Read*) |
-| `--domain D` | Allow every address `@D`, e.g. your company domain. Comma-separated for several |
+| `--domain D` | Allow every address `@D`, e.g. your company domain. Comma-separated for several. Use a domain you control, not a public provider like gmail.com |
 | `--session 720h` | How long a sign-in lasts (default `720h`, 30 days) |
 | `--google-client-id ID --google-secret-file F` | Turn on "Sign in with Google" now ([Google sign-in](#google-sign-in)). You can also do it later with `plainsight access google` |
 | `--account ID` | Needed only when the token can see more than one Cloudflare account |
@@ -170,7 +181,7 @@ In the [Google Cloud Console](https://console.cloud.google.com):
    ```sh
    plainsight access google --client-id 1234-abc.apps.googleusercontent.com \
      --client-secret-file ~/.plainsight/google-secret --token-file ~/.plainsight/cf-token
-   rm ~/.plainsight/google-secret
+   rm ~/.plainsight/google-secret      # Windows: Remove-Item "$env:USERPROFILE\.plainsight\google-secret"
    ```
    This adds (or replaces) the Google identity provider in Cloudflare and turns on "Google or emailed code". The secret is stored in Cloudflare only, never by plainsight.
 6. Optional: `plainsight access login google` for Google only (the login page then goes straight to Google), or `login code` / `login both`.
@@ -194,9 +205,12 @@ It writes the token to the file (mode 600; default `~/.plainsight/tunnel-token.f
 ```sh
 plainsight tunnel join --token-file ~/ps-tunnel-token
 rm ~/ps-tunnel-token
+# Windows PowerShell:
+#   plainsight tunnel join --token-file "$env:USERPROFILE\ps-tunnel-token"
+#   Remove-Item "$env:USERPROFILE\ps-tunnel-token"
 ```
 
-`tunnel join` stores the token at `~/.plainsight/tunnel-token` (mode 600) and restarts the daemon. The daemon starts `cloudflared` after its first successful sync. Check:
+`tunnel join` stores the token at `~/.plainsight/tunnel-token` (mode 600) and restarts the daemon (through systemd / launchd when the service is installed). The daemon starts `cloudflared` after its first successful sync. Check:
 
 ```sh
 plainsight tunnel status     # configured, running, pid, restarts, last error, synced
@@ -205,14 +219,14 @@ plainsight doctor            # "dashboard tunnel connector running"
 
 On the owner's machine, `plainsight cloudflare status` lists one connector per machine.
 
-**cloudflared.** The daemon uses, in order: the path in config key `"cloudflared"`, `cloudflared` on `PATH`, or `~/.plainsight/bin/cloudflared` (downloaded once from the [latest GitHub release](https://github.com/cloudflare/cloudflared/releases) when nothing else is found). It runs `cloudflared tunnel --no-autoupdate run` with the token in the environment (`TUNNEL_TOKEN`), never on the command line, logs to `~/.plainsight/cloudflared.log` and restarts it with backoff (5 s doubling up to 5 min) if it exits. If you prefer a packaged build, install `cloudflared` yourself and it is picked up from `PATH`.
+**cloudflared.** The daemon uses, in order: the path in config key `"cloudflared"`, `cloudflared` on `PATH`, or `~/.plainsight/bin/cloudflared` (downloaded once from the [latest GitHub release](https://github.com/cloudflare/cloudflared/releases) when nothing else is found). A download is checked against the SHA-256 listed in that release's notes and refused when the checksum is missing or different; then install `cloudflared` yourself. It runs `cloudflared tunnel --no-autoupdate run` with the token in the environment (`TUNNEL_TOKEN`), never on the command line, logs to `~/.plainsight/cloudflared.log` and restarts it with backoff (5 s doubling up to 5 min) if it exits. If you prefer a packaged build, install `cloudflared` yourself and it is picked up from `PATH`.
 
 **Same view port everywhere.** The tunnel's ingress points every connector at `http://127.0.0.1:<viewPort>` of the machine that ran setup (default 4749). Keep `viewPort` the same on every machine.
 
 ### Removing a machine
 
 - On the machine: `plainsight tunnel leave`. It deletes the token and restarts the daemon without `cloudflared`. The machine keeps sharing usage.
-- `plainsight stop` (or shutting the machine down) also stops its connector, until the daemon starts again.
+- `plainsight stop` (or shutting the machine down) also stops its connector, until the daemon starts again. `plainsight uninstall` deletes the token as well.
 - A machine you no longer control keeps a valid token. Tunnel tokens are per tunnel, not per machine, so the only way to cut it off is a new tunnel: `plainsight cloudflare teardown --yes`, then `cloudflare setup` again with your options, then hand the new token to the machines you keep.
 
 ---
@@ -226,7 +240,7 @@ All of these need the API token (`--token-file F` or `CLOUDFLARE_API_TOKEN`) and
 | `access list` | Allowed emails and email domains |
 | `access add EMAIL [EMAIL..]` | Allow these addresses |
 | `access remove EMAIL [EMAIL..]` | Disallow them and sign them out everywhere now. Refuses to leave nobody allowed |
-| `access allow-domain DOMAIN` | Allow every address `@DOMAIN` |
+| `access allow-domain DOMAIN [--i-understand]` | Allow every address `@DOMAIN`. Refuses public email providers (gmail.com, outlook.com, icloud.com, …), since that would let anyone with such an address in; add individual addresses instead, or pass `--i-understand` |
 | `access remove-domain DOMAIN` | Stop allowing that domain. Refuses to leave nobody allowed |
 | `access login google\|code\|both` | Which sign-in options the login page offers. `google` needs Google configured |
 | `access google --client-id ID --client-secret-file F` | Add or replace "Sign in with Google"; turns on `both` |
@@ -269,10 +283,11 @@ Start with `plainsight doctor` on the machines, and `plainsight cloudflare statu
 | Symptom | Cause | Fix |
 |---|---|---|
 | Black "No machine is online" page | No connector is up | `cloudflare status` shows `machines connected: 0`. Start a machine, or check `plainsight doctor` on one |
-| `doctor`: `dashboard tunnel not running (waiting for the first sync)` | The machine has peers but has not synced with any yet | Fix sync first (`plainsight status`, [TROUBLESHOOTING.md](TROUBLESHOOTING.md)). It joins after the first successful sync |
+| `doctor`: `dashboard tunnel not running (waiting for the first sync with a box)` | The machine has peers but has not synced with any yet | Fix sync first (`plainsight status`, [TROUBLESHOOTING.md](TROUBLESHOOTING.md)). It joins after the first successful sync |
+| `doctor`: `dashboard tunnel not running (Tailscale is unavailable, ...)` | The daemon cannot ask Tailscale for peers, so it cannot sync first | Start Tailscale and sign in; `plainsight status` shows the Tailscale error |
 | `doctor`: `not in the dashboard tunnel` | No tunnel token on this machine | `plainsight tunnel join --token-file F` |
 | `doctor`: `dashboard tunnel not running: cloudflared exited (...)` | cloudflared failed (bad or old token, no internet) | Read `~/.plainsight/cloudflared.log`. After a teardown/setup, re-run `tunnel join` with the new token |
-| `download cloudflared-...: HTTP ...` or `no cloudflared build for ...` in `daemon.log` | GitHub unreachable, or an unsupported platform | Install `cloudflared` yourself (it is used from `PATH`), or set `"cloudflared": "/full/path"` in `config.json`, then `plainsight restart` |
+| `download cloudflared-...: HTTP ...`, `no cloudflared build for ...`, `no published SHA-256 ...` or `SHA-256 mismatch` in `daemon.log` | GitHub unreachable, an unsupported platform, or a download that could not be verified (it is never run) | Install `cloudflared` yourself (it is used from `PATH`), or set `"cloudflared": "/full/path"` in `config.json`, then `plainsight restart` |
 | `view port 4749 unavailable` in `daemon.log`; visitors get the offline page or 502 | Something else uses port 4749 on that machine | Free the port, or set the same `viewPort` on every machine and re-run `cloudflare setup` so the tunnel points at it |
 | Cloudflare's own error page (530 / 1033) instead of the offline page | The Worker only covers the page itself; a data call or other path hit an empty tunnel. Or the Worker's daily limit was exceeded | Reload once a machine is up |
 | Login keeps asking again, or "That account does not have access" | The address is not on the allowed list, or the browser blocks cookies for the hostname or `<team>.cloudflareaccess.com` | `plainsight access list`, `access add EMAIL`; try a private window; `access revoke EMAIL` to clear a stuck session |
@@ -281,7 +296,8 @@ Start with `plainsight doctor` on the machines, and `plainsight cloudflare statu
 | Google: "Access blocked" / app not verified | The address is not a test user | Google Auth Platform → Audience → *Test users* → add it |
 | `Cloudflare Zero Trust is not set up on this account yet` | Zero Trust never enabled | Open [one.dash.cloudflare.com](https://one.dash.cloudflare.com), pick a team name and the Free plan, re-run |
 | `token sees N accounts; pass --account ID` | The token covers several accounts | Pass `--account` with the id it lists |
-| `no Cloudflare zone for H is visible to this token` | Domain not on Cloudflare, or the token's Zone Resources exclude it | Add the zone to the token |
+| `no Cloudflare zone for H is visible to this token` | Domain not on Cloudflare, the token's Zone Resources exclude it, or the token lacks *Zone › Zone › Read* | Add the zone and that permission to the token |
+| `@gmail.com is a public email provider ...` | `access allow-domain` with a public provider | `access add you@gmail.com` for each person, or `--i-understand` if you really mean everyone |
 | `H has a TXT record; remove it first` (or MX, …) | Another record type sits on the hostname | Move it, or pick another hostname |
 | `HTTP 403 ... Authentication error` / `10000` | The token lacks a permission | Compare with [the permission table](#cloudflare-api-token) |
 | `pass --email you@example.com` | No `--email` and the token cannot read your user email | Pass `--email`, or add *User Details: Read* |
@@ -298,6 +314,8 @@ Start with `plainsight doctor` on the machines, and `plainsight cloudflare statu
 ```sh
 plainsight cloudflare teardown --yes --token-file ~/.plainsight/cf-token
 ```
+
+Run it on the machine that ran setup, and before `plainsight uninstall --purge` there: the purge deletes the ids teardown needs.
 
 Removes, in order: the Worker routes, the Worker `plainsight-gate`, the Access app, the policy `plainsight viewers`, the hostname's tunnel `CNAME` and the tunnel itself. It deletes the local tunnel token and the `"cloudflare"` block from `config.json`. Each step reports its own result, so a step that fails does not stop the rest.
 

@@ -1,36 +1,33 @@
 // plainsight tailnet policy (example). This is what `plainsight pool bootstrap` builds.
-// Merge it into your existing policy and keep your own ssh/nodeAttrs/etc.
+// Merge it into your existing policy and keep your own ssh/nodeAttrs/hosts/etc.
 // Tailscale carries usage sync only. The dashboard goes through Cloudflare (docs/DASHBOARD.md),
 // so there is no Tailscale Service, no viewer tag and no autoApprovers.
-// Replace 100.x.y.z with your own computer's Tailscale IP, or delete the plainsight-admin lines.
+// Boxes (tag:plainsight) accept sync; your own devices connect out to them. At least one box is needed.
 {
 	"tagOwners": {
 		// Only admins may tag devices (and mint tagged auth keys).
 		"tag:plainsight": ["autogroup:admin"],
 	},
 
-	"hosts": {
-		// Optional: your own (untagged) computer. It shares its usage by dialing out to boxes.
-		"plainsight-admin": "100.x.y.z",
-	},
-
 	"grants": [
-		// Your devices reach each other and the internet (exit nodes), but NOT plainsight boxes.
+		// Your devices reach each other and the internet (exit nodes).
 		// (Replaces Tailscale's default {"src":["*"],"dst":["*"],"ip":["*"]}.)
 		{"src": ["autogroup:member"], "dst": ["autogroup:member", "autogroup:internet"], "ip": ["*"]},
 
 		// Boxes reach only each other, only on the sync port.
 		{"src": ["tag:plainsight"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
 
-		// Optional: your computer reaches boxes (sync by dialing out, ssh, debugging).
-		// Boxes cannot open connections back to it.
-		{"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
+		// Your own devices (every untagged device of a tailnet member) sync by connecting out to
+		// boxes on the sync port. Boxes cannot open connections back to them.
+		{"src": ["autogroup:member"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
 	],
 
 	// Tailscale refuses to save a policy whose tests fail, so isolation cannot silently regress.
 	// bootstrap keeps any tests you add by hand (e.g. "boxes cannot reach my phone").
 	"tests": [
-		{"src": "tag:plainsight", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22", "100.x.y.z:445"]},
+		{"src": "tag:plainsight", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22"]},
+		// Optional: one of your own devices. Replace 100.x.y.z with its Tailscale IP (tailscale ip -4),
+		// or delete this line.
 		{"src": "100.x.y.z", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22"]},
 	],
 }

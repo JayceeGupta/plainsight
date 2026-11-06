@@ -12,6 +12,8 @@
 const fs = require('fs');
 
 const API = 'https://api.cloudflare.com/client/v4';
+// Allowing a whole public email provider would let anyone with such an address sign in.
+const PUBLIC_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'yahoo.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'proton.me', 'protonmail.com', 'pm.me', 'gmx.com', 'gmx.net', 'mail.com', 'yandex.com', 'yandex.ru', 'zoho.com', 'qq.com', '163.com', 'rediffmail.com', 'fastmail.com', 'hey.com', 'tutanota.com'];
 const NAMES = { tunnel: 'plainsight', app: 'plainsight', policy: 'plainsight viewers', worker: 'plainsight-gate', otp: 'Email code', google: 'Google' };
 const VIEW_SERVICE = (port) => `http://127.0.0.1:${port}`;
 const WORKER_PATTERNS = (h) => [`${h}/`, `${h}/index.html`];
@@ -170,6 +172,8 @@ async function setup(token, o) {
   const organization = await org(cf, a.id);
   let emails = o.emails;
   let domains = o.domains;
+  const pub = domains.find((d) => PUBLIC_EMAIL_DOMAINS.includes(d.replace(/^@/, '').toLowerCase()));
+  if (pub && !o.allowPublicDomain) throw new Error(`--domain ${pub} is a public email provider: anyone with such an address could sign in. Use --email for individual addresses, or pass --i-understand.`);
   // re-running setup keeps who may sign in, how, and for how long, unless told otherwise
   let kept = null;
   if (o.prev && o.prev.appId && o.prev.accountId === a.id) {
@@ -297,4 +301,4 @@ async function teardown(token, c) {
   return out;
 }
 
-module.exports = { readToken, setup, status, setAccess, setLogin, setGoogle, setApp, revoke, fetchTunnelToken, teardown, NAMES };
+module.exports = { PUBLIC_EMAIL_DOMAINS, readToken, setup, status, setAccess, setLogin, setGoogle, setApp, revoke, fetchTunnelToken, teardown, NAMES };

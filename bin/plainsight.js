@@ -29,7 +29,7 @@ Run
   color MACHINE #rrggbb             Set a machine's dashboard colour everywhere
   label SUB "NEW LABEL"             Rename a subscription (by id or current label) everywhere
   mcp                               MCP server on stdio (registered by install)
-  update                            git pull + restart
+  update                            git pull, refresh skills/hook/MCP/command, restart
 
 Dashboard tunnel (every machine that should be able to show the dashboard)
   tunnel join --token-file F        Store the tunnel token (from the owner) and join the dashboard tunnel
@@ -122,7 +122,11 @@ async function cmdInit(opt) {
     nodeId: prev.nodeId || crypto.randomBytes(8).toString('hex'),
     nickname: String(opt.nick).slice(0, 40),
     operator: opt.operator && opt.operator !== true ? String(opt.operator).slice(0, 40) : (prev.operator || ''),
-    port: Number(opt.port) || prev.port || 4747,
+    port: (() => {
+      const p = Number(opt.port) || prev.port || 4747;
+      if (p !== 4747) console.log(`WARNING: sync port ${p}: the tailnet policy written by "plainsight pool bootstrap" only opens tcp:4747, so every machine must use the same port and the policy must be edited to match.`);
+      return p;
+    })(),
     webPort: Number(opt['web-port']) || prev.webPort || 4748,
     tracked,
     createdAt: prev.createdAt || Date.now(),
@@ -253,7 +257,7 @@ async function main() {
         const cfg = loadConfig() || die('not initialised');
         const h = await require('../src/install').health(cfg.webPort);
         if (!h) return console.log('daemon not running');
-        return console.log(JSON.stringify({ ...h.tunnel, synced: h.synced }, null, 2));
+        return console.log(JSON.stringify({ ...h.tunnel, synced: h.synced, tailscaleError: h.tailscaleError || null }, null, 2));
       }
       return die('usage: plainsight tunnel join|leave|status');
     }
@@ -270,7 +274,7 @@ async function main() {
         const r = await cf.setup(token, {
           hostname, emails: list(opt.email), domains: list(opt.domain), session: opt.session && opt.session !== true ? opt.session : null,
           account: opt.account !== true ? opt.account : undefined, viewPort: Number(cfg.viewPort) || cfg.webPort + 1,
-          tunnelTokenFile: cfg.tunnelTokenFile || path.join(paths.home, 'tunnel-token'), google, prev: cfg.cloudflare,
+          tunnelTokenFile: cfg.tunnelTokenFile || path.join(paths.home, 'tunnel-token'), google, prev: cfg.cloudflare, allowPublicDomain: !!opt['i-understand'],
         });
         cfg.cloudflare = r.conf;
         writeJSON(paths.config, cfg);
@@ -325,8 +329,7 @@ async function main() {
         }
         case 'allow-domain': {
           const d = String(pos[1] || '').replace(/^@/, '').toLowerCase(); if (!d.includes('.')) die('usage: plainsight access allow-domain example.com');
-          const PUBLIC = ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'yahoo.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'proton.me', 'protonmail.com', 'pm.me', 'gmx.com', 'gmx.net', 'mail.com', 'yandex.com', 'yandex.ru', 'zoho.com', 'qq.com', '163.com', 'rediffmail.com', 'fastmail.com', 'hey.com', 'tutanota.com'];
-          if (PUBLIC.includes(d) && !opt['i-understand']) die(`@${d} is a public email provider: allowing it lets anyone with such an address sign in. Add individual addresses instead (plainsight access add you@${d}), or pass --i-understand.`);
+          if (cf.PUBLIC_EMAIL_DOMAINS.includes(d) && !opt['i-understand']) die(`@${d} is a public email provider: allowing it lets anyone with such an address sign in. Add individual addresses instead (plainsight access add you@${d}), or pass --i-understand.`);
           domains = [...new Set([...domains, d])];
           await cf.setAccess(token, c, { emails, domains });
           return console.log(`every address @${d} is allowed`);
