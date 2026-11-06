@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Start with `plainsight doctor`; it prints a fix for each failed check. Logs: `~/.plainsight/daemon.log`.
+Start with `plainsight doctor`; it prints a fix for each failed check. Logs: `~/.plainsight/daemon.log` (daemon) and `~/.plainsight/cloudflared.log` (dashboard tunnel connector). Problems with the public dashboard, login or Cloudflare setup: see [DASHBOARD.md](DASHBOARD.md#troubleshooting).
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -11,8 +11,11 @@ Start with `plainsight doctor`; it prints a fix for each failed check. Logs: `~/
 | `sync <peer>: FAILED timeout` | Policy doesn't allow `tag:plainsight → tag:plainsight tcp:4747`, or the peer daemon is down | Check the policy ([TAILNET.md](TAILNET.md)); `plainsight status` on the peer |
 | `peer protocol N, ours M` | Version mismatch | `plainsight update` on both |
 | Personal device never syncs | Not in `plainsight-admin`, so boxes are unreachable | Add its IP to the policy's `hosts.plainsight-admin` |
-| `not hosting svc:plainsight` | Linux without operator rights, Tailscale < 1.86, or approval pending | `sudo tailscale set --operator=$USER`, update Tailscale, wait a minute, `plainsight restart` |
-| Dashboard domain doesn't load | Device not on the tailnet; Cloudflare proxy on; DNS cache | Connect Tailscale; set the record to DNS-only; `nslookup usage.example.com` should return the TailVIP |
+| `dashboard tunnel not running (waiting for the first sync)` | The machine has peers but no sync has succeeded yet | Fix the sync error above; the connector starts by itself after the first good sync |
+| `not in the dashboard tunnel` | No tunnel token on this machine | `plainsight tunnel join --token-file F` with the token from the owner ([DASHBOARD.md](DASHBOARD.md#adding-machines-to-the-tunnel)) |
+| `dashboard tunnel not running: cloudflared exited` | Old or invalid token, no internet, cloudflared crashed | Read `cloudflared.log`; get a fresh token (`cloudflare tunnel-token` on the owner machine) and `tunnel join` again |
+| `https://<hostname>` shows "No machine is online" | No machine with the tunnel token is connected | Start one; `plainsight doctor` on it |
+| `could not remove tailscale serve ...` in the log | Upgrade from 0.1 on Linux without Tailscale operator rights | Run the `tailscale serve ... off` / `clear` command from the log line once with `sudo` |
 | `logged into a DIFFERENT account` | Install switched accounts | Usage from the other account is skipped by design. Switch back, or `init` with what you want tracked |
 | Claude history missing before ~30 days ago | Claude Code deleted it (`cleanupPeriodDays` default 30) | Can't be recovered. `install` raises it to 3650 from now on |
 | Model shows **Unpriced** | Not in the LiteLLM table yet | Add it to `~/.plainsight/prices.json` |

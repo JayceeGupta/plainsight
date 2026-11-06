@@ -14,6 +14,7 @@ const fs = require('fs');
 const API = 'https://api.cloudflare.com/client/v4';
 const NAMES = { tunnel: 'plainsight', app: 'plainsight', policy: 'plainsight viewers', worker: 'plainsight-gate', otp: 'Email code', google: 'Google' };
 const VIEW_SERVICE = (port) => `http://127.0.0.1:${port}`;
+const WORKER_PATTERNS = (h) => [`${h}/`, `${h}/index.html`];
 
 function readToken(opt) {
   const tf = opt['token-file'];
@@ -61,7 +62,7 @@ async function zoneFor(cf, hostname) {
 async function org(cf, a) {
   try { return await cf('GET', `/accounts/${a}/access/organizations`); }
   catch (e) {
-    if (e.status === 404 || e.status === 400) throw new Error('Cloudflare Zero Trust is not set up on this account yet. Open https://one.dash.cloudflare.com once, pick a team name and the Free plan, then re-run.');
+    if (e.status === 404 || e.status === 400 || /not_enabled|not enabled/i.test(e.message)) throw new Error('Cloudflare Zero Trust is not set up on this account yet. Open https://one.dash.cloudflare.com once, pick a team name and the Free plan, then re-run.');
     throw e;
   }
 }
@@ -83,13 +84,12 @@ async function tunnelToken(cf, a, tunnelId) {
 async function ensureDns(cf, z, hostname, tunnelId) {
   const target = `${tunnelId}.cfargotunnel.com`;
   const recs = await cf('GET', `/zones/${z}/dns_records?name=${encodeURIComponent(hostname)}`);
+  const other = recs.find((r) => !['A', 'AAAA', 'CNAME'].includes(r.type));
+  if (other) throw new Error(`${hostname} has a ${other.type} record; remove it first (nothing was changed)`);
   const previous = recs.map((r) => ({ type: r.type, content: r.content, proxied: r.proxied }));
   const ok = recs.length === 1 && recs[0].type === 'CNAME' && recs[0].content === target && recs[0].proxied;
   if (!ok) {
-    for (const r of recs) {
-      if (!['A', 'AAAA', 'CNAME'].includes(r.type)) throw new Error(`${hostname} has a ${r.type} record; remove it first`);
-      await cf('DELETE', `/zones/${z}/dns_records/${r.id}`);
-    }
+    for (const r of recs) await cf('DELETE', `/zones/${z}/dns_records/${r.id}`);
     await cf('POST', `/zones/${z}/dns_records`, { type: 'CNAME', name: hostname, content: target, proxied: true, ttl: 1, comment: 'plainsight dashboard (Cloudflare Tunnel)' });
   }
   return { changed: !ok, previous };
@@ -139,11 +139,15 @@ async function ensureWorker(cf, a, z, hostname) {
   fd.append('metadata', JSON.stringify({ main_module: 'worker.js', compatibility_date: '2025-06-01' }));
   fd.append('worker.js', new Blob([gateWorker()], { type: 'application/javascript+module' }), 'worker.js');
   await cf('PUT', `/accounts/${a}/workers/scripts/${NAMES.worker}`, fd);
-  const pattern = `${hostname}/*`;
+  // Only the page itself runs through the Worker (1 request per visit). The dashboard's data calls
+  // go straight to the tunnel, so the free Workers allowance (100,000 requests/day) is never close.
   const routes = await cf('GET', `/zones/${z}/workers/routes`);
-  const r = routes.find((x) => x.pattern === pattern);
-  if (!r) await cf('POST', `/zones/${z}/workers/routes`, { pattern, script: NAMES.worker });
-  else if (r.script !== NAMES.worker) await cf('PUT', `/zones/${z}/workers/routes/${r.id}`, { pattern, script: NAMES.worker });
+  for (const old of routes.filter((x) => x.pattern === `${hostname}/*` && x.script === NAMES.worker)) await cf('DELETE', `/zones/${z}/workers/routes/${old.id}`);
+  for (const pattern of WORKER_PATTERNS(hostname)) {
+    const r = routes.find((x) => x.pattern === pattern);
+    if (!r) await cf('POST', `/zones/${z}/workers/routes`, { pattern, script: NAMES.worker });
+    else if (r.script !== NAMES.worker) await cf('PUT', `/zones/${z}/workers/routes/${r.id}`, { pattern, script: NAMES.worker });
+  }
 }
 
 // Dark login page, only when this account has no other Access apps (the design is account-wide).
@@ -165,7 +169,18 @@ async function setup(token, o) {
   const z = await zoneFor(cf, o.hostname);
   const organization = await org(cf, a.id);
   let emails = o.emails;
-  if (!emails.length && !o.domains.length) {
+  let domains = o.domains;
+  // re-running setup keeps who may sign in, how, and for how long, unless told otherwise
+  let kept = null;
+  if (o.prev && o.prev.appId && o.prev.accountId === a.id) {
+    try {
+      const [app0, pol0] = await Promise.all([cf('GET', `/accounts/${a.id}/access/apps/${o.prev.appId}`), cf('GET', `/accounts/${a.id}/access/policies/${o.prev.policyId}`)]);
+      kept = { idps: app0.allowed_idps || [], session: app0.session_duration, emails: (pol0.include || []).filter((r) => r.email).map((r) => r.email.email), domains: (pol0.include || []).filter((r) => r.email_domain).map((r) => r.email_domain.domain) };
+      if (!emails.length && !domains.length) { emails = kept.emails; domains = kept.domains; }
+    } catch {}
+  }
+  const session = o.session || (kept && kept.session) || '720h';
+  if (!emails.length && !domains.length) {
     try { emails = [(await cf('GET', '/user')).email]; out.push(`Allowed: ${emails[0]} (this Cloudflare account's email; change with plainsight access add/remove)`); }
     catch { throw new Error('pass --email you@example.com (the token cannot read your Cloudflare user email)'); }
   }
@@ -176,19 +191,20 @@ async function setup(token, o) {
   out.push(`Tunnel token saved to ${o.tunnelTokenFile} (never printed)`);
   const google = o.google ? { clientId: o.google.clientId, clientSecret: fs.readFileSync(o.google.secretFile, 'utf8').trim() } : null;
   const idps = await ensureIdps(cf, a.id, google);
-  const policy = await ensurePolicy(cf, a.id, emails, o.domains, o.prev && o.prev.policyId);
-  const idpIds = [idps.otp.id, ...(idps.google ? [idps.google.id] : [])];
-  const app = await ensureApp(cf, a.id, o.hostname, { policyId: policy.id, idps: idpIds, session: o.session });
-  out.push(`Access app on https://${o.hostname}: ${idps.google ? 'Google or emailed code' : 'emailed code'}, sessions ${o.session}`);
+  const policy = await ensurePolicy(cf, a.id, emails, domains, o.prev && o.prev.policyId);
+  const valid = new Set([idps.otp.id, ...(idps.google ? [idps.google.id] : [])]);
+  const idpIds = !google && kept && kept.idps.length && kept.idps.every((i) => valid.has(i)) ? kept.idps : [...valid];
+  const app = await ensureApp(cf, a.id, o.hostname, { policyId: policy.id, idps: idpIds, session });
+  out.push(`Access app on https://${o.hostname}: ${idpIds.map((i) => (idps.google && i === idps.google.id ? 'Google' : 'emailed code')).join(' or ')}, sessions ${session}; allowed: ${[...emails, ...domains.map((d) => '@' + d)].join(', ')}`);
   await ensureWorker(cf, a.id, z.id, o.hostname);
-  out.push(`Worker "${NAMES.worker}" on ${o.hostname}/* (shows "no machine online" when no connector is up)`);
+  out.push(`Worker "${NAMES.worker}" on the page of ${o.hostname} (shows "no machine online" when no connector is up)`);
   const dns = await ensureDns(cf, z.id, o.hostname, t.id);
   out.push(dns.changed ? `DNS ${o.hostname} -> tunnel (replaced: ${JSON.stringify(dns.previous)})` : `DNS ${o.hostname} already points at the tunnel`);
   if (await styleLogin(cf, a.id, organization).catch(() => false)) out.push('Login page styled dark (no other Access apps on this account)');
   if (!idps.google) out.push(`Google sign-in: create an OAuth client with redirect URI https://${organization.auth_domain}/cdn-cgi/access/callback, then run: plainsight access google --client-id ID --client-secret-file FILE`);
   return {
     out,
-    conf: { accountId: a.id, zoneId: z.id, hostname: o.hostname, tunnelId: t.id, appId: app.id, policyId: policy.id, authDomain: organization.auth_domain, session: o.session },
+    conf: { accountId: a.id, zoneId: z.id, hostname: o.hostname, tunnelId: t.id, appId: app.id, policyId: policy.id, authDomain: organization.auth_domain, session },
   };
 }
 
@@ -207,7 +223,7 @@ async function status(token, c) {
     session: app.session_duration,
     emails: (policy.include || []).filter((r) => r.email).map((r) => r.email.email),
     domains: (policy.include || []).filter((r) => r.email_domain).map((r) => r.email_domain.domain),
-    connectors: (conns || []).map((x) => ({ id: x.id, version: x.client_version, arch: x.arch, since: x.run_at, edges: (x.conns || []).length, ip: x.origin_ip })),
+    connectors: (conns || []).map((x) => ({ id: x.id, version: x.version || x.client_version, arch: x.arch, since: x.run_at, edges: (x.conns || []).length, ip: x.origin_ip })),
     googleConfigured: idps.some((i) => i.type === 'google'),
   };
 }
@@ -261,9 +277,10 @@ async function teardown(token, c) {
   const cf = client(token);
   const out = [];
   const step = async (what, fn) => { try { await fn(); out.push(`removed ${what}`); } catch (e) { out.push(`${what}: ${e.message}`); } };
-  await step('worker route', async () => {
-    const r = (await cf('GET', `/zones/${c.zoneId}/workers/routes`)).find((x) => x.pattern === `${c.hostname}/*`);
-    if (r) await cf('DELETE', `/zones/${c.zoneId}/workers/routes/${r.id}`);
+  await step('worker routes', async () => {
+    for (const r of await cf('GET', `/zones/${c.zoneId}/workers/routes`)) {
+      if (r.script === NAMES.worker && r.pattern.startsWith(`${c.hostname}/`)) await cf('DELETE', `/zones/${c.zoneId}/workers/routes/${r.id}`);
+    }
   });
   await step(`worker ${NAMES.worker}`, () => cf('DELETE', `/accounts/${c.accountId}/workers/scripts/${NAMES.worker}`));
   await step('Access app', () => cf('DELETE', `/accounts/${c.accountId}/access/apps/${c.appId}`));

@@ -121,9 +121,13 @@ async function cmdInit(opt) {
     operator: opt.operator && opt.operator !== true ? String(opt.operator).slice(0, 40) : (prev.operator || ''),
     port: Number(opt.port) || prev.port || 4747,
     webPort: Number(opt['web-port']) || prev.webPort || 4748,
-    hostService: opt['no-host-service'] ? false : prev.hostService !== false,
     tracked,
     createdAt: prev.createdAt || Date.now(),
+    // dashboard settings survive a re-init
+    ...(prev.viewPort ? { viewPort: prev.viewPort } : {}),
+    ...(prev.cloudflare ? { cloudflare: prev.cloudflare } : {}),
+    ...(prev.tunnelTokenFile ? { tunnelTokenFile: prev.tunnelTokenFile } : {}),
+    ...(prev.cloudflared ? { cloudflared: prev.cloudflared } : {}),
   };
   writeJSON(paths.config, cfg);
   console.log(`Saved ${paths.config}`);
@@ -272,7 +276,7 @@ async function main() {
         const google = opt['google-client-id'] && opt['google-client-id'] !== true
           ? { clientId: opt['google-client-id'], secretFile: opt['google-secret-file'] || die('--google-secret-file FILE is required with --google-client-id') } : null;
         const r = await cf.setup(token, {
-          hostname, emails: list(opt.email), domains: list(opt.domain), session: opt.session && opt.session !== true ? opt.session : '720h',
+          hostname, emails: list(opt.email), domains: list(opt.domain), session: opt.session && opt.session !== true ? opt.session : null,
           account: opt.account !== true ? opt.account : undefined, viewPort: Number(cfg.viewPort) || cfg.webPort + 1,
           tunnelTokenFile: cfg.tunnelTokenFile || path.join(paths.home, 'tunnel-token'), google, prev: cfg.cloudflare,
         });

@@ -9,13 +9,16 @@
 | `src/collect/index.js` | Tails tracked logs from saved byte offsets. Enforces account and `since` rules. Dedupes |
 | `src/store.js` | Append-only logs, one per origin. Validation. Version vector |
 | `src/sync.js` | Peer discovery via `tailscale status`, the gossip exchange, optional SOCKS5 |
-| `src/daemon.js` | Collector loop, sync loop, sync server, dashboard server, SSE, Tailscale Service hosting |
+| `src/daemon.js` | Collector loop, sync loop, sync server, local dashboard and read-only view listeners, SSE, starts the tunnel connector, removes 0.1 `tailscale serve` entries |
+| `src/tunnel.js` | Finds or downloads `cloudflared` and supervises the Cloudflare Tunnel connector |
+| `src/cloudflare.js` | Owner-side Cloudflare setup through the Cloudflare API: tunnel, DNS, Access app and policy, identity providers, Worker |
 | `src/aggregate.js` | Events → per-subscription totals, series, live sessions, machines |
 | `src/prices.js` | LiteLLM price table, cached, with local overrides |
 | `src/mcp.js` | MCP server over stdio |
 | `src/install.js` | Service install (systemd user unit / launchd agent / Windows Startup-folder launcher), Claude/Codex integration |
-| `src/pool.js` | Tailnet bootstrap via the Tailscale API |
+| `src/pool.js` | Tailnet policy bootstrap and auth keys via the Tailscale API |
 | `web/index.html` | Dashboard (single file, no build) |
+| `web/gate-worker.js` | Cloudflare Worker `plainsight-gate`: the "No machine is online" page |
 
 ## Data model
 
@@ -73,13 +76,37 @@ A → B   POST /sync/exchange {have: vvA, give: {origin: {from, lines[]}}}
 
 ## Serving
 
-- **Dashboard and read API:** `127.0.0.1:4748`.
-  - `GET /` → dashboard
+Every machine runs two HTTP listeners, both on 127.0.0.1 only:
+
+| Listener | Port (config key) | Serves | Published |
+|---|---|---|---|
+| Local dashboard | `4748` (`webPort`) | The view below plus control endpoints | Never |
+| Read-only view | `4749` (`viewPort`, default `webPort + 1`) | `GET`/`HEAD` only; anything else gets `405` | Through the Cloudflare Tunnel |
+
+- **View (both listeners):**
+  - `GET /` and `/index.html` → dashboard
   - `GET /api/summary?range&subs&machines&providers&tz` → aggregates
   - `GET /api/live` → SSE (`event: change`)
-  - `GET /api/health` → status
-- **Control endpoints:** `POST /api/announce`, `/api/stop`, `/api/poke`. They require a direct localhost request (Host `127.0.0.1`/`localhost`, no `Tailscale-User-Login` or `X-Forwarded-For`).
-- **Tailscale Service.** On tagged boxes: `tailscale serve --service=svc:plainsight --https=443 127.0.0.1:4748` and `--http=80`. Every box hosts the same data, so any of them can answer.
+  - `GET /api/health` → status (version, peers, sync results, event counts, tracked subscriptions, tunnel state); on the tunnel-facing view listener only `{ok, version, nickname}`
+- **Control endpoints (4748 only):** `POST /api/announce`, `/api/color`, `/api/stop`, `/api/poke`. They also require a direct localhost request (Host `127.0.0.1`/`localhost`, no `Tailscale-User-Login` or `X-Forwarded-For` header).
+- If port 4749 is taken, the daemon logs `view port ... unavailable` and that machine does not join the tunnel.
+
+### Dashboard tunnel
+
+```
+browser ─► Cloudflare Access (login) ─► Worker plainsight-gate (/ and /index.html only)
+        ─► Tunnel "plainsight" ─► any connected cloudflared ─► 127.0.0.1:4749 on that machine
+```
+
+- **Connector.** If `~/.plainsight/tunnel-token` (or `tunnelTokenFile`) exists, the daemon runs `cloudflared tunnel --no-autoupdate run` with `TUNNEL_TOKEN` in its environment. Binary: config `cloudflared`, else `PATH`, else downloaded once from the latest GitHub release into `~/.plainsight/bin`. Output goes to `~/.plainsight/cloudflared.log`. On exit it is restarted after 5 s, doubling up to 5 min.
+- **Join gate.** The connector starts only once the syncer is *ready*: a sync round reached at least one peer, or there were no peers to reach. Checked after the first round and then every 60 s.
+- **Replicas.** All connectors belong to the same tunnel; Cloudflare sends each request to one that is connected. Every machine has the full data set, so any of them can answer. Requests from one visit may be answered by different machines.
+- **Gate Worker.** On `/` and `/index.html` it passes the request through, and replaces a 502/503/504/530 response (or a failed fetch) with a 503 "No machine is online" page that reloads every 20 s. Other paths do not run through the Worker, which keeps usage at about one Worker request per visit.
+- **Owner setup** is done by `src/cloudflare.js` through the Cloudflare API; every step is idempotent. Only non-secret ids are kept in `config.json` (`cloudflare.{accountId, zoneId, hostname, tunnelId, appId, policyId, authDomain, session}`).
+
+### Cleanup of 0.1
+
+plainsight 0.1 published the dashboard with `tailscale serve`. Once Tailscale is running, the daemon reads `tailscale serve status --json` once per start and turns off every HTTPS handler and TCP forward that points at `127.0.0.1`/`localhost` on its own `webPort` or `viewPort`, and clears `svc:plainsight` (or any service pointing at those ports). Other serve entries are left alone.
 
 ## MCP
 
@@ -92,7 +119,9 @@ A → B   POST /sync/exchange {have: vvA, give: {origin: {from, lines[]}}}
 | Situation | Behaviour |
 |---|---|
 | Machine offline | Its events are already on peers; it catches up when it returns |
-| All boxes offline | The dashboard service is down; each machine's local dashboard still works |
+| All tunnel machines offline | `https://<hostname>` shows the "No machine is online" page and retries every 20 s; each machine's local dashboard still works |
+| One tunnel machine offline | Cloudflare sends visitors to the remaining connectors |
+| Machine cannot sync yet | It does not join the tunnel until it has synced once, so it never serves a partial copy |
 | Daemon crash mid-write | A partial last line is truncated on next start |
 | Clock skew | Events keep the writer's timestamp; online detection uses each origin's own clock |
 | Disk wiped on a box | It gets a new `nodeId` on re-init and re-backfills local history. Old events stay under the old origin, deduped by nothing, so don't re-init a box that still has its old logs (reuse `config.json` instead) |

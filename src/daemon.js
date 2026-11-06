@@ -31,7 +31,8 @@ function send(res, code, obj, type = 'application/json') {
   return true;
 }
 
-// Control endpoints only for this machine itself, never via the Tailscale Service proxy.
+// Control endpoints only for this machine itself. Anything arriving through a proxy is refused
+// (and the tunnel only ever reaches the separate read-only view listener anyway).
 function isLocal(req) {
   const host = String(req.headers.host || '').split(':')[0];
   return (host === '127.0.0.1' || host === 'localhost') && !req.headers['tailscale-user-login'] && !req.headers['x-forwarded-for'];
@@ -131,7 +132,10 @@ async function main() {
   }
   const viewPort = Number(cfg.viewPort) || cfg.webPort + 1;
   const viewServer = http.createServer((req, res) => {
-    try { if (!view(req, res, new URL(req.url, 'http://x'))) send(res, 404, { error: 'not found' }); } catch (e) { send(res, 500, { error: e.message }); }
+    // what visitors through the tunnel get: the dashboard and its data, not this machine's internals
+    const u = new URL(req.url, 'http://x');
+    if (u.pathname === '/api/health') return send(res, req.method === 'GET' || req.method === 'HEAD' ? 200 : 405, { ok: true, version: VERSION, nickname: cfg.nickname });
+    try { if (!view(req, res, u)) send(res, 404, { error: 'not found' }); } catch (e) { send(res, 500, { error: e.message }); }
   });
   let viewOk = true;
   try { await listen(viewServer, viewPort, '127.0.0.1'); } catch (e) { viewOk = false; log(`view port ${viewPort} unavailable (${e.message}); this machine will not join the dashboard tunnel. Set viewPort in config.`); }

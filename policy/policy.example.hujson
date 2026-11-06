@@ -1,52 +1,36 @@
-// plainsight tailnet policy (example). Merge into your existing policy; keep your own ssh/nodeAttrs/etc.
+// plainsight tailnet policy (example). This is what `plainsight pool bootstrap` builds.
+// Merge it into your existing policy and keep your own ssh/nodeAttrs/etc.
+// Tailscale carries usage sync only. The dashboard goes through Cloudflare (docs/DASHBOARD.md),
+// so there is no Tailscale Service, no viewer tag and no autoApprovers.
 // Replace 100.x.y.z with your own computer's Tailscale IP, or delete the plainsight-admin lines.
 {
 	"tagOwners": {
 		// Only admins may tag devices (and mint tagged auth keys).
 		"tag:plainsight": ["autogroup:admin"],
-		// View-only devices (e.g. phones): the dashboard and nothing else.
-		"tag:plainsight-viewer": ["autogroup:admin"],
 	},
 
 	"hosts": {
-		// Your own computer: may reach boxes fully and share its own usage by dialing out.
+		// Optional: your own (untagged) computer. It shares its usage by dialing out to boxes.
 		"plainsight-admin": "100.x.y.z",
 	},
 
 	"grants": [
-		// Your devices reach each other and the internet (exit nodes), but NOT plainsight boxes directly.
+		// Your devices reach each other and the internet (exit nodes), but NOT plainsight boxes.
 		// (Replaces Tailscale's default {"src":["*"],"dst":["*"],"ip":["*"]}.)
 		{"src": ["autogroup:member"], "dst": ["autogroup:member", "autogroup:internet"], "ip": ["*"]},
-
-		// Your devices open the dashboard only through the Tailscale Service.
-		{"src": ["autogroup:member"], "dst": ["svc:plainsight"], "ip": ["tcp:80", "tcp:443"]},
 
 		// Boxes reach only each other, only on the sync port.
 		{"src": ["tag:plainsight"], "dst": ["tag:plainsight"], "ip": ["tcp:4747"]},
 
-		// Boxes may open the dashboard too, only through the service.
-		{"src": ["tag:plainsight"], "dst": ["svc:plainsight"], "ip": ["tcp:80", "tcp:443"]},
-
-		// Your computer reaches boxes fully. Boxes cannot initiate back to it.
+		// Optional: your computer reaches boxes (sync by dialing out, ssh, debugging).
+		// Boxes cannot open connections back to it.
 		{"src": ["plainsight-admin"], "dst": ["tag:plainsight"], "ip": ["*"]},
-
-		// View-only devices: the dashboard service and your computer's dashboard port, nothing else.
-		// No grant has them as dst, so nothing can open a connection to them.
-		{"src": ["tag:plainsight-viewer"], "dst": ["svc:plainsight"], "ip": ["tcp:80", "tcp:443"]},
-		{"src": ["tag:plainsight-viewer"], "dst": ["plainsight-admin"], "ip": ["tcp:4748"]},
 	],
 
-	"autoApprovers": {
-		// Any box may host the dashboard service without manual approval.
-		"services": {
-			"svc:plainsight": ["tag:plainsight"],
-		},
-	},
-
 	// Tailscale refuses to save a policy whose tests fail, so isolation cannot silently regress.
+	// bootstrap keeps any tests you add by hand (e.g. "boxes cannot reach my phone").
 	"tests": [
 		{"src": "tag:plainsight", "accept": ["tag:plainsight:4747"], "deny": ["tag:plainsight:22", "100.x.y.z:445"]},
 		{"src": "100.x.y.z", "accept": ["tag:plainsight:4747", "tag:plainsight:22"]},
-		{"src": "tag:plainsight-viewer", "accept": ["100.x.y.z:4748"], "deny": ["tag:plainsight:4747", "tag:plainsight:22", "100.x.y.z:22", "100.x.y.z:445", "100.x.y.z:443"]},
 	],
 }
