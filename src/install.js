@@ -4,12 +4,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
-const { spawn, execFileSync } = require('child_process');
+const { spawn, execFileSync, execSync } = require('child_process');
 const { paths, readJSON, writeJSON, loadConfig } = require('./util');
 
 const BIN = path.resolve(__dirname, '..', 'bin', 'plainsight.js');
 const NODE = process.execPath;
 const q = (s) => `"${s}"`;
+const startupVbs = () => path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'plainsight.vbs');
 
 function health(port, timeout = 1500) {
   return new Promise((resolve) => {
@@ -78,9 +79,9 @@ function installService() {
     // Runs node with no console window; output goes to daemon.log.
     const cmd = `cmd /c "${q(NODE)} ${q(BIN)} daemon >> ${q(paths.daemonLog)} 2>&1"`;
     fs.writeFileSync(vbs, `CreateObject("WScript.Shell").Run "${cmd.replace(/"/g, '""')}", 0, False\r\n`);
-    execFileSync('schtasks', ['/Create', '/TN', 'plainsight', '/SC', 'ONLOGON', '/RL', 'LIMITED', '/F', '/TR', `wscript.exe "${vbs}"`], { stdio: 'inherit' });
-    execFileSync('schtasks', ['/Run', '/TN', 'plainsight'], { stdio: 'inherit' });
-    return 'Installed scheduled task `plainsight` (runs at logon, hidden).';
+    // Per-user Startup folder: runs at logon without admin rights (schtasks ONLOGON needs admin).
+    fs.copyFileSync(vbs, startupVbs());
+    return `Installed logon launcher ${startupVbs()} (hidden window).`;
   }
   return `Unsupported platform ${p}; rely on the SessionStart hook or run \`plainsight daemon\` yourself.`;
 }
@@ -96,7 +97,7 @@ function uninstallService() {
       try { execFileSync('launchctl', ['bootout', `gui/${process.getuid()}`, plist], { stdio: 'ignore' }); } catch {}
       fs.rmSync(plist, { force: true });
     } else if (p === 'win32') {
-      execFileSync('schtasks', ['/Delete', '/TN', 'plainsight', '/F'], { stdio: 'ignore' });
+      fs.rmSync(startupVbs(), { force: true });
     }
   } catch { /* already gone */ }
 }
@@ -121,12 +122,14 @@ function integrateClaude(dir) {
   // MCP: use the claude CLI (it owns ~/.claude.json, which Claude Code rewrites constantly).
   const env = { ...process.env };
   if (path.resolve(dir) !== path.resolve(os.homedir(), '.claude')) env.CLAUDE_CONFIG_DIR = dir;
-  const win = process.platform === 'win32';
-  const opts = { env, stdio: 'ignore', shell: win };
-  const arg = (s) => (win ? q(s) : s);
-  try { execFileSync('claude', ['mcp', 'remove', '--scope', 'user', 'plainsight'], opts); } catch {}
+  const opts = { env, stdio: 'ignore' };
+  // Windows: `claude` may be a .cmd shim, which needs a shell; pass one pre-quoted command string.
+  const run = (args) => (process.platform === 'win32'
+    ? execSync(['claude', ...args.map((a) => (/[\s"]/.test(a) ? q(a) : a))].join(' '), opts)
+    : execFileSync('claude', args, opts));
+  try { run(['mcp', 'remove', '--scope', 'user', 'plainsight']); } catch {}
   try {
-    execFileSync('claude', ['mcp', 'add', '--scope', 'user', 'plainsight', '--', arg(NODE), arg(BIN), 'mcp'], opts);
+    run(['mcp', 'add', '--scope', 'user', 'plainsight', '--', NODE, BIN, 'mcp']);
     done.push('MCP server registered (claude mcp add --scope user plainsight)');
   } catch {
     done.push(`MCP NOT registered, run: claude mcp add --scope user plainsight -- "${NODE}" "${BIN}" mcp`);

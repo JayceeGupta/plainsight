@@ -13,7 +13,7 @@
 | `src/aggregate.js` | Events → per-subscription totals, series, live sessions, machines |
 | `src/prices.js` | LiteLLM price table, cached, with local overrides |
 | `src/mcp.js` | MCP server over stdio |
-| `src/install.js` | Service install (systemd/launchd/schtasks), Claude/Codex integration |
+| `src/install.js` | Service install (systemd user unit / launchd agent / Windows Startup-folder launcher), Claude/Codex integration |
 | `src/pool.js` | Tailnet bootstrap via the Tailscale API |
 | `web/index.html` | Dashboard (single file, no build) |
 

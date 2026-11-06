@@ -18,7 +18,7 @@ Start with `plainsight doctor`; it prints a fix for each failed check. Logs: `~/
 | Model shows **Unpriced** | Not in the LiteLLM table yet | Add it to `~/.plainsight/prices.json` |
 | Two cards for one machine | It was re-initialised with a new `nodeId` but the same nickname | They are merged by nickname in the UI; harmless |
 | Container: sync fails, `tailscale status` works | Userspace networking; outbound needs the SOCKS proxy | Start tailscaled with `--socks5-server=127.0.0.1:1055` and set `PLAINSIGHT_SOCKS=127.0.0.1:1055` |
-| Windows: no background daemon after reboot | Scheduled task missing | `plainsight install` again (creates task `plainsight`); `schtasks /Query /TN plainsight` |
+| Windows: no background daemon after reboot | Startup launcher missing | `plainsight install` again; it writes `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\plainsight.vbs` |
 
 Reset a machine completely:
 

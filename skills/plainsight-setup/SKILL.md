@@ -137,7 +137,7 @@ This:
 - sets `cleanupPeriodDays: 3650` so Claude Code stops deleting transcripts after 30 days
 - registers the `plainsight` MCP server for Claude Code (`claude mcp add --scope user`) and Codex (`config.toml`)
 - copies the `plainsight` skill
-- installs a background service (systemd user unit, launchd agent or Windows logon task)
+- installs a background service (systemd user unit, launchd agent or Windows Startup-folder launcher, no admin needed)
 - starts the daemon
 
 The first start backfills all existing history (seconds to a few minutes).
