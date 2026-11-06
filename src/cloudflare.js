@@ -156,7 +156,7 @@ async function styleLogin(cf, a, o) {
   if (apps.some((x) => x.name !== NAMES.app)) return false;
   await cf('PUT', `/accounts/${a}/access/organizations`, {
     name: o.name, auth_domain: o.auth_domain,
-    login_design: { background_color: '#000000', text_color: '#f5f5f5', header_text: 'plainsight', footer_text: 'Usage dashboard · sign in with an allowed account' },
+    login_design: { background_color: '#000000', text_color: '#f5f5f5', footer_text: 'plainsight · usage dashboard' },
   });
   return true;
 }
