@@ -38,15 +38,18 @@ function buildPolicy(cur, adminIp) {
   delete owners[LEGACY_VIEWER];
   p.tagOwners = owners;
   if (adminIp) p.hosts = { ...(cur.hosts || {}), 'plainsight-admin': adminIp };
-  p.grants = [
-    ...grants.filter((g) => !ALLOW_ALL(g) && !JSON.stringify(g).includes('plainsight')),
+  const ours = [
     // your devices reach each other and the internet (exit nodes), NOT boxes directly
     { src: ['autogroup:member'], dst: ['autogroup:member', 'autogroup:internet'], ip: ['*'] },
     // boxes reach only each other, only on the sync port
     { src: [TAG], dst: [TAG], ip: ['tcp:4747'] },
-    // your computer reaches boxes (it syncs by dialing out); boxes cannot initiate back
-    ...(adminIp ? [{ src: ['plainsight-admin'], dst: [TAG], ip: ['*'] }] : []),
+    // your computer syncs by dialing out to boxes on the sync port; boxes cannot initiate back
+    ...(adminIp ? [{ src: ['plainsight-admin'], dst: [TAG], ip: ['tcp:4747'] }] : []),
   ];
+  const mine = new Set(ours.map((g) => JSON.stringify(g)));
+  const seen = new Set();
+  p.grants = [...grants.filter((g) => !ALLOW_ALL(g) && !JSON.stringify(g).includes('plainsight') && !mine.has(JSON.stringify(g))), ...ours]
+    .filter((g) => { const k = JSON.stringify(g); if (seen.has(k)) return false; seen.add(k); return true; });
   if (cur.autoApprovers && cur.autoApprovers.services) {
     const services = { ...cur.autoApprovers.services };
     delete services[LEGACY_SERVICE];
@@ -56,13 +59,23 @@ function buildPolicy(cur, adminIp) {
   }
   // keep every existing test (some are added by hand, e.g. 'boxes cannot reach my phone'),
   // except ones about the removed viewer tag or service; add ours if missing
-  const keep = (cur.tests || []).filter((t) => !JSON.stringify(t).includes(LEGACY_VIEWER) && !JSON.stringify(t).includes(LEGACY_SERVICE));
-  const have = new Set(keep.map((t) => JSON.stringify(t)));
-  p.tests = [...keep];
+  // Your computer only gets the sync port on boxes, so tests expecting more are adjusted.
+  const keep = (cur.tests || [])
+    .filter((t) => !JSON.stringify(t).includes(LEGACY_VIEWER) && !JSON.stringify(t).includes(LEGACY_SERVICE))
+    .map((t) => (adminIp && t.src === adminIp && Array.isArray(t.accept) ? { ...t, accept: t.accept.filter((d) => d !== `${TAG}:22`) } : t));
+  // drop a test when another test for the same source already checks everything it checks
+  const covers = (big, small) => big !== small && big.src === small.src
+    && (small.accept || []).every((d) => (big.accept || []).includes(d)) && (small.deny || []).every((d) => (big.deny || []).includes(d))
+    && JSON.stringify(Object.keys(small).filter((k) => !['src', 'accept', 'deny'].includes(k))) === '[]';
+  const seenT = new Set();
+  p.tests = keep
+    .filter((t) => { const k = JSON.stringify(t); if (seenT.has(k)) return false; seenT.add(k); return true; })
+    .filter((t, i, all) => !all.some((o, j) => covers(o, t) && (JSON.stringify(o) !== JSON.stringify(t) || j < i)));
+  // add ours only when no existing test already covers that source
   for (const t of [
     { src: TAG, accept: [`${TAG}:4747`], deny: [`${TAG}:22`, ...(adminIp ? [`${adminIp}:445`] : [])] },
-    ...(adminIp ? [{ src: adminIp, accept: [`${TAG}:4747`, `${TAG}:22`] }] : []),
-  ]) if (!have.has(JSON.stringify(t))) p.tests.push(t);
+    ...(adminIp ? [{ src: adminIp, accept: [`${TAG}:4747`], deny: [`${TAG}:22`] }] : []),
+  ]) if (!p.tests.some((x) => x.src === t.src)) p.tests.push(t);
   return { policy: p, isDefault };
 }
 
