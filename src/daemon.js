@@ -27,6 +27,7 @@ function send(res, code, obj, type = 'application/json') {
   const body = type === 'application/json' ? JSON.stringify(obj) : obj;
   res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
   res.end(body);
+  return true;
 }
 
 // Control endpoints only for this machine itself, never via the Tailscale Service proxy.
@@ -53,28 +54,49 @@ async function main() {
   let ts = { tagged: false, peers: [] };
   let lastScan = 0;
 
-  // ---- web (dashboard + read API), 127.0.0.1 only; published via Tailscale Service on tagged nodes
-  const web = http.createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://x');
-    try {
-      if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
+  // ---- read-only view: dashboard + GET API. Everything published on the tailnet points at a
+  // separate listener that serves only this, so no request from the tailnet can change anything,
+  // whatever headers it carries (raw TCP forwarding for custom domains adds none).
+  function view(req, res, url) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') { send(res, 405, { error: 'read-only' }); return true; }
+    {
+      if (url.pathname === '/' || url.pathname === '/index.html') {
         return send(res, 200, fs.readFileSync(WEB), 'text/html; charset=utf-8');
       }
-      if (req.method === 'GET' && url.pathname === '/api/summary') {
+      if (url.pathname === '/api/summary') {
         const q = Object.fromEntries(url.searchParams);
         return send(res, 200, { self: { nodeId: self, nick: cfg.nickname }, ...summarize(store.all(), q) });
       }
-      if (req.method === 'GET' && url.pathname === '/api/live') {
+      if (url.pathname === '/api/live') {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
         res.write('retry: 3000\n\n');
         sse.add(res);
         req.on('close', () => sse.delete(res));
-        return;
+        return true;
       }
-      if (req.method === 'GET' && url.pathname === '/api/health') {
+      if (url.pathname === '/api/health') {
         const counts = {};
         for (const [o, l] of store.logs) counts[o] = l.length;
-        return send(res, 200, { ok: true, version: VERSION, nodeId: self, nickname: cfg.nickname, tagged: ts.tagged, peers: ts.peers, sync: syncer.lastResults, lastScan, events: counts, tracked: cfg.tracked.map((t) => ({ provider: t.provider, label: t.label, sub: t.sub, dir: t.dir, since: t.since })) });
+        send(res, 200, { ok: true, version: VERSION, nodeId: self, nickname: cfg.nickname, tagged: ts.tagged, peers: ts.peers, sync: syncer.lastResults, lastScan, events: counts, tracked: cfg.tracked.map((t) => ({ provider: t.provider, label: t.label, sub: t.sub, dir: t.dir, since: t.since })) });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // ---- local web: the view plus control endpoints, 127.0.0.1 only and never published
+  const web = http.createServer(async (req, res) => {
+    const url = new URL(req.url, 'http://x');
+    try {
+      if (req.method === 'GET' || req.method === 'HEAD') { if (view(req, res, url)) return; return send(res, 404, { error: 'not found' }); }
+      if (req.method === 'POST' && url.pathname === '/api/color') {
+        if (!isLocal(req)) return send(res, 403, { error: 'local only' });
+        const b = await readBody(req, 1024);
+        const mach = String(b.machine || '').slice(0, 100);
+        const c = String(b.color || '').toLowerCase();
+        if (!mach || !/^#[0-9a-f]{6}$/.test(c)) return send(res, 400, { error: 'need machine and color #rrggbb' });
+        store.appendLocal(self, [{ k: 'color', mach, c }]);
+        return send(res, 200, { ok: true });
       }
       if (req.method === 'POST' && url.pathname === '/api/announce') {
         if (!isLocal(req)) return send(res, 403, { error: 'local only' });
@@ -105,6 +127,12 @@ async function main() {
     if (e.code === 'EADDRINUSE') { log(`port ${cfg.webPort} in use: daemon already running`); process.exit(0); }
     throw e;
   }
+  const viewPort = Number(cfg.viewPort) || cfg.webPort + 1;
+  const viewServer = http.createServer((req, res) => {
+    try { if (!view(req, res, new URL(req.url, 'http://x'))) send(res, 404, { error: 'not found' }); } catch (e) { send(res, 500, { error: e.message }); }
+  });
+  try { await listen(viewServer, viewPort, '127.0.0.1'); } catch (e) { log(`view port ${viewPort} unavailable (${e.message}); dashboard not published on the tailnet. Set viewPort in config.`); cfg.serveTailnet = false; cfg.hostService = false; }
+  const VIEW = `127.0.0.1:${viewPort}`;
   fs.writeFileSync(paths.pid, String(process.pid));
   log(`plainsight ${VERSION} node ${self} (${cfg.nickname}) dashboard http://127.0.0.1:${cfg.webPort}`);
 
@@ -139,8 +167,8 @@ async function main() {
           try { await listen(srv, cfg.port, host); log(`sync listening ${host}:${cfg.port}`); } catch (e) { log(`sync listen ${host}:${cfg.port} failed: ${e.message}`); }
         }
         if (cfg.hostService !== false) {
-          for (const flag of [`--https=443`, `--http=80`]) {
-            try { await tailscale(['serve', `--service=${SERVICE}`, flag, `127.0.0.1:${cfg.webPort}`], 20000); }
+          for (const [flag, target] of [['--https=443', `http://${VIEW}`], ['--tcp=80', `tcp://${VIEW}`]]) {
+            try { await tailscale(['serve', `--service=${SERVICE}`, flag, target], 20000); }
             catch (e) { log(`tailscale serve ${flag} failed (dashboard service not hosted here): ${e.message}`); }
           }
         }
@@ -153,23 +181,33 @@ async function main() {
   // Untagged machines (your own computer) publish the dashboard on their own tailnet name so your
   // other devices (phone) can open it even when no box is online. Read-only: the proxy adds
   // Tailscale-User-Login / X-Forwarded-For, so isLocal() refuses every POST from it.
+  // Ports plainsight itself published earlier point at one of these; anything else is not ours.
+  const ours = (t) => [VIEW, `127.0.0.1:${cfg.webPort}`].some((hp) => String(t || '').replace(/^\w+:\/\//, '') === hp);
   let served = false;
   async function serveOnTailnet(st) {
     if (served) return;
+    served = true;
+    let cur;
+    try { cur = JSON.parse((await tailscale(['serve', 'status', '--json'])) || '{}'); }
+    catch (e) { return log(`tailscale serve failed (dashboard only on this machine): ${e.message}`); }
+    const funnel = (port) => Object.keys(cur.AllowFunnel || {}).some((hp) => hp.endsWith(`:${port}`));
+    const publish = async (port, flag, target, current, what) => {
+      if (current && !ours(current)) return log(`tailnet port ${port} already serves something else; ${what} not published (see tailnetPort/tailnetHttpPort in config)`);
+      if (funnel(port)) return log(`port ${port} is public via Funnel; refusing to publish ${what} there`);
+      if (current !== target) {
+        try { await tailscale(['serve', '--bg', flag, target], 20000); } catch (e) { return log(`tailscale serve ${flag} failed: ${e.message}`); }
+      }
+      log(`${what}: port ${port}`);
+    };
     const port = Number(cfg.tailnetPort) || cfg.webPort;
-    const target = `http://127.0.0.1:${cfg.webPort}`;
-    try {
-      const cur = JSON.parse((await tailscale(['serve', 'status', '--json'])) || '{}');
-      const used = Object.entries(cur.Web || {}).find(([hp]) => hp.endsWith(`:${port}`));
-      const mine = used && Object.values(used[1].Handlers || {}).some((h) => h.Proxy === target);
-      if (used && !mine) { served = true; return log(`tailnet port ${port} already serves something else; dashboard not published there (set tailnetPort in config)`); }
-      if ((cur.AllowFunnel || {})[`${st.selfDns}:${port}`]) { served = true; return log(`port ${port} is public via Funnel; refusing to publish the dashboard there`); }
-      if (!mine) await tailscale(['serve', '--bg', `--https=${port}`, target], 20000);
-      served = true;
-      log(`dashboard on the tailnet: https://${st.selfDns || st.selfIp}:${port}`);
-    } catch (e) {
-      served = true;
-      log(`tailscale serve failed (dashboard only on this machine): ${e.message}`);
+    const web = Object.entries(cur.Web || {}).find(([hp]) => hp.endsWith(`:${port}`));
+    const webTarget = web ? (Object.values(web[1].Handlers || {}).map((h) => h.Proxy).find(Boolean) || 'other') : (cur.TCP || {})[port] && !(cur.TCP[port] || {}).HTTPS ? 'other' : null;
+    await publish(port, `--https=${port}`, `http://${VIEW}`, webTarget, `dashboard https://${st.selfDns || st.selfIp}:${port}`);
+    if (cfg.tailnetHttpPort !== false) {
+      const hport = Number(cfg.tailnetHttpPort) || 80;
+      const tcp = (cur.TCP || {})[hport];
+      const hTarget = tcp ? (tcp.TCPForward ? `tcp://${tcp.TCPForward}` : 'other') : null;
+      await publish(hport, `--tcp=${hport}`, `tcp://${VIEW}`, hTarget, `dashboard http://${st.selfIp}:${hport} (point a custom domain's A record here)`);
     }
   }
 

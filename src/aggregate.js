@@ -32,6 +32,7 @@ function index(events) {
   const subs = new Map();
   const anns = [];
   const usage = [];
+  const colors = new Map(); // machine nick -> { c, t }, newest wins
   for (const ev of events) {
     let n = nodes.get(ev.o);
     if (!n) { n = { origin: ev.o, nick: ev.o.slice(0, 8), host: null, os: null, op: null, ver: null, lastSeen: 0, firstSeen: ev.t, bye: false, helloT: 0 }; nodes.set(ev.o, n); }
@@ -43,9 +44,10 @@ function index(events) {
       const s = subs.get(ev.sub);
       if (!s || ev.t >= s.t) subs.set(ev.sub, { sub: ev.sub, label: ev.label, provider: ev.p, t: ev.t });
     } else if (ev.k === 'ann') anns.push(ev);
+    else if (ev.k === 'color') { const x = colors.get(ev.mach); if (!x || ev.t >= x.t) colors.set(ev.mach, { c: ev.c, t: ev.t }); }
     else if (ev.k === 'u') usage.push(ev);
   }
-  return { nodes, subs, anns, usage };
+  return { nodes, subs, anns, usage, colors };
 }
 
 function machineName(nodes, origin) {
@@ -70,7 +72,7 @@ function summarize(events, q = {}, now = Date.now()) {
   const machF = parseList(q.machines);
   const provF = parseList(q.providers);
 
-  const { nodes, subs, anns, usage } = index(events);
+  const { nodes, subs, anns, usage, colors } = index(events);
   const subInfo = (id, p) => subs.get(id) || { sub: id, label: `${p || 'unknown'} ${id.slice(0, 6)}`, provider: p };
   const pass = (ev) => (!subsF || subsF.has(ev.sub)) && (!machF || machF.has(machineName(nodes, ev.o))) && (!provF || provF.has(ev.p));
 
@@ -160,6 +162,7 @@ function summarize(events, q = {}, now = Date.now()) {
       subscriptions: [...subs.values()].map(({ sub, label, provider }) => ({ sub, label, provider })),
       machines: [...new Set([...nodes.values()].map((n) => n.nick))].sort(),
       // oldest first: a machine keeps its dashboard colour when new machines join
+      colors: Object.fromEntries([...colors].map(([k, v]) => [k, v.c])),
       machineOrder: [...new Set([...nodes.values()].sort((a, b) => a.firstSeen - b.firstSeen).map((n) => n.nick))],
       providers: [...new Set(usage.map((e) => e.p))].sort(),
     },

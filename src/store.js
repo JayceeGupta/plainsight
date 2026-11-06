@@ -4,9 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const { EventEmitter } = require('events');
 
-const KINDS = new Set(['hello', 'sub', 'u', 'hb', 'ann', 'bye']);
+const KINDS = new Set(['hello', 'sub', 'u', 'hb', 'ann', 'bye', 'color']);
 const NUM_FIELDS = ['in', 'cr', 'cw', 'out', 'rs', 'until', 'hours'];
-const STR_FIELDS = ['o', 'k', 'sub', 'p', 'sid', 'm', 'id', 'nick', 'host', 'os', 'op', 'ver', 'label', 'msg'];
+const STR_FIELDS = ['o', 'k', 'sub', 'p', 'sid', 'm', 'id', 'nick', 'host', 'os', 'op', 'ver', 'label', 'msg', 'mach', 'c'];
 const MAX_LINE = 2048;
 const ORIGIN_RE = /^[a-f0-9]{8,32}$/;
 
@@ -24,6 +24,7 @@ function validateEvent(ev, origin, seq) {
   }
   if ('heavy' in ev && typeof ev.heavy !== 'boolean') return 'bad heavy';
   if ('bf' in ev && ev.bf !== 1) return 'bad bf';
+  if (ev.k === 'color' && !/^#[0-9a-f]{6}$/.test(ev.c || '')) return 'bad color';
   return null;
 }
 

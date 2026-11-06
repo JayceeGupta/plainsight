@@ -75,6 +75,42 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .chips { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 4px; font-size: 13px; color: var(--muted); }
 .chips span { display: inline-flex; align-items: center; gap: 6px; }
 
+/* machines list: one row per machine, its live sessions grouped underneath */
+.mlist { border-top: 1px solid var(--line); }
+.mrow { border-bottom: 1px solid var(--line); padding: 16px 0; }
+.mrow.off { opacity: .55; }
+.mhead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; }
+.sw-btn { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; }
+.sw-btn i { width: 10px; height: 10px; border-radius: 50%; background: var(--mc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc) 22%, transparent); transition: transform .12s; }
+.sw-btn:hover i { transform: scale(1.25); }
+.mname { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.mname b { font-size: 16px; font-weight: 600; }
+.mstate { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mstate.act { color: var(--ok); }
+.mmeta { grid-column: 2; font-size: 12.5px; color: var(--faint); margin-top: -2px; }
+.mval { text-align: right; white-space: nowrap; }
+.mval b { font-size: 16px; font-weight: 600; display: block; }
+.mval span { font-size: 12.5px; color: var(--muted); }
+.mbar { grid-column: 2 / -1; height: 2px; border-radius: 1px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.mbar i { display: block; height: 100%; background: var(--mc); border-radius: 1px; }
+.sess { margin: 12px 0 0 36px; display: grid; gap: 0; border-left: 1px solid var(--line2); }
+.srow2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 2px 16px; align-items: center; padding: 7px 0 7px 14px; font-size: 13.5px; color: var(--muted); position: relative; }
+.srow2::before { content: ""; position: absolute; left: -4px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px #000; }
+.srow2.idle::before { background: var(--warn); }
+.srow2 .m { color: var(--text); display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow2 b { color: var(--text); font-weight: 600; }
+.srow2 .r { text-align: right; white-space: nowrap; }
+.pop { position: fixed; z-index: 40; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 14px; padding: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.85); width: 236px; display: none; }
+.pop.open { display: block; }
+.pop .g { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.pop .g button { width: 28px; height: 28px; border-radius: 50%; background: var(--c); }
+.pop .g button[aria-pressed="true"] { box-shadow: 0 0 0 2px #000, 0 0 0 4px #f5f5f5; }
+.pop .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.pop input[type=color] { width: 34px; height: 26px; border: 1px solid var(--line2); border-radius: 6px; background: none; padding: 0; cursor: pointer; }
+.pop .note { font-size: 12px; color: var(--faint); margin-top: 10px; line-height: 1.4; }
+.pop .reset { color: var(--muted); font-size: 13px; }
+.pop .reset:hover { color: var(--text); }
+
 /* announcements + live */
 .anns { display: grid; gap: 8px; margin-top: 18px; }
 .ann { border: 1px solid rgba(245,176,65,.35); background: rgba(245,176,65,.06); border-radius: 12px; padding: 11px 14px; display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: baseline; }
@@ -125,7 +161,8 @@ td.v { font-size: 16px; font-weight: 600; }
 .nm { display: inline-flex; flex-direction: column; gap: 7px; max-width: 100%; }
 .nm .n { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; min-width: 0; }
 .nm .n span.l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nm .bar { height: 3px; border-radius: 2px; }
+.nm .track { width: min(100%, 320px); height: 2px; }
+.nm .sbar { display: block; height: 2px; border-radius: 1px; min-width: 6px; }
 button.nm { text-align: left; }
 button.nm:hover .l { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
 
@@ -179,7 +216,11 @@ footer b { color: var(--muted); font-weight: 500; }
   .hide-s { display: none; }
   td { padding: 13px 6px; }
   td.v, .nm .n { font-size: 15px; }
-  .live, .machines { grid-template-columns: 1fr; }
+  .mval span { display: none; }
+  .sess { margin-left: 10px; }
+  .srow2 { grid-template-columns: minmax(0, 1fr) auto; }
+  .srow2 .t { grid-column: 1; grid-row: 2; font-size: 12.5px; }
+  .srow2 .r { grid-row: 1 / 3; grid-column: 2; }
   dialog { padding: 22px 18px 24px; border-radius: 16px; }
   dialog h3 { font-size: 19px; }
   .dstats { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 20px 0 24px; }
@@ -220,9 +261,9 @@ footer b { color: var(--muted); font-weight: 500; }
     </div>
     <div class="charts" id="charts"></div>
   </div>
-  <section id="liveSec">
-    <div class="head2"><h2>Using it right now</h2><span class="muted" id="liveNote" style="font-size:14px"></span></div>
-    <div class="live" id="live"></div>
+  <section>
+    <div class="head2"><h2>Machines</h2><span class="muted" id="liveNote" style="font-size:14px"></span></div>
+    <div class="mlist" id="machines"></div>
   </section>
   <section>
     <h2>Totals</h2>
@@ -233,16 +274,13 @@ footer b { color: var(--muted); font-weight: 500; }
     <div id="types"></div>
   </section>
   <section>
-    <div class="head2"><h2>Breakdown</h2><div class="seg" id="bd" role="group" aria-label="Breakdown"><button data-v="model">Model</button><button data-v="machine">Machine</button><button data-v="time">Day</button></div></div>
+    <div class="head2"><h2>Breakdown</h2><div class="seg" id="bd" role="group" aria-label="Breakdown"><button data-v="model">Model</button><button data-v="time">Day</button></div></div>
     <table id="breakdown"></table>
-  </section>
-  <section>
-    <h2>Machines</h2>
-    <div class="machines" id="machines"></div>
   </section>
   <div class="err" id="err"></div>
   <footer id="foot"></footer>
 </main>
+<div class="pop" id="pop" role="dialog" aria-label="Machine colour"></div>
 <dialog id="dlg" aria-labelledby="dlgTitle">
   <button class="ib x" id="dlgClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <div id="dlgBody"></div>
@@ -257,7 +295,7 @@ const GLYPH = { claude: '<span class="glyph" style="color:var(--claude)">✳</sp
 const glyph = (p) => GLYPH[p] || '<span class="glyph faint">•</span>';
 const PROV = (p) => p === 'claude' ? 'Claude Code' : p === 'codex' ? 'Codex' : p;
 const ls = { get(k, d) { try { const v = localStorage.getItem('ps:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('ps:' + k, JSON.stringify(v)); } catch {} } };
-const S = { range: ls.get('range', '24h'), metric: ls.get('metric', 'cost'), bd: ls.get('bd', 'model'), subs: ls.get('subs', []), machines: ls.get('machines', []), providers: ls.get('providers', []), live: ls.get('live', true) };
+const S = { range: ls.get('range', '24h'), metric: ls.get('metric', 'cost'), bd: ls.get('bd', 'model') === 'time' ? 'time' : 'model', subs: ls.get('subs', []), machines: ls.get('machines', []), providers: ls.get('providers', []), live: ls.get('live', true) };
 let data = null, es = null;
 
 const fmtN = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : n >= 1e7 ? 1 : 2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(n));
@@ -266,7 +304,15 @@ const val = (t) => S.metric === 'cost' ? t.cost : t.tokens;
 const fmtV = (n) => S.metric === 'cost' ? fmtC(n) : fmtN(n);
 const dur = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`; };
 const ago = (ms) => ms < 60e3 ? 'just now' : ms < 3600e3 ? Math.round(ms / 60e3) + 'm ago' : ms < 864e5 ? Math.round(ms / 3600e3) + 'h ago' : Math.round(ms / 864e5) + 'd ago';
-const mcol = (nick) => { const i = (data.options.machineOrder || data.options.machines).indexOf(nick); return i < 0 ? '#8e8e8e' : MPAL[i % MPAL.length]; };
+// colour: this device's override > shared choice (set from a machine running plainsight) > palette
+const LOCAL = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+let myColors = ls.get('colors', {});
+const mcol = (nick) => {
+  if (myColors[nick]) return myColors[nick];
+  if ((data.options.colors || {})[nick]) return data.options.colors[nick];
+  const i = (data.options.machineOrder || data.options.machines).indexOf(nick);
+  return i < 0 ? '#8e8e8e' : MPAL[i % MPAL.length];
+};
 const mdot = (nick) => `<span class="dot" style="background:${mcol(nick)}"></span>`;
 const subInfo = (sub) => data.options.subscriptions.find((s) => s.sub === sub) || { label: sub.slice(0, 6), provider: '' };
 
@@ -318,8 +364,8 @@ function render() {
   const online = new Set(data.machines.filter((m) => m.online).map((m) => m.nick));
   dropdown('dd-machines', 'machines', (o.machineOrder || o.machines).map((m) => ({ v: m, label: m, html: `${mdot(m)}${esc(m)}`, note: online.has(m) ? 'online' : '' })), 'All machines', 'machines');
   dropdown('dd-providers', 'providers', o.providers.map((p) => ({ v: p, label: PROV(p), html: `${glyph(p)}${esc(PROV(p))}` })), 'All providers', 'providers');
-  renderAnns(); renderHero(); renderCharts(); renderLive(); renderTotals(); renderTypes(); renderBreakdown(); renderMachines();
-  $('foot').innerHTML = `Cost is an API-equivalent estimate from public model prices; subscriptions are billed flat. Each subscription is shown on its own and never added to another.<br>${data.machines.length} machines known, ${online.size} online · served by <b>${esc(data.self.nick)}</b> · read-only view`;
+  renderAnns(); renderHero(); renderCharts(); renderMachines(); renderTotals(); renderTypes(); renderBreakdown();
+  $('foot').innerHTML = `${data.machines.length} machine${data.machines.length === 1 ? '' : 's'} known, ${online.size} online · served by <b>${esc(data.self.nick)}</b>${LOCAL ? '' : ' · read-only view'}`;
 }
 
 function renderAnns() {
@@ -429,16 +475,6 @@ function drawChart(el, sub) {
   document.addEventListener('click', hide, { once: true });
 }
 
-function renderLive() {
-  const now = Date.now();
-  $('liveNote').textContent = data.live.length ? '' : 'nobody in the last 10 minutes';
-  $('live').innerHTML = data.live.length ? data.live.map((s) => {
-    const active = now - s.last < 3 * 60e3;
-    return `<div class="card mc lc" style="--mc:${mcol(s.machine)}"><div class="t"><span class="pulse ${active ? '' : 'idle'}"></span>${esc(s.machine)}<span class="faint" style="font-weight:400">·</span>${glyph(s.provider)}<span style="font-weight:500">${esc(s.label)}</span></div>
-      <div class="meta"><span>${esc(s.model)}</span><span>running <b class="num" data-since="${s.streak}">${dur(now - s.streak)}</b>${s.start < s.streak ? ` <span class="faint">(session from ${ago(now - s.start)})</span>` : ''}</span><span>last activity <span data-ago="${s.last}">${ago(now - s.last)}</span></span><span class="num">${fmtN(s.totals.tokens)} tokens · ${fmtC(s.totals.cost)}</span></div></div>`;
-  }).join('') : '<div class="empty">Nobody is using any tracked subscription right now.</div>';
-}
-
 function stat(k, v) { return `<div class="stat"><div class="k">${k}</div><div class="v num">${v}</div></div>`; }
 function renderTotals() {
   const subs = data.subscriptions;
@@ -468,16 +504,15 @@ function renderBreakdown() {
   const subTot = Object.fromEntries(data.subscriptions.map((s) => [s.sub, val(s.totals)]));
   let rows = [];
   if (S.bd === 'model') rows = data.models.map((m, i) => ({ sub: m.sub, name: m.model, lead: glyph(m.provider), color: 'var(--claude)', t: m.totals, priced: m.priced, idx: i }));
-  else if (S.bd === 'machine') rows = data.machineUsage.map((m) => ({ sub: m.sub, name: m.machine, lead: mdot(m.machine), color: mcol(m.machine), t: m.totals, priced: true }));
   else rows = data.series.slice().reverse().flatMap((b) => Object.entries(b.v).map(([sub, t]) => ({ sub, name: tickLabel(b.t, data.step, true), lead: '', color: '#8e8e8e', t, priced: true })));
   if (S.bd === 'model') rows.forEach((r) => { if (subInfo(r.sub).provider === 'codex') r.color = 'var(--codex)'; });
   if (S.bd !== 'time') rows.sort((a, b) => val(b.t) - val(a.t) || b.t.tokens - a.t.tokens);
   const multi = data.subscriptions.length > 1;
-  const head = S.bd === 'model' ? 'Model' : S.bd === 'machine' ? 'Machine' : day ? 'Day' : 'Hour';
+  const head = S.bd === 'model' ? 'Model' : day ? 'Day' : 'Hour';
   $('breakdown').innerHTML = rows.length ? `<thead><tr><th>#</th><th>${head}</th>${multi ? '<th class="hide-s">Subscription</th>' : ''}<th class="r">Cost</th><th class="r hide-s">Share</th><th class="r">Tokens</th></tr></thead><tbody>` +
     rows.map((r, i) => {
       const share = subTot[r.sub] ? val(r.t) / subTot[r.sub] : 0;
-      const inner = `<span class="n">${r.lead}<span class="l">${esc(r.name)}</span></span><span class="bar" style="width:${Math.max(4, share * 100) * 0.9}%;min-width:8px;background:${r.color}"></span>`;
+      const inner = `<span class="n">${r.lead}<span class="l">${esc(r.name)}</span></span><span class="track"><span class="sbar" style="width:${(share * 100).toFixed(2)}%;background:${r.color}"></span></span>`;
       return `<tr><td class="muted num">${i + 1}</td><td style="width:60%">${r.idx != null ? `<button class="nm" style="width:100%" data-model="${r.idx}">${inner}</button>` : `<span class="nm" style="width:100%">${inner}</span>`}</td>${multi ? `<td class="muted hide-s">${esc(subInfo(r.sub).label)}</td>` : ''}<td class="r v num">${r.priced ? fmtC(r.t.cost) : '<span class="muted" style="font-weight:400">Unpriced</span>'}</td><td class="r v num hide-s">${(share * 100).toFixed(1)}%</td><td class="r v num">${fmtN(r.t.tokens)}</td></tr>`;
     }).join('') + '</tbody>' : '<tbody><tr><td colspan="6" class="muted" style="padding-left:0">No usage in this period.</td></tr></tbody>';
 }
@@ -499,10 +534,78 @@ $('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').
 
 function renderMachines() {
   const now = Date.now();
-  const sl = (s) => { const i = subInfo(s); return `${glyph(i.provider)} ${esc(i.label)}`; };
-  $('machines').innerHTML = data.machines.map((m) => `<div class="card mc mcard" style="--mc:${mcol(m.nick)}"><div class="t">${mdot(m.nick)}${esc(m.nick)}<span class="st ${m.online ? 'on' : 'off'}">${m.online ? 'online' : 'offline'}</span></div>
-    <div class="meta"><span>${m.online ? 'seen ' + ago(now - m.lastSeen) : 'last seen ' + ago(now - m.lastSeen)}${m.nick === data.self.nick ? ' · serving this page' : ''}</span>${m.op ? `<span>${esc(m.op)}</span>` : ''}<span>${esc(m.os || '')}${m.ver ? ' · v' + esc(m.ver) : ''}</span><span>${m.subs.map(sl).join(' &nbsp;') || 'no usage yet'}</span></div></div>`).join('') || '<div class="empty">No machines yet.</div>';
+  const subs = data.subscriptions;
+  const bySub = Object.fromEntries(subs.map((x) => [x.sub, val(x.totals)]));
+  const live = {};
+  data.live.forEach((x) => { (live[x.machine] = live[x.machine] || []).push(x); });
+  const rank = (m) => (live[m.nick] ? 0 : m.online ? 1 : 2);
+  const ms = data.machines.slice().sort((x, y) => rank(x) - rank(y) || y.lastSeen - x.lastSeen);
+  const nActive = Object.keys(live).length;
+  $('liveNote').textContent = nActive ? `${nActive} in use right now` : 'nobody in the last 10 minutes';
+  $('machines').innerHTML = ms.map((m) => {
+    const sess = (live[m.nick] || []).sort((x, y) => y.last - x.last);
+    const use = data.machineUsage.filter((u) => u.machine === m.nick);
+    const one = subs.length === 1 ? use.find((u) => u.sub === subs[0].sub) : null;
+    const share = one && bySub[one.sub] ? val(one.totals) / bySub[one.sub] : 0;
+    const state = sess.length ? `<span class="mstate act"><span class="pulse"></span>${sess.length === 1 ? 'in use' : sess.length + ' sessions'}</span>`
+      : m.online ? '<span class="mstate">online</span>' : `<span class="mstate">offline · ${ago(now - m.lastSeen)}</span>`;
+    const value = subs.length === 1
+      ? `<b class="num">${one ? fmtV(val(one.totals)) : '–'}</b><span class="num">${one ? (share * 100).toFixed(1) + '% · ' + (S.metric === 'cost' ? fmtN(one.totals.tokens) : fmtC(one.totals.cost)) : 'no usage'}</span>`
+      : use.length ? use.map((u) => `<span class="num" style="display:block">${esc(subInfo(u.sub).label)} <b style="display:inline;font-size:14px">${fmtV(val(u.totals))}</b></span>`).join('') : '<span>no usage</span>';
+    return `<div class="mrow${!m.online && !sess.length ? ' off' : ''}" style="--mc:${mcol(m.nick)}">
+      <div class="mhead">
+        <button class="sw-btn" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"><i></i></button>
+        <div class="mname"><b>${esc(m.nick)}</b>${state}</div>
+        <div class="mval">${value}</div>
+        <div class="mmeta">${[m.op, m.os, m.ver ? 'v' + m.ver : '', m.nick === data.self.nick ? 'serving this page' : ''].filter(Boolean).map(esc).join(' · ')}</div>
+        ${subs.length === 1 ? `<div class="mbar"><i style="width:${(share * 100).toFixed(2)}%"></i></div>` : ''}
+      </div>
+      ${sess.length ? `<div class="sess">${sess.map((x) => `<div class="srow2${now - x.last < 3 * 60e3 ? '' : ' idle'}">
+        <span class="m">${glyph(x.provider)}${esc(x.model)}${subs.length > 1 || data.options.subscriptions.length > 1 ? ` <span class="faint">· ${esc(x.label)}</span>` : ''}</span>
+        <span class="t">running <b class="num" data-since="${x.streak}">${dur(now - x.streak)}</b> · last <span data-ago="${x.last}">${ago(now - x.last)}</span></span>
+        <span class="r num">${fmtN(x.totals.tokens)} · <b>${fmtC(x.totals.cost)}</b></span></div>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('') || '<div class="empty">No machines yet.</div>';
 }
+
+// colour popover
+let popFor = null;
+function openPop(btn, nick) {
+  const pop = $('pop'), cur = mcol(nick);
+  popFor = nick;
+  pop.innerHTML = `<div class="g">${MPAL.map((c) => `<button style="--c:${c}" data-c="${c}" aria-label="${c}" aria-pressed="${c === cur}"></button>`).join('')}</div>
+    <div class="row"><label style="display:flex;align-items:center;gap:8px">Custom <input type="color" value="${cur}"></label><button class="reset">Reset</button></div>
+    <div class="note">${LOCAL ? 'Changes apply on every machine and phone.' : 'Saved on this device. To change it everywhere, pick it on a machine running plainsight.'}</div>`;
+  pop.classList.add('open');
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(12, Math.min(innerWidth - pop.offsetWidth - 12, r.left - 8)) + 'px';
+  const below = r.bottom + 8;
+  pop.style.top = (below + pop.offsetHeight > innerHeight - 12 ? Math.max(12, r.top - pop.offsetHeight - 8) : below) + 'px';
+}
+function closePop() { $('pop').classList.remove('open'); popFor = null; }
+async function setColor(nick, c) {
+  if (LOCAL && c) {
+    try {
+      const r = await fetch('/api/color', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ machine: nick, color: c }) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      delete myColors[nick];
+    } catch (e) { myColors[nick] = c; $('err').textContent = 'Saved on this device only: ' + e.message; }
+  } else if (c) myColors[nick] = c;
+  else delete myColors[nick];
+  ls.set('colors', myColors);
+  if (LOCAL && c) await load(); else render();
+}
+$('machines').addEventListener('click', (e) => { const b = e.target.closest('[data-color]'); if (b) { e.stopPropagation(); popFor === b.dataset.color ? closePop() : openPop(b, b.dataset.color); } });
+$('pop').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const b = e.target.closest('[data-c]');
+  if (b) { const n = popFor; closePop(); setColor(n, b.dataset.c); }
+  if (e.target.closest('.reset')) { const n = popFor; closePop(); setColor(n, null); }
+});
+$('pop').addEventListener('change', (e) => { if (e.target.type === 'color') { const n = popFor; closePop(); setColor(n, e.target.value.toLowerCase()); } });
+document.addEventListener('click', (e) => { if (popFor && !e.target.closest('#pop')) closePop(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
+addEventListener('scroll', () => popFor && closePop(), { passive: true });
 
 function setLive(on) {
   S.live = on; ls.set('live', on);

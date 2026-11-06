@@ -25,6 +25,7 @@ Run
   url                               Print dashboard URLs
   announce "MESSAGE" [--hours N] [--light]
                                     Tell all machines this one is starting heavy work
+  color MACHINE #rrggbb             Set a machine's dashboard colour everywhere
   label SUB "NEW LABEL"             Rename a subscription (by id or current label) everywhere
   mcp                               MCP server on stdio (registered by install)
   update                            git pull + restart
@@ -209,6 +210,11 @@ async function main() {
       if (!msg) die('usage: plainsight announce "MESSAGE" [--hours N] [--light]');
       const r = await local('POST', '/api/announce', { msg, hours: Number(opt.hours) || 4, heavy: !opt.light });
       return console.log(`announced until ${new Date(r.until).toLocaleString()}`);
+    }
+    case 'color': {
+      if (pos.length < 2 || !/^#?[0-9a-fA-F]{6}$/.test(pos[1])) die('usage: plainsight color MACHINE #rrggbb');
+      await local('POST', '/api/color', { machine: pos[0], color: ('#' + pos[1].replace('#', '')).toLowerCase() });
+      return console.log(`${pos[0]} is now ${pos[1]} on every dashboard`);
     }
     case 'label': {
       const cfg = loadConfig() || die('not initialised');
