@@ -89,44 +89,37 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .chips span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* machines list: one row per machine, its live sessions grouped underneath */
-.mtab tr.mr td { padding-top: 12px; padding-bottom: 12px; }
-.mtab tr.mr.off .n, .mtab tr.mr.off .mstate, .mtab tr.mr.off td.v { opacity: .55; }
-.mtab .n .sw-btn { width: 18px; height: 18px; margin-left: -2px; }
-.mtab .n .sw-btn i { width: 9px; height: 9px; }
+.mtab tr.mr td { padding-top: 13px; padding-bottom: 13px; }
+.mtab th.r, .mtab td.r { width: 120px; }
+.mtab tr.mr.off .n, .mtab tr.mr.off td.v { opacity: .5; }
+.mtab tbody.mgroup + tbody.mgroup tr.mr td { border-top: 0; }
+/* colour swatch: a plain filled circle, 28px hit area */
+.swatch { position: relative; width: 10px; height: 10px; border-radius: 50%; background: var(--mc); flex: none; margin: 0 2px; transition-property: scale; transition-duration: .12s; }
+.swatch::before { content: ""; position: absolute; inset: -9px; }
+.swatch:hover { scale: 1.2; }
+.swatch:active { scale: .96; }
+/* status */
+.pill { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border-radius: 99px; font-size: 13px; color: var(--muted); background: var(--raised); white-space: nowrap; }
+.pill.off { background: none; padding-left: 0; color: var(--faint); }
+.pill.run { color: var(--ok); background: rgba(74,222,128,.1); transition-property: background-color; transition-duration: .15s; }
+.pill.run:hover { background: rgba(74,222,128,.16); }
+.pill.run.idle { color: var(--warn); background: rgba(245,176,65,.1); }
+.pill.run.idle:hover { background: rgba(245,176,65,.16); }
+.pill.run:active { scale: .96; }
+.pill .pulse { width: 6px; height: 6px; }
+.pill .chev { display: inline-grid; width: 14px; height: 14px; margin-right: -3px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
+.pill .chev svg { width: 14px; height: 14px; }
+.pill[aria-expanded="true"] .chev { rotate: 90deg; }
+/* live session rows */
+.mtab tr.lv td { color: var(--muted); font-size: 13.5px; }
+.mtab .lvm { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.mtab .lvm span:not(.glyph) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtab .lvm span:nth-child(2) { color: var(--text); }
 .mtab .mlink { font-size: 16px; font-weight: 500; }
 .mtab .mlink:hover { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
 .mtab .sub2 { overflow: hidden; text-overflow: ellipsis; }
-.mtab .sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); display: inline-block; }
-.mtab .sdot.on { background: var(--ok); }
 .mtab tr.nest td:first-child { padding-left: 30px; }
 .mtab tr.nest td:nth-child(2) { padding-left: 8px; }
-.mtab tr.sess td { color: var(--muted); }
-.mtab tr.sess .pulse { display: inline-block; width: 6px; height: 6px; margin-right: 8px; vertical-align: 2px; }
-.mtab tr.sess b { color: var(--text); font-weight: 600; }
-.mlist { border-top: 1px solid var(--line); }
-.mrow { border-bottom: 1px solid var(--line); padding: 16px 0; }
-.mrow.off { opacity: .55; }
-.mhead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; }
-.sw-btn { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; }
-.sw-btn i { width: 10px; height: 10px; border-radius: 50%; background: var(--mc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc) 22%, transparent); transition: transform .12s; }
-.sw-btn:hover i { transform: scale(1.25); }
-.mname { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; }
-.mname b { font-size: 16px; font-weight: 600; }
-.mstate { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.mstate.act { color: var(--ok); }
-.mmeta { grid-column: 2; font-size: 12.5px; color: var(--faint); margin-top: -2px; }
-.mval { text-align: right; white-space: nowrap; }
-.mval b { font-size: 16px; font-weight: 600; display: block; }
-.mval span { font-size: 12.5px; color: var(--muted); }
-.mbar { grid-column: 2 / -1; height: 2px; border-radius: 1px; background: var(--line); margin-top: 8px; overflow: hidden; }
-.mbar i { display: block; height: 100%; background: var(--mc); border-radius: 1px; }
-.sess { margin: 12px 0 0 36px; display: grid; gap: 0; border-left: 1px solid var(--line2); }
-.srow2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 2px 16px; align-items: center; padding: 7px 0 7px 14px; font-size: 13.5px; color: var(--muted); position: relative; }
-.srow2::before { content: ""; position: absolute; left: -4px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px #000; }
-.srow2.idle::before { background: var(--warn); }
-.srow2 .m { color: var(--text); display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.srow2 b { color: var(--text); font-weight: 600; }
-.srow2 .r { text-align: right; white-space: nowrap; }
 .pop { position: fixed; z-index: 40; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 14px; padding: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.85); width: 236px; display: none; }
 .pop.open { display: block; }
 .pop .g { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
@@ -286,8 +279,9 @@ tr.click:focus-visible td:first-child { box-shadow: inset 2px 0 0 #3b82f6; }
 td.chev { width: 22px; color: var(--faint); padding-left: 4px; }
 tr.click:hover td.chev, tr.click:focus-visible td.chev { color: var(--text); }
 td.chev svg { width: 15px; height: 15px; display: block; }
-.nm .track { display: flex; gap: 2px; }
-.nm .track i { display: block; height: 4px; border-radius: 2px; min-width: 3px; }
+.nm .track { display: block; width: min(100%, 320px); height: 4px; border-radius: 2px; background: var(--line2); overflow: hidden; }
+.nm .track .fill { display: flex; gap: 2px; height: 100%; min-width: 3px; }
+.nm .track i { display: block; height: 100%; border-radius: 2px; min-width: 2px; }
 .nm .sub2 { color: var(--muted); font-size: 13px; font-weight: 400; white-space: nowrap; }
 tr.grp td { font-weight: 600; }
 tr.nest td { padding-top: 8px; padding-bottom: 8px; color: var(--muted); font-size: 14px; border-bottom: 0; }
@@ -348,11 +342,6 @@ footer b { color: var(--muted); font-weight: 500; }
   .hide-s { display: none; }
   td { padding: 13px 6px; }
   td.v, .nm .n { font-size: 15px; }
-  .mval span { display: none; }
-  .sess { margin-left: 10px; }
-  .srow2 { grid-template-columns: minmax(0, 1fr) auto; }
-  .srow2 .t { grid-column: 1; grid-row: 2; font-size: 12.5px; }
-  .srow2 .r { grid-row: 1 / 3; grid-column: 2; }
   dialog { padding: 22px 18px 24px; border-radius: 16px; }
   dialog h3 { font-size: 19px; }
   .dstats { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 20px 0 24px; }
@@ -899,7 +888,7 @@ $('mchips').addEventListener('click', (e) => {
 let bdGroups = [];
 function splitTrack(parts, share) {
   const tot = parts.reduce((a, p) => a + p[1], 0) || 1;
-  return `<span class="track" style="width:min(100%, ${Math.max(1.5, share * 100).toFixed(2)}%)">${parts.map(([m, v]) => `<i style="flex:${v / tot};background:${mcol(m)}" title="${esc(m)} ${fmtV(v)}"></i>`).join('')}</span>`;
+  return `<span class="track"><span class="fill" style="width:${Math.min(100, share * 100).toFixed(2)}%">${parts.map(([m, v]) => `<i style="flex:${v / tot};background:${mcol(m)}" title="${esc(m)} ${fmtV(v)}"></i>`).join('')}</span></span>`;
 }
 function renderBreakdown() {
   renderChips();
@@ -1013,7 +1002,10 @@ $('dlgBody').addEventListener('click', (e) => {
 $('dlgClose').onclick = () => $('dlg').close();
 $('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
 
-// Machines: same table language as Breakdown. One row per machine, live sessions nested under it.
+// Machines: same table language as Breakdown. One row per machine; subscriptions nested under it,
+// live sessions behind a disclosure (remembered per device).
+const mOpen = new Set(ls.get('mopen', []));
+const chevD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 function renderMachines() {
   const now = Date.now();
   const subs = data.subscriptions;
@@ -1023,27 +1015,43 @@ function renderMachines() {
   data.live.forEach((x) => { (live[x.machine] = live[x.machine] || []).push(x); });
   const rank = (m) => (live[m.nick] ? 0 : m.online ? 1 : 2);
   const ms = data.machines.slice().sort((x, y) => rank(x) - rank(y) || y.lastSeen - x.lastSeen);
-  const nActive = Object.keys(live).length;
-  $('liveNote').textContent = nActive ? `${nActive} in use right now` : 'nobody in the last 10 minutes';
+  const nActive = Object.values(live).filter((l) => l.some((x) => now - x.last < 3 * 60e3)).length;
+  const nIdle = Object.keys(live).length - nActive;
+  $('liveNote').textContent = nActive ? `${nActive} in use right now${nIdle ? `, ${nIdle} idle` : ''}` : nIdle ? `${nIdle} idle, none active` : 'nobody in the last 10 minutes';
   if (!ms.length) { $('machines').innerHTML = '<tbody><tr><td class="muted" style="padding-left:0">No machines yet.</td></tr></tbody>'; return; }
   const cells = (u) => u ? `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${bySub[u.sub] ? (val(u.totals) / bySub[u.sub] * 100).toFixed(1) : '0.0'}%</td><td class="r v num">${S.metric === 'cost' ? fmtN(u.totals.tokens) : fmtC(u.totals.cost)}</td>`
-    : '<td class="r muted">–</td><td class="r muted hide-s">–</td><td class="r muted">–</td>';
-  $('machines').innerHTML = `<thead><tr><th>Machine</th><th class="hide-s">Status</th><th class="r">${S.metric === 'cost' ? 'Cost' : 'Tokens'}</th><th class="r hide-s">Share${multi ? ' of sub' : ''}</th><th class="r">${S.metric === 'cost' ? 'Tokens' : 'Cost'}</th></tr></thead><tbody>` + ms.map((m) => {
+    : '<td class="r faint">–</td><td class="r faint hide-s">–</td><td class="r faint">–</td>';
+  $('machines').innerHTML = `<thead><tr><th>Machine</th><th class="hide-s">Status</th><th class="r">${S.metric === 'cost' ? 'Cost' : 'Tokens'}</th><th class="r hide-s">Share${multi ? ' of sub' : ''}</th><th class="r">${S.metric === 'cost' ? 'Tokens' : 'Cost'}</th></tr></thead>` + ms.map((m) => {
     const sess = (live[m.nick] || []).sort((x, y) => y.last - x.last);
     const use = data.machineUsage.filter((u) => u.machine === m.nick).sort((x, y) => val(y.totals) - val(x.totals));
     const one = use.length <= 1 ? use[0] : null;
     const share = one && bySub[one.sub] ? val(one.totals) / bySub[one.sub] : 0;
     const off = !m.online && !sess.length;
-    const status = sess.length ? `<span class="mstate act"><span class="pulse"></span>${sess.length === 1 ? 'in use' : sess.length + ' sessions'}</span>`
-      : m.online ? '<span class="mstate"><i class="sdot on"></i>online</span>' : `<span class="mstate"><i class="sdot"></i>${ago(now - m.lastSeen)}</span>`;
+    const open = sess.length && mOpen.has(m.nick);
+    const fresh = sess.some((x) => now - x.last < 3 * 60e3);
+    const status = sess.length
+      ? `<button class="pill run${fresh ? '' : ' idle'}" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" title="${open ? 'Hide' : 'Show'} sessions"><span class="pulse${fresh ? '' : ' idle'}"></span>${fresh ? 'In use' : 'Idle'} · ${sess.length} session${sess.length > 1 ? 's' : ''}<span class="chev">${chevD}</span></button>`
+      : m.online ? '<span class="pill">Online</span>' : `<span class="pill off">Offline · ${ago(now - m.lastSeen)}</span>`;
     const meta = [m.op, m.os, m.ver ? 'v' + m.ver : '', m.nick === data.self.nick ? 'serving this page' : ''].filter(Boolean).map(esc).join(' · ');
-    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}"><td style="width:46%"><span class="nm" style="width:100%"><span class="n"><button class="sw-btn" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"><i></i></button><button class="l mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button><span class="sub2 hide-s">${meta}</span></span>${one ? `<span class="track" style="width:min(100%, ${Math.max(1, share * 100).toFixed(2)}%)"><i style="flex:1;background:var(--mc)"></i></span>` : ''}</span></td><td class="hide-s">${status}</td>${use.length > 1 ? '<td></td><td class="hide-s"></td><td></td>' : cells(one)}</tr>`;
-    const nestSubs = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s"></td>${cells(u)}</tr>`).join('') : '';
-    const nestSess = sess.map((x) => `<tr class="nest sess${now - x.last < 3 * 60e3 ? '' : ' idle'}"><td><span class="pulse${now - x.last < 3 * 60e3 ? '' : ' idle'}"></span>${glyph(x.provider)} ${esc(pretty(x.model))}${multi || data.options.subscriptions.length > 1 ? ` <span class="faint">· ${esc(x.label)}</span>` : ''}</td><td class="hide-s">running <b class="num" data-since="${x.streak}">${dur(now - x.streak)}</b> · <span data-ago="${x.last}">${ago(now - x.last)}</span></td><td class="r num">${fmtC(x.totals.cost)}</td><td class="hide-s"></td><td class="r num">${fmtN(x.totals.tokens)}</td></tr>`).join('');
-    const rows = nestSubs + nestSess;
-    return head + (rows ? rows.replace(/<tr class="nest([^"]*)"(?![\s\S]*<tr class="nest)/, '<tr class="nest$1 last"') : '');
-  }).join('') + '</tbody>';
+    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}"><td style="width:46%"><span class="nm" style="width:100%"><span class="n"><button class="swatch" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"></button><button class="l mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button><span class="sub2 hide-s">${meta}</span></span>${one ? `<span class="track"><span class="fill" style="width:${Math.min(100, share * 100).toFixed(2)}%"><i style="flex:1;background:var(--mc)"></i></span></span>` : ''}</span></td><td class="hide-s">${status}</td>${use.length > 1 ? '<td></td><td class="hide-s"></td><td></td>' : cells(one)}</tr>`;
+    const subRows = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s"></td>${cells(u)}</tr>`) : [];
+    const liveRows = open ? sess.map((x) => {
+      const fresh = now - x.last < 3 * 60e3;
+      return `<tr class="nest lv"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span>${multi || data.options.subscriptions.length > 1 ? `<span class="faint">${esc(x.label)}</span>` : ''}</span></td><td class="hide-s">${fresh ? 'Active' : 'Idle'} · <span class="num" data-since="${x.streak}">${dur(now - x.streak)}</span> · last <span data-ago="${x.last}">${ago(now - x.last)}</span></td><td class="r num">${fmtC(x.totals.cost)}</td><td class="hide-s"></td><td class="r num">${fmtN(x.totals.tokens)}</td></tr>`;
+    }) : [];
+    const rows = [...subRows, ...liveRows];
+    if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
+    return `<tbody class="mgroup">${head}${rows.join('')}</tbody>`;
+  }).join('');
 }
+$('machines').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mopen]');
+  if (!b) return;
+  const n = b.dataset.mopen;
+  mOpen.has(n) ? mOpen.delete(n) : mOpen.add(n);
+  ls.set('mopen', [...mOpen]);
+  renderMachines();
+});
 
 // colour popover
 let popFor = null;
