@@ -275,13 +275,14 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .lim { display: grid; gap: 0; }
 .lbar { position: relative; height: 34px; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px; width: 100%; text-align: left;
   background: repeating-linear-gradient(135deg, #1b1b1b 0 2px, #0c0c0c 2px 7px); border: 1px solid var(--line2); }
-.lbar .lfill { position: absolute; inset: 0 auto 0 0; background: var(--lf, #3a3a3a); border-radius: 7px 0 0 7px; }
+.lbar .lfill { position: absolute; inset: 0 auto 0 0; background: var(--lf, #3a3a3a); border-radius: 7px; }
 .lbar.claude { --lf: #4b2a20; } .lbar.codex { --lf: #333; }
 .lim.warn .lbar { --lf: #5a4313; } .lim.bad .lbar { --lf: #5c1f1f; }
 .lbar .lpace { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--text); border-radius: 1px; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
 .lbar .ltxt, .lbar .lreset { position: relative; font-size: 13px; white-space: nowrap; }
 .lbar .ltxt b { font-weight: 600; margin-right: 4px; }
-.lbar .lreset { color: var(--text); background: rgba(0,0,0,.55); padding: 2px 7px; border-radius: 6px; font-size: 12px; }
+.lbar .ltxt .num { font-weight: 600; }
+.lbar .lreset { color: var(--text); background: #000; box-shadow: inset 0 0 0 1px var(--line2); padding: 2px 7px; border-radius: 6px; font-size: 12px; font-weight: 600; }
 .lbar:hover { border-color: #3a3a3a; }
 .lsub { padding: 8px 2px 4px; display: grid; gap: 6px; }
 .lm { display: grid; grid-template-columns: minmax(0, 1fr) 90px 48px 64px; gap: 10px; align-items: center; font-size: 13px; }
@@ -682,7 +683,7 @@ function limitRows(sub) {
     const rows = open ? `<div class="lsub">${sp.length ? sp.map(([m, c]) => { const pct = tot ? (w.u * c) / tot : 0; return `<div class="lm"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><span class="lmbar"><i style="width:${Math.min(100, pct).toFixed(2)}%;background:${mcol(m)}"></i></span><b class="num">≈${pct.toFixed(pct < 10 ? 1 : 0)}%</b><span class="num muted">${fmtC(c)}</span></div>`; }).join('') : ''}</div>` : '';
     return `<div class="lim${tone}"><button class="lbar ${prov}" data-lexp="${esc(key)}" aria-expanded="${open}" aria-label="${winName(w.m)} limit: ${rem}% left, resets in ${left(w.r - now)}, ${pace}" title="${rem}% of the limit left · ${Math.round(timeLeft)}% of the window's time left · ${pace}${stale}">
       <i class="lfill" style="width:${rem}%"></i><i class="lpace" style="left:${timeLeft}%"></i>
-      <span class="ltxt"><b>${winName(w.m)}</b> <span class="num">${rem}% left</span></span><span class="lreset num">↻ ${left(w.r - now)}</span></button>${rows}</div>`;
+      <span class="ltxt"><b>${winName(w.m)}</b> <span class="num">${rem}%</span></span><span class="lreset num">↻ ${left(w.r - now)}</span></button>${rows}</div>`;
   }).join('');
 }
 document.addEventListener('click', (e) => {
