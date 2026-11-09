@@ -188,7 +188,7 @@ td.v { font-size: 16px; font-weight: 600; }
 .nm { display: inline-flex; flex-direction: column; gap: 7px; max-width: 100%; }
 .nm .n { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; min-width: 0; }
 .nm .n span.l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nm .track { width: min(100%, 320px); height: 2px; }
+.nm .track { width: min(100%, 320px); height: 4px; }
 .nm .sbar { display: block; height: 2px; border-radius: 1px; min-width: 6px; }
 button.nm { text-align: left; }
 button.nm:hover .l { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
@@ -287,7 +287,7 @@ td.chev { width: 22px; color: var(--faint); padding-left: 4px; }
 tr.click:hover td.chev, tr.click:focus-visible td.chev { color: var(--text); }
 td.chev svg { width: 15px; height: 15px; display: block; }
 .nm .track { display: flex; gap: 2px; }
-.nm .track i { display: block; height: 2px; border-radius: 1px; min-width: 2px; }
+.nm .track i { display: block; height: 4px; border-radius: 2px; min-width: 3px; }
 .nm .sub2 { color: var(--muted); font-size: 13px; font-weight: 400; white-space: nowrap; }
 tr.grp td { font-weight: 600; }
 tr.nest td { padding-top: 8px; padding-bottom: 8px; color: var(--muted); font-size: 14px; border-bottom: 0; }
@@ -483,18 +483,47 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(); });
 
-async function load() {
+// Answers are kept per query so switching filters back and forth is instant; new data clears them.
+const qcache = new Map();
+function query(machines = S.machines) {
   const p = new URLSearchParams({ range: S.range, tz: String(new Date().getTimezoneOffset()), res: S.chart.res });
   if (S.subs.length) p.set('subs', S.subs.join(','));
-  if (S.machines.length) p.set('machines', S.machines.join(','));
+  if (machines.length) p.set('machines', machines.join(','));
   if (S.providers.length) p.set('providers', S.providers.join(','));
+  return p.toString();
+}
+async function fetchSummary(q) {
+  const r = await fetch('/api/summary?' + q, { cache: 'no-store' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const raw = await r.text(), d = JSON.parse(raw);
+  Object.defineProperty(d, 'raw', { value: raw }); // to skip redrawing when nothing changed
+  qcache.set(q, d);
+  return d;
+}
+let loadSeq = 0;
+async function load() {
+  const q = query(), seq = ++loadSeq;
+  const hit = qcache.get(q);
+  if (hit) { data = hit; render(); }
   try {
-    const r = await fetch('/api/summary?' + p, { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    data = await r.json();
+    const d = await fetchSummary(q);
+    if (seq !== loadSeq) return; // a newer click won
     $('err').textContent = '';
-    render();
-  } catch (e) { $('err').textContent = 'Could not load data: ' + e.message; }
+    if (!hit || hit.raw !== d.raw) { data = d; render(); }
+    prefetch();
+  } catch (e) { if (!hit) $('err').textContent = 'Could not load data: ' + e.message; }
+}
+// after a load, quietly fetch what one more machine click would show, so that click is instant
+let prefetchT = null;
+function prefetch() {
+  clearTimeout(prefetchT);
+  prefetchT = setTimeout(async () => {
+    for (const m of (data.options.machineOrder || data.options.machines).slice(0, 12)) {
+      const set = new Set(S.machines); set.has(m) ? set.delete(m) : set.add(m);
+      const q = query([...set]);
+      if (!qcache.has(q)) { try { await fetchSummary(q); } catch { return; } }
+    }
+  }, 300);
 }
 
 function render() {
@@ -553,6 +582,10 @@ function toggleFilter(key, v) {
   const set = new Set(S[key]);
   set.has(v) ? set.delete(v) : set.add(v);
   S[key] = [...set]; ls.set(key, S[key]);
+  if (key === 'machines') {
+    document.querySelectorAll('#mchips [data-mfilter]').forEach((c) => c.setAttribute('aria-pressed', String(set.has(c.dataset.mfilter))));
+    $('mchips').classList.toggle('focus', set.size > 0);
+  }
   load();
 }
 document.addEventListener('click', (e) => {
@@ -1058,7 +1091,7 @@ function setLive(on) {
   if (on) {
     let pending = null;
     es = new EventSource('/api/live');
-    es.addEventListener('change', () => { if (!pending) pending = setTimeout(() => { pending = null; load(); }, 800); });
+    es.addEventListener('change', () => { if (!pending) pending = setTimeout(() => { pending = null; qcache.clear(); load(); }, 800); });
   }
 }
 
@@ -1075,8 +1108,8 @@ setInterval(() => {
   document.querySelectorAll('[data-since]').forEach((el) => { el.textContent = dur(now - Number(el.dataset.since)); });
   document.querySelectorAll('[data-ago]').forEach((el) => { el.textContent = ago(now - Number(el.dataset.ago)); });
 }, 1000);
-setInterval(() => { if (!S.live) load(); }, 60e3);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+setInterval(() => { if (!S.live) { qcache.clear(); load(); } }, 60e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { qcache.clear(); load(); } });
 let rz = null;
 addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (data) { renderCharts(); renderModal(); } }, 120); });
 </script>
