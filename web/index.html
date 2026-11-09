@@ -111,6 +111,19 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .stog { display: inline-flex; align-items: center; gap: 1px; height: 22px; min-width: 22px; justify-content: center; padding: 0 2px; margin-left: -4px; border-radius: 6px; font-size: 12.5px; color: var(--muted); transition-property: background-color, color; transition-duration: .15s; }
 .stog:hover { background: var(--pill); color: var(--text); }
 .stog:active { scale: .96; }
+.stog.run { color: var(--ok); } .stog.run .chev { animation: blink 1.6s ease-in-out infinite; }
+.stog.idle { color: var(--warn); }
+@keyframes blink { 50% { opacity: .3; } }
+.srv { display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--faint); }
+.srv svg { width: 15px; height: 15px; }
+.mtab tr.det td { color: var(--faint); font-size: 12.5px; padding-top: 2px; padding-bottom: 8px; }
+.mtab tr.det code { font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+.updtx { color: var(--warn); }
+.stl { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--line); }
+.stl i { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 3px; background: var(--mc); }
+.stl i.pre { background: color-mix(in srgb, var(--mc) 30%, transparent); }
+.stl b { position: absolute; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--mc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc) 30%, transparent); animation: blink 1.6s ease-in-out infinite; }
+.mtip { min-width: 0; }
 .stog .chev { display: inline-grid; width: 14px; height: 14px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
 .stog .chev svg { width: 14px; height: 14px; }
 .stog[aria-expanded="true"] { color: var(--text); }
@@ -129,8 +142,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .dstrip.hatch { background: repeating-linear-gradient(135deg, #1d1d1d 0 2px, #0b0b0b 2px 6px); box-shadow: inset 0 0 0 1px var(--line2); }
 .dstrip i { display: block; height: 100%; flex: none; min-width: 3px; border-radius: 5px; background: var(--c); opacity: .35; transition-property: opacity; transition-duration: .12s; }
 .dstrip i.me { opacity: 1; }
-.dstrip i:not(.me):not(.rest) { opacity: 1; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #000) 0 2px, color-mix(in srgb, var(--c) 16%, #000) 2px 6px); }
-.dstrip i:not(.me):not(.rest):hover { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #000) 0 2px, color-mix(in srgb, var(--c) 30%, #000) 2px 6px); }
+.dstrip i:not(.me):not(.rest) { opacity: 1; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #000) 0 1.2px, color-mix(in srgb, var(--c) 12%, #000) 1.2px 5px); }
+.dstrip i:not(.me):not(.rest):hover { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #000) 0 1.2px, color-mix(in srgb, var(--c) 25%, #000) 1.2px 5px); }
 .dstrip i.rest { background: none; min-width: 0; }
 .dstrip i:hover { opacity: .8; } .dstrip i.me:hover { opacity: 1; }
 .mtip { position: fixed; z-index: 50; display: none; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 9px 11px; font-size: 12.5px; min-width: 230px; box-shadow: 0 12px 32px rgba(0,0,0,.8); }
@@ -1127,50 +1140,47 @@ function renderMachines() {
     const use = useOf(m.nick);
     const one = use.length <= 1 ? use[0] : null;
     const off = !m.online && !sess.length;
-    const open = sess.length && mOpen.has(m.nick);
+    const open = mOpen.has(m.nick);
     const tone = sess.length ? (fresh(m.nick) ? 'run' : 'idle') : m.online ? 'on' : 'off';
     const word = sess.length || m.online ? '' : ago(now - m.lastSeen);
-    const toggle = sess.length ? `<button class="stog" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" aria-label="${open ? 'Hide' : 'Show'} ${sess.length} session${sess.length > 1 ? 's' : ''}">${sess.length > 1 ? `<span class="num">${sess.length}</span>` : ''}<span class="chev">${chevD}</span></button>` : '';
+    // chevron: green and blinking while a session is active, amber when idle, grey otherwise
+    const toggle = `<button class="stog ${sess.length ? tone : ''}" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" aria-label="${open ? 'Hide' : 'Show'} details${sess.length ? ` and ${sess.length} ${tone === 'run' ? 'active' : 'idle'} session${sess.length > 1 ? 's' : ''}` : ''}">${sess.length > 1 ? `<span class="num">${sess.length}</span>` : ''}<span class="chev">${chevD}</span></button>`;
     const old = m.ver && cmpVer(m.ver, newest) < 0;
-    const head = `<tr class="mr${off ? ' off' : ''}${sess.length ? ' can' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row"${sess.length ? ` data-mrow="${esc(m.nick)}"` : ''} data-n="${esc(m.nick)}">
-      <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" ></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${toggle}${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? `<span class="upd" title="Update available: v${esc(m.ver)}, newest v${esc(newest)}" aria-label="Update available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>` : ''}${m.nick === viewer ? '<span class="you">this machine</span>' : ''}</span>
+    const head = `<tr class="mr can${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}" data-mrow="${esc(m.nick)}">
+      <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" ></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${toggle}${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? `<span class="upd" title="Update available: v${esc(m.ver)}, newest v${esc(newest)}" aria-label="Update available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>` : ''}${m.nick === data.self.nick ? '<span class="srv" title="Serving this page" aria-label="Serving this page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5a7 7 0 0 1 14 0M8.5 12.5a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg></span>' : ''}</span>
         <span class="show-s">${one ? strip(one.sub, m.nick) : ''}</span></td>
       <td class="hide-s scell">${use.length === 1 ? strip(use[0].sub, m.nick) : ''}</td>
       ${use.length > 1 ? '<td></td><td class="hide-s"></td><td class="hide-s"></td>' : cells(one, m)}
     </tr>`;
     const subRows = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s scell">${strip(u.sub, m.nick)}</td>${cells(u, m)}</tr>`) : [];
-    const mineVal = val(best(m.nick).totals) || 1;
+    const detail = open ? [`<tr class="nest det"><td colspan="2">${[m.op, m.os, m.ver ? 'v' + m.ver : '', m.nick === viewer ? 'this machine' : '', m.nick === data.self.nick ? 'serving this page' : '', sess.length || m.online ? 'online now' : 'last seen ' + ago(now - m.lastSeen)].filter(Boolean).map(esc).join(' · ')}${old ? ` · <span class="updtx">v${esc(newest)} available: run <code>plainsight update</code></span>` : ''}</td><td></td><td class="hide-s"></td><td class="hide-s"></td></tr>`] : [];
+    // a session drawn on its subscription's current 5h window (start to reset; the last 5h without
+    // limit data): faint from its first message, solid for the current stretch, a live end while active
+    const winOf = (sub) => { const w = ((data.limits || {})[sub] || { windows: [] }).windows.find((x) => x.m < 1440); return w && w.r > now ? [w.r - w.m * 60e3, w.r] : [now - 5 * 3600e3, now]; };
     const liveRows = open ? sess.map((x) => {
-      const f = now - x.last < 3 * 60e3, part = Math.min(1, val(x.totals) / mineVal);
-      const tip = `${pretty(x.model)}: ${f ? 'active' : 'idle'}, running ${dur(now - x.streak)}, last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
-      return `<tr class="nest lv" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt num${f ? '' : ' idle'}" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="ltrack"><i style="width:${(part * 100).toFixed(2)}%"></i></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(part * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
+      const f = now - x.last < 3 * 60e3;
+      const [w0, w1] = winOf(x.sub), pos = (t) => Math.max(0, Math.min(100, ((t - w0) / (w1 - w0)) * 100));
+      const a0 = pos(x.start), a1 = pos(x.streak), a2 = pos(x.last);
+      const tip = `${pretty(x.model)}: ${f ? 'active' : 'idle'} · started ${new Date(x.start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · this stretch ${dur(now - x.streak)} · last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
+      return `<tr class="nest lv" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stl">${a1 > a0 ? `<i class="pre" style="left:${a0}%;width:${a1 - a0}%"></i>` : ''}<i class="run" style="left:${a1}%;width:${Math.max(0, a2 - a1)}%"></i>${f ? `<b style="left:${a2}%"></b>` : ''}</span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
     }) : [];
-    const rows = [...subRows, ...liveRows];
+    const rows = [...detail, ...subRows, ...liveRows];
     if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
     return `<tbody class="mgroup">${head}${rows.join('')}</tbody>`;
   }).join('');
 }
-// hover card for machine rows and strip segments
+// hover card on strip parts: whose part and how big (the row already shows its own numbers)
 function machineTip(el) {
-  const n = el.dataset.n, m = data.machines.find((x) => x.nick === n);
-  if (!m) return '';
-  const now = Date.now(), use = data.machineUsage.filter((u) => u.machine === n);
-  const sess = data.live.filter((x) => x.machine === n);
-  const st = sess.length ? `${sess.length} session${sess.length > 1 ? 's' : ''}, last ${ago(now - Math.max(...sess.map((x) => x.last)))}` : m.online ? 'Online' : `Offline, last seen ${ago(now - m.lastSeen)}`;
-  const rows = [['Status', st], ...use.map((u) => [data.subscriptions.length > 1 ? subInfo(u.sub).label : 'Cost', `${fmtC(u.totals.cost)} · ${fmtN(u.totals.tokens)} tokens`])];
-  if (el.dataset.mtip === 'seg') { const L = (data.limits || {})[el.dataset.sub]; rows.push([data.limitSub === el.dataset.sub && L ? `${winName(L.windows[data.range === 'win' ? 0 : L.windows.length - 1].m)} limit used` : 'Share of usage', `≈${el.dataset.p}%`]); }
-  rows.push(['Machine', [m.op, m.os, m.ver ? 'v' + m.ver : ''].filter(Boolean).join(' · ') || '–']);
-  const newest = data.machines.reduce((a, x) => (cmpVer(x.ver, a) > 0 ? x.ver : a), '0');
-  if (m.ver && cmpVer(m.ver, newest) < 0) rows.push(['Update', `v${newest} available: plainsight update`]);
-  if (n === data.self.nick) rows.push(['', 'Serving this page']);
-  return `<b>${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
+  const L = (data.limits || {})[el.dataset.sub];
+  const what = data.limitSub === el.dataset.sub && L ? `of the ${winName(L.windows[data.range === 'win' ? 0 : L.windows.length - 1].m).toLowerCase()} limit` : 'of usage';
+  return `<div class="r"><span>${mdot(el.dataset.n)} ${esc(el.dataset.n)}</span><b class="num">≈${el.dataset.p}% <span class="muted" style="font-weight:400">${what}</span></b></div>`;
 }
 const mtip = document.createElement('div');
 mtip.className = 'mtip';
 document.body.appendChild(mtip);
 $('machines').addEventListener('pointermove', (e) => {
   if (e.target.closest('button') || $('pop').classList.contains('open')) { mtip.style.display = 'none'; return; }
-  const el = e.target.closest('[data-mtip="seg"]') || e.target.closest('[data-mtip="row"]');
+  const el = e.target.closest('[data-mtip="seg"]');
   if (!el || e.pointerType !== 'mouse') { mtip.style.display = 'none'; return; }
   mtip.innerHTML = machineTip(el);
   mtip.style.display = 'block';
