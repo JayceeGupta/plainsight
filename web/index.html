@@ -94,10 +94,35 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .mtab tr.mr.off .n, .mtab tr.mr.off td.v { opacity: .5; }
 .mtab tbody.mgroup + tbody.mgroup tr.mr td { border-top: 0; }
 /* colour swatch: a plain filled circle, 28px hit area */
-.swatch { position: relative; width: 10px; height: 10px; border-radius: 50%; background: var(--mc); flex: none; margin: 0 2px; transition-property: scale; transition-duration: .12s; }
-.swatch::before { content: ""; position: absolute; inset: -9px; }
-.swatch:hover { scale: 1.2; }
-.swatch:active { scale: .96; }
+/* machine rows: one mark for colour and status, the shared-limit strip, sessions behind a small toggle */
+.mtab th:first-child, .mtab td:first-child { width: auto; }
+.mn { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.mn .mlink { font-size: 15.5px; font-weight: 550; }
+.mk { position: relative; width: 10px; height: 10px; border-radius: 50%; background: var(--mc); flex: none; transition-property: scale; transition-duration: .12s; }
+.mk::before { content: ""; position: absolute; inset: -9px; }
+.mk:hover { scale: 1.2; } .mk:active { scale: .96; }
+.mk.run { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc) 35%, transparent); }
+.mk.idle { box-shadow: 0 0 0 3px rgba(245,176,65,.35); }
+.mk.off { background: none; box-shadow: inset 0 0 0 2px var(--mc); }
+.mw { font-size: 12.5px; color: var(--faint); }
+.mw.run { color: var(--ok); } .mw.idle { color: var(--warn); }
+.upd { font-size: 11.5px; color: var(--warn); box-shadow: inset 0 0 0 1px rgba(245,176,65,.35); border-radius: 99px; padding: 0 7px; line-height: 18px; }
+.you { font-size: 11.5px; color: var(--faint); box-shadow: inset 0 0 0 1px var(--line2); border-radius: 99px; padding: 0 7px; line-height: 18px; }
+.scell { width: 36%; }
+.dstrip { display: flex; width: 100%; height: 10px; border-radius: 3px; overflow: hidden; background: var(--line2); }
+.dstrip.lim { background: repeating-linear-gradient(135deg, #1d1d1d 0 2px, #0b0b0b 2px 6px); box-shadow: inset 0 0 0 1px var(--line2); }
+.dstrip i { display: block; height: 100%; flex: none; background: var(--c); opacity: .35; box-shadow: inset -1px 0 0 #000; transition-property: opacity; transition-duration: .12s; }
+.dstrip i.me { opacity: 1; }
+.dstrip i:hover { opacity: .8; } .dstrip i.me:hover { opacity: 1; }
+.xcol { width: 64px; text-align: right; }
+.xbtn { display: inline-flex; align-items: center; gap: 1px; height: 26px; padding: 0 3px 0 9px; border-radius: 7px; font-size: 12.5px; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line2); transition-property: background-color, color; transition-duration: .15s; }
+.xbtn:hover { background: var(--pill); color: var(--text); } .xbtn:active { scale: .96; }
+.xbtn .chev { display: inline-grid; width: 16px; height: 16px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
+.xbtn .chev svg { width: 16px; height: 16px; }
+.xbtn[aria-expanded="true"] .chev { rotate: 90deg; }
+.mtip { position: fixed; z-index: 50; display: none; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 9px 11px; font-size: 12.5px; min-width: 230px; box-shadow: 0 12px 32px rgba(0,0,0,.8); }
+.mtip b { display: block; font-size: 13.5px; margin-bottom: 5px; }
+.mtip .r { display: flex; justify-content: space-between; gap: 16px; padding: 1px 0; }
 /* status: dot + word, every state aligned the same way */
 .stw { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .mst { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); white-space: nowrap; }
@@ -337,7 +362,8 @@ footer b { color: var(--muted); font-weight: 500; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .stat .v { font-size: 21px; }
   .hide-s { display: none; }
-  .show-s { display: block; margin-top: 2px; }
+  .show-s { display: block; margin-top: 8px; }
+  .scell { width: auto; }
   .mtab .nm { gap: 6px; }
   .mtab tr.nest td:first-child { padding-left: 18px; }
   td { padding: 13px 6px; }
@@ -1039,47 +1065,93 @@ function renderMachines() {
   const bySub = Object.fromEntries(subs.map((x) => [x.sub, val(x.totals)]));
   const live = {};
   data.live.forEach((x) => { (live[x.machine] = live[x.machine] || []).push(x); });
-  const rank = (m) => (live[m.nick] ? 0 : m.online ? 1 : 2);
-  const useOf = (n) => data.machineUsage.filter((u) => u.machine === n);
-  const best = (n) => useOf(n).reduce((a, u) => (val(u.totals) > val(a.totals) ? u : a), { totals: { cost: 0, tokens: 0 }, sub: null });
+  const fresh = (n) => (live[n] || []).some((x) => now - x.last < 3 * 60e3);
+  const useOf = (n) => data.machineUsage.filter((u) => u.machine === n).sort((x, y) => val(y.totals) - val(x.totals));
+  const best = (n) => useOf(n)[0] || { totals: { cost: 0, tokens: 0 }, sub: null };
   const newest = data.machines.reduce((a, m) => (cmpVer(m.ver, a) > 0 ? m.ver : a), '0');
+  // viewing from a machine running plainsight: that machine first; otherwise (phone, another device) most recently seen first
+  const viewer = LOCAL ? data.self.nick : null;
   const ms = data.machines.slice().sort(sorter('machines', {
-    name: (m) => m.nick.toLowerCase(), status: (m) => 2 - rank(m), value: (m) => val(best(m.nick).totals),
+    name: (m) => m.nick.toLowerCase(), value: (m) => val(best(m.nick).totals),
     share: (m) => { const u = best(m.nick); return u.sub && bySub[u.sub] ? val(u.totals) / bySub[u.sub] : 0; },
-    other: (m) => (S.metric === 'cost' ? best(m.nick).totals.tokens : best(m.nick).totals.cost),
-  }, (x, y) => rank(x) - rank(y) || y.lastSeen - x.lastSeen));
-  const nActive = Object.values(live).filter((l) => l.some((x) => now - x.last < 3 * 60e3)).length;
-  const nIdle = Object.keys(live).length - nActive;
+  }, (x, y) => (y.nick === viewer) - (x.nick === viewer) || (live[y.nick] ? now : y.lastSeen) - (live[x.nick] ? now : x.lastSeen)));
+  const order = ms.map((m) => m.nick);
+  const nActive = order.filter(fresh).length, nIdle = Object.keys(live).length - nActive;
   $('liveNote').textContent = nActive ? `${nActive} in use right now${nIdle ? `, ${nIdle} idle` : ''}` : nIdle ? `${nIdle} idle, none active` : 'nobody in the last 10 minutes';
   if (!ms.length) { $('machines').innerHTML = '<tbody><tr><td class="muted" style="padding-left:0">No machines yet.</td></tr></tbody>'; return; }
-  const cells = (u) => u ? `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${bySub[u.sub] ? (val(u.totals) / bySub[u.sub] * 100).toFixed(1) : '0.0'}%</td><td class="r v num">${S.metric === 'cost' ? fmtN(u.totals.tokens) : fmtC(u.totals.cost)}</td>`
-    : '<td class="r faint">–</td><td class="r faint hide-s">–</td><td class="r faint">–</td>';
-  $('machines').innerHTML = `<thead><tr>${sortTh('machines', 'name', 'Machine')}${sortTh('machines', 'status', 'Status', 'hide-s')}${sortTh('machines', 'value', S.metric === 'cost' ? 'Cost' : 'Tokens', 'r')}${sortTh('machines', 'share', 'Share' + (multi ? ' of sub' : ''), 'r hide-s')}${sortTh('machines', 'other', S.metric === 'cost' ? 'Tokens' : 'Cost', 'r')}</tr></thead>` + ms.map((m) => {
+
+  // one strip per subscription, shared by its rows: the limit used so far, split by machine in row order,
+  // with what is left hatched. Without limit data it is the period's usage split by machine.
+  const strips = {};
+  for (const s of subs) {
+    const L = (data.limits || {})[s.sub], w = L && L.windows[L.windows.length - 1];
+    if (w) {
+      const tot = Object.values(w.split || {}).reduce((a, c) => a + c, 0);
+      strips[s.sub] = { what: `${winName(w.m)} limit`, used: w.u, segs: order.map((n) => [n, tot ? (w.u * ((w.split || {})[n] || 0)) / tot : 0]).filter((x) => x[1] > 0) };
+    } else {
+      strips[s.sub] = { what: 'usage', used: 100, segs: order.map((n) => { const u = useOf(n).find((x) => x.sub === s.sub); return [n, u && bySub[s.sub] ? (val(u.totals) / bySub[s.sub]) * 100 : 0]; }).filter((x) => x[1] > 0) };
+    }
+  }
+  const strip = (sub, me) => {
+    const st = strips[sub];
+    if (!st) return '';
+    return `<span class="dstrip${st.used < 100 ? ' lim' : ''}">${st.segs.map(([n, p]) => `<i class="${n === me ? 'me' : ''}" style="width:${p.toFixed(3)}%;--c:${mcol(n)}" data-mtip="seg" data-n="${esc(n)}" data-sub="${esc(sub)}" data-p="${p.toFixed(1)}"></i>`).join('')}</span>`;
+  };
+  const sw = Object.values(strips)[0];
+  const stripHead = sw && sw.used < 100 ? `${sw.what} used` : 'Share of usage';
+  const cells = (u, m) => u
+    ? `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${bySub[u.sub] ? (val(u.totals) / bySub[u.sub] * 100).toFixed(1) : '0.0'}%</td>`
+    : '<td class="r faint">–</td><td class="r faint hide-s">–</td>';
+  $('machines').innerHTML = `<thead><tr>${sortTh('machines', 'name', 'Machine')}<th class="hide-s">${stripHead}</th>${sortTh('machines', 'value', S.metric === 'cost' ? 'Cost' : 'Tokens', 'r')}${sortTh('machines', 'share', 'Share' + (multi ? ' of sub' : ''), 'r hide-s')}<th class="xcol"></th></tr></thead>` + ms.map((m) => {
     const sess = (live[m.nick] || []).sort((x, y) => y.last - x.last);
-    const use = data.machineUsage.filter((u) => u.machine === m.nick).sort((x, y) => val(y.totals) - val(x.totals));
+    const use = useOf(m.nick);
     const one = use.length <= 1 ? use[0] : null;
-    const share = one && bySub[one.sub] ? val(one.totals) / bySub[one.sub] : 0;
     const off = !m.online && !sess.length;
     const open = sess.length && mOpen.has(m.nick);
-    const fresh = sess.some((x) => now - x.last < 3 * 60e3);
-    const word = sess.length ? (fresh ? 'In use' : 'Idle') : m.online ? 'Online' : `Offline · ${ago(now - m.lastSeen)}`;
-    const tone = sess.length ? (fresh ? 'run' : 'idle') : m.online ? 'on' : 'off';
-    const stat = `<span class="mst ${tone}"><i class="sd"></i>${word}</span>`;
-    const disc = sess.length ? `<button class="disc" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" title="${open ? 'Hide' : 'Show'} sessions">${sess.length} session${sess.length > 1 ? 's' : ''}<span class="chev">${chevD}</span></button>` : '';
-    const status = `<span class="stw">${stat}${disc}</span>`;
+    const tone = sess.length ? (fresh(m.nick) ? 'run' : 'idle') : m.online ? 'on' : 'off';
+    const word = sess.length ? (fresh(m.nick) ? 'in use' : 'idle') : m.online ? '' : ago(now - m.lastSeen);
     const old = m.ver && cmpVer(m.ver, newest) < 0;
-    const meta = [m.op, m.os, m.ver ? 'v' + m.ver + (old ? ' (update available)' : '') : '', m.nick === data.self.nick ? 'serving this page' : ''].filter(Boolean).map(esc).join(' · ');
-    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}"><td style="width:46%"><span class="nm" style="width:100%"><span class="n"><button class="swatch" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"></button><button class="l mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button><span class="sub2 hide-s">${meta}</span></span><span class="show-s">${status}</span>${one ? `<span class="track"><span class="fill" style="width:${Math.min(100, share * 100).toFixed(2)}%"><i style="flex:1;background:var(--mc)"></i></span></span>` : ''}</span></td><td class="hide-s">${status}</td>${use.length > 1 ? '<td></td><td class="hide-s"></td><td></td>' : cells(one)}</tr>`;
-    const subRows = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s"></td>${cells(u)}</tr>`) : [];
+    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row" data-n="${esc(m.nick)}">
+      <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" title="Change colour"></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? '<span class="upd">update</span>' : ''}${m.nick === viewer ? '<span class="you">this machine</span>' : ''}</span>
+        <span class="show-s">${one ? strip(one.sub, m.nick) : ''}</span></td>
+      <td class="hide-s scell">${use.length === 1 ? strip(use[0].sub, m.nick) : ''}</td>
+      ${use.length > 1 ? '<td></td><td class="hide-s"></td>' : cells(one, m)}
+      <td class="xcol">${sess.length ? `<button class="xbtn" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" aria-label="${open ? 'Hide' : 'Show'} ${sess.length} session${sess.length > 1 ? 's' : ''}" title="${sess.length} session${sess.length > 1 ? 's' : ''}"><span class="xn num">${sess.length}</span><span class="chev">${chevD}</span></button>` : ''}</td></tr>`;
+    const subRows = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s scell">${strip(u.sub, m.nick)}</td>${cells(u, m)}<td></td></tr>`) : [];
     const liveRows = open ? sess.map((x) => {
-      const fresh = now - x.last < 3 * 60e3;
-      return `<tr class="nest lv"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span>${multi || data.options.subscriptions.length > 1 ? `<span class="faint">${esc(x.label)}</span>` : ''}</span></td><td class="hide-s">${fresh ? 'Active' : 'Idle'} · <span class="num" data-since="${x.streak}">${dur(now - x.streak)}</span> · last <span data-ago="${x.last}">${ago(now - x.last)}</span></td><td class="r num">${fmtC(x.totals.cost)}</td><td class="hide-s"></td><td class="r num">${fmtN(x.totals.tokens)}</td></tr>`;
+      const f = now - x.last < 3 * 60e3;
+      return `<tr class="nest lv"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span>${multi || data.options.subscriptions.length > 1 ? `<span class="faint">${esc(x.label)}</span>` : ''}</span></td><td class="hide-s">${f ? 'Active' : 'Idle'} · <span class="num" data-since="${x.streak}">${dur(now - x.streak)}</span> · last <span data-ago="${x.last}">${ago(now - x.last)}</span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="hide-s"></td><td></td></tr>`;
     }) : [];
     const rows = [...subRows, ...liveRows];
     if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
     return `<tbody class="mgroup">${head}${rows.join('')}</tbody>`;
   }).join('');
 }
+// hover card for machine rows and strip segments
+function machineTip(el) {
+  const n = el.dataset.n, m = data.machines.find((x) => x.nick === n);
+  if (!m) return '';
+  const now = Date.now(), use = data.machineUsage.filter((u) => u.machine === n);
+  const sess = data.live.filter((x) => x.machine === n);
+  const st = sess.length ? `${sess.length} session${sess.length > 1 ? 's' : ''}, last ${ago(now - Math.max(...sess.map((x) => x.last)))}` : m.online ? 'Online' : `Offline, last seen ${ago(now - m.lastSeen)}`;
+  const rows = [['Status', st], ...use.map((u) => [data.subscriptions.length > 1 ? subInfo(u.sub).label : 'Cost', `${fmtC(u.totals.cost)} · ${fmtN(u.totals.tokens)} tokens`])];
+  if (el.dataset.mtip === 'seg') { const L = (data.limits || {})[el.dataset.sub]; rows.push([L ? `${winName(L.windows[L.windows.length - 1].m)} limit used` : 'Share of usage', `≈${el.dataset.p}%`]); }
+  rows.push(['Machine', [m.op, m.os, m.ver ? 'v' + m.ver : ''].filter(Boolean).join(' · ') || '–']);
+  if (n === data.self.nick) rows.push(['', 'Serving this page']);
+  return `<b>${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
+}
+const mtip = document.createElement('div');
+mtip.className = 'mtip';
+document.body.appendChild(mtip);
+$('machines').addEventListener('pointermove', (e) => {
+  const el = e.target.closest('[data-mtip="seg"]') || e.target.closest('[data-mtip="row"]');
+  if (!el || e.pointerType !== 'mouse') { mtip.style.display = 'none'; return; }
+  mtip.innerHTML = machineTip(el);
+  mtip.style.display = 'block';
+  const x = Math.min(innerWidth - mtip.offsetWidth - 12, e.clientX + 14), y = e.clientY + 18 + mtip.offsetHeight > innerHeight ? e.clientY - mtip.offsetHeight - 12 : e.clientY + 18;
+  mtip.style.left = x + 'px'; mtip.style.top = y + 'px';
+});
+$('machines').addEventListener('pointerleave', () => { mtip.style.display = 'none'; });
 $('machines').addEventListener('click', (e) => {
   const b = e.target.closest('[data-mopen]');
   if (!b) return;
