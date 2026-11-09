@@ -127,7 +127,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .stl b.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--pc, var(--mc)); animation: ping 2.4s cubic-bezier(0, 0, .2, 1) infinite; }
 @keyframes ping { 0% { scale: 1; opacity: .5; } 70%, 100% { scale: 2.6; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .stl b.on::after { animation: none; opacity: 0; } }
-.stsc { font-size: 11.5px; color: var(--faint); flex: none; width: 26px; }
+.stsc { font-size: 12.5px; color: var(--faint); flex: none; width: 28px; text-align: right; }
 .stw { display: flex; align-items: center; gap: 6px; width: 100%; }
 .stw .stl { flex: 1; }
 .mtip { min-width: 0; }
@@ -135,7 +135,9 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .stog .chev svg { width: 14px; height: 14px; }
 .stog:not(.run):not(.idle)[aria-expanded="true"] { color: var(--text); }
 .stog[aria-expanded="true"] .chev { rotate: 90deg; }
-.lvt { font-size: 12.5px; color: var(--faint); }
+.lvt { font-size: 12.5px; color: var(--muted); }
+.stw .lvt { flex: none; min-width: 52px; }
+.lvt-s { display: none; }
 .ltrack { display: block; height: 4px; border-radius: 2px; background: var(--line2); overflow: hidden; }
 .ltrack i { display: block; height: 100%; min-width: 3px; border-radius: 2px; background: var(--mc); }
 .mw.run { color: var(--ok); } .mw.idle { color: var(--warn); }
@@ -398,6 +400,7 @@ footer b { color: var(--muted); font-weight: 500; }
   .stat .v { font-size: 21px; }
   .hide-s { display: none; }
   .show-s { display: block; margin-top: 8px; }
+  .lvt-s { display: inline; }
   .scell { width: auto; }
   .mtab td:first-child, .mtab th:first-child { width: auto; white-space: normal; padding-right: 8px; }
   .mtab td:first-child .mn { flex-wrap: wrap; }
@@ -1188,7 +1191,7 @@ function renderMachines() {
       const [w0, w1, sc] = winOf(x.sub, x.start), pos = (t) => Math.max(0, Math.min(100, ((t - w0) / (w1 - w0)) * 100));
       const a0 = pos(x.start), a1 = pos(x.streak), a2 = pos(x.last);
       const tip = `${pretty(x.model)}: ${f ? 'active' : 'idle'} · started ${new Date(x.start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · this stretch ${dur(now - x.streak)} · last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
-      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stw"><span class="stsc num">${sc}</span><span class="stl">${a1 > a0 ? `<i class="pre" style="left:${a0}%;width:${a1 - a0}%"></i>` : ''}<i class="run" style="left:${a1}%;width:${Math.max(0, a2 - a1)}%"></i><b class="${f ? 'on' : ''}" style="left:${a2}%"></b></span></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
+      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt lvt-s num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stw"><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span><span class="stl">${a1 > a0 ? `<i class="pre" style="left:${a0}%;width:${a1 - a0}%"></i>` : ''}<i class="run" style="left:${a1}%;width:${Math.max(0, a2 - a1)}%"></i><b class="${f ? 'on' : ''}" style="left:${a2}%"></b></span><span class="stsc num">${sc}</span></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
     }) : [];
     const rows = [...subRows, ...liveRows];
     if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
