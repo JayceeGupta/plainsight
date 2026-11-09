@@ -8,13 +8,14 @@ const { readJSON, writeJSON, paths, log } = require('../util');
 
 const CHUNK = 8 * 1024 * 1024;
 
-function listFiles(root, match) {
+function listFiles(root, match, dirs) {
   const out = [];
   const stack = [root];
   while (stack.length) {
     const d = stack.pop();
     let ents;
     try { ents = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
+    if (dirs) dirs.push(d);
     for (const e of ents) {
       const p = path.join(d, e.name);
       if (e.isDirectory()) stack.push(p);
@@ -39,11 +40,14 @@ class Collector {
 
   files(i, t) {
     const c = this.fileLists.get(i);
-    if (c && Date.now() - c.at < 60e3) return c.files;
+    // a new file changes its folder's mtime: relist only then (or once a minute), so a new session is seen on the next scan
+    const mt = (d) => { try { return fs.statSync(d).mtimeMs; } catch { return -1; } };
+    if (c && Date.now() - c.at < 60e3 && c.dirs.every(([d, m]) => mt(d) === m)) return c.files;
+    const dirs = [];
     const files = t.provider === 'claude'
-      ? listFiles(path.join(t.dir, 'projects'), (n) => n.endsWith('.jsonl'))
-      : listFiles(path.join(t.dir, 'sessions'), (n) => n.startsWith('rollout-') && n.endsWith('.jsonl'));
-    this.fileLists.set(i, { at: Date.now(), files });
+      ? listFiles(path.join(t.dir, 'projects'), (n) => n.endsWith('.jsonl'), dirs)
+      : listFiles(path.join(t.dir, 'sessions'), (n) => n.startsWith('rollout-') && n.endsWith('.jsonl'), dirs);
+    this.fileLists.set(i, { at: Date.now(), files, dirs: dirs.map((d) => [d, mt(d)]) });
     return files;
   }
 
