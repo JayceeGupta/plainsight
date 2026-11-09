@@ -102,7 +102,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .mk::before { content: ""; position: absolute; inset: -9px; }
 .mk:hover { scale: 1.2; } .mk:active { scale: .96; }
 .mk.run { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc) 35%, transparent); }
-.mk.idle { box-shadow: 0 0 0 3px rgba(245,176,65,.35); }
+.mk.idle { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc) 20%, transparent); }
 .mk.off { background: none; box-shadow: inset 0 0 0 2px var(--mc); }
 .mw { font-size: 12.5px; color: var(--faint); }
 .mtab tr.can { cursor: pointer; }
@@ -112,16 +112,20 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .stog:hover { background: var(--pill); }
 .stog:not(.run):not(.idle):hover { color: var(--text); }
 .stog:active { scale: .96; }
-.stog.run { color: var(--ok); } .stog.run .chev { animation: blink 1.6s ease-in-out infinite; }
+.stog.run { color: var(--ok); }
 .stog.idle { color: var(--warn); }
-/* a plain on/off blink, no fading */
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
-.stog.run .chev, .stl b { animation-timing-function: steps(1, end) !important; animation-duration: 1.1s !important; }
 .mtip .tnote { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line2); color: var(--muted); }
 .stl { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--line); }
 .stl i { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 3px; background: color-mix(in srgb, var(--pc, var(--mc)) 70%, transparent); }
 .stl i.pre { background: color-mix(in srgb, var(--pc, var(--mc)) 25%, transparent); }
-.stl b { position: absolute; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: color-mix(in srgb, var(--pc, var(--mc)) 85%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc, var(--mc)) 25%, transparent); animation: blink 1.6s ease-in-out infinite; }
+.stl b { position: absolute; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: color-mix(in srgb, var(--pc, var(--mc)) 55%, #000); }
+.stl b.on { background: var(--pc, var(--mc)); }
+.stl b.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--pc, var(--mc)); animation: ping 2.4s cubic-bezier(0, 0, .2, 1) infinite; }
+@keyframes ping { 0% { scale: 1; opacity: .5; } 70%, 100% { scale: 2.6; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .stl b.on::after { animation: none; opacity: 0; } }
+.stsc { font-size: 11.5px; color: var(--faint); flex: none; width: 26px; }
+.stw { display: flex; align-items: center; gap: 6px; width: 100%; }
+.stw .stl { flex: 1; }
 .mtip { min-width: 0; }
 .stog .chev { display: inline-grid; width: 14px; height: 14px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
 .stog .chev svg { width: 14px; height: 14px; }
@@ -131,8 +135,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .ltrack { display: block; height: 4px; border-radius: 2px; background: var(--line2); overflow: hidden; }
 .ltrack i { display: block; height: 100%; min-width: 3px; border-radius: 2px; background: var(--mc); }
 .mw.run { color: var(--ok); } .mw.idle { color: var(--warn); }
-.upd { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--warn); background: rgba(245,176,65,.12); }
-.upd svg { width: 12px; height: 12px; }
+.upd { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--text); }
+.upd svg { width: 11px; height: 11px; }
 .you { font-size: 11.5px; color: var(--faint); box-shadow: inset 0 0 0 1px var(--line2); border-radius: 99px; padding: 0 7px; line-height: 18px; }
 .mtab td:first-child, .mtab th:first-child { width: 1%; white-space: nowrap; padding-right: 28px; }
 .mtab td:first-child .mn { flex-wrap: nowrap; }
@@ -171,7 +175,7 @@ th .sortb:hover .sa, th .sortb.on .sa { opacity: 1; }
 th.r .sortb { flex-direction: row-reverse; }
 /* live session rows */
 .mtab tr.lv td { color: var(--muted); font-size: 13.5px; }
-.mtab .lvm { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.mtab .lvm { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .mtab .lvm span:not(.glyph) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mtab .lvm span:nth-child(2) { color: var(--text); }
 .mtab .mlink { font-size: 16px; font-weight: 500; }
@@ -333,7 +337,7 @@ td.chev svg { width: 15px; height: 15px; display: block; }
 tr.grp td { font-weight: 600; }
 tr.nest td { padding-top: 8px; padding-bottom: 8px; color: var(--muted); font-size: 14px; border-bottom: 0; }
 tr.nest td:nth-child(2) { padding-left: 24px; }
-tr.nest.last td { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+tr.nest.last td { border-bottom: 1px solid var(--line); padding-top: 11px; padding-bottom: 11px; }
 tr.nest td.v { font-size: 14.5px; color: var(--text); }
 
 /* model modal: machine list */
@@ -1145,7 +1149,7 @@ function renderMachines() {
     const open = canOpen && mOpen.has(m.nick);
     const tone = sess.length ? (fresh(m.nick) ? 'run' : 'idle') : m.online ? 'on' : 'off';
     const word = sess.length || m.online ? '' : ago(now - m.lastSeen);
-    // chevron: green and blinking while a session is active, amber when idle, grey otherwise
+    // chevron: green while a session is active, amber when idle, grey otherwise
     const toggle = canOpen ? `<button class="stog ${sess.length ? tone : ''}" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" aria-label="${open ? 'Hide' : 'Show'} ${sess.length ? `${sess.length} ${tone === 'run' ? 'active' : 'idle'} session${sess.length > 1 ? 's' : ''}` : 'subscriptions'}"><span class="chev">${sess.length > 1 ? chevDD : chevD}</span></button>` : '';
     const old = m.ver && cmpVer(m.ver, newest) < 0;
     const head = `<tr class="mr${canOpen ? ' can' : ''}${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row" data-n="${esc(m.nick)}"${canOpen ? ` data-mrow="${esc(m.nick)}"` : ''}>
@@ -1157,13 +1161,18 @@ function renderMachines() {
     const subRows = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s scell">${strip(u.sub, m.nick)}</td>${cells(u, m)}</tr>`) : [];
     // a session drawn on its subscription's current 5h window (start to reset; the last 5h without
     // limit data): faint from its first message, solid for the current stretch, a live end while active
-    const winOf = (sub) => { const w = ((data.limits || {})[sub] || { windows: [] }).windows.find((x) => x.m < 1440); return w && w.r > now ? [w.r - w.m * 60e3, w.r] : [now - 5 * 3600e3, now]; };
+    const winOf = (sub, start) => {
+      const w = ((data.limits || {})[sub] || { windows: [] }).windows.find((x) => x.m < 1440);
+      if (w && w.r > now && start >= w.r - w.m * 60e3) return [w.r - w.m * 60e3, w.r, '5h'];
+      const sc = [[5, '5h'], [24, '24h'], [168, '7d'], [720, '30d'], [2160, '90d']].find(([h]) => now - start <= h * 3600e3) || [2160, '90d'];
+      return [now - sc[0] * 3600e3, now, sc[1]];
+    };
     const liveRows = open ? sess.map((x) => {
       const f = now - x.last < 3 * 60e3;
-      const [w0, w1] = winOf(x.sub), pos = (t) => Math.max(0, Math.min(100, ((t - w0) / (w1 - w0)) * 100));
+      const [w0, w1, sc] = winOf(x.sub, x.start), pos = (t) => Math.max(0, Math.min(100, ((t - w0) / (w1 - w0)) * 100));
       const a0 = pos(x.start), a1 = pos(x.streak), a2 = pos(x.last);
       const tip = `${pretty(x.model)}: ${f ? 'active' : 'idle'} · started ${new Date(x.start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · this stretch ${dur(now - x.streak)} · last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
-      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stl">${a1 > a0 ? `<i class="pre" style="left:${a0}%;width:${a1 - a0}%"></i>` : ''}<i class="run" style="left:${a1}%;width:${Math.max(0, a2 - a1)}%"></i>${f ? `<b style="left:${a2}%"></b>` : ''}</span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
+      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stw"><span class="stsc num">${sc}</span><span class="stl">${a1 > a0 ? `<i class="pre" style="left:${a0}%;width:${a1 - a0}%"></i>` : ''}<i class="run" style="left:${a1}%;width:${Math.max(0, a2 - a1)}%"></i><b class="${f ? 'on' : ''}" style="left:${a2}%"></b></span></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
     }) : [];
     const rows = [...subRows, ...liveRows];
     if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
@@ -1181,7 +1190,7 @@ function machineTip(el) {
     const active = sess.some((x) => now - x.last < 3 * 60e3);
     const newest = data.machines.reduce((a, x) => (cmpVer(x.ver, a) > 0 ? x.ver : a), '0');
     const rows = [
-      ['Status', sess.length ? `${active ? 'In use' : 'Idle'} · ${sess.length} session${sess.length > 1 ? 's' : ''}, last message ${ago(now - Math.max(...sess.map((x) => x.last)))}` : m.online ? 'Online' : `Offline · last seen ${ago(now - m.lastSeen)}`],
+      ['Status', ''],
       ['Operator', m.op || '–'], ['System', m.os || '–'],
       ['Version', m.ver ? `v${m.ver}${cmpVer(m.ver, newest) < 0 ? ` (v${newest} available)` : ''}` : '–'],
       ['First seen', new Date(m.firstSeen).toLocaleDateString([], { month: 'short', day: 'numeric' })],
@@ -1191,7 +1200,9 @@ function machineTip(el) {
       rows.unshift([data.limitSub === el.dataset.sub && L ? `${winName(L.windows[data.range === 'win' ? 0 : L.windows.length - 1].m)} limit used` : 'Share of usage', `≈${el.dataset.p}%`]);
     }
     const notes = [n === (LOCAL ? data.self.nick : null) ? 'This machine' : '', n === data.self.nick ? 'Serving this page' : '', m.ver && cmpVer(m.ver, newest) < 0 ? 'Update with: plainsight update' : ''].filter(Boolean);
-    return `<b>${mdot(n)} ${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join('') + (notes.length ? `<div class="tnote">${notes.map(esc).join(' · ')}</div>` : '');
+    const st = sess.length ? [active ? 'In use' : 'Idle', active ? 'ok' : 'warn', ago(now - Math.max(...sess.map((x) => x.last)))] : m.online ? ['Online', '', ''] : ['Offline', 'faint', ago(now - m.lastSeen)];
+    const stHtml = `${st[2] ? `<span class="faint">${esc(st[2])}</span> ` : ''}<span${st[1] ? ` style="color:var(--${st[1]})"` : ''}>${st[0]}</span>`;
+    return `<b>${mdot(n)} ${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${k === 'Status' ? stHtml : esc(v)}</span></div>`).join('') + (notes.length ? `<div class="tnote">${notes.map(esc).join(' · ')}</div>` : '');
   }
 }
 const mtip = document.createElement('div');
@@ -1212,9 +1223,14 @@ $('machines').addEventListener('click', (e) => {
   const b = e.target.closest('[data-mopen]') || (!e.target.closest('button, a') && e.target.closest('[data-mrow]'));
   if (!b) return;
   const n = b.dataset.mopen || b.dataset.mrow;
-  mOpen.has(n) ? mOpen.delete(n) : mOpen.add(n);
+  const was = mOpen.has(n);
+  was ? mOpen.delete(n) : mOpen.add(n);
   ls.set('mopen', [...mOpen]);
   renderMachines();
+  const ease = { duration: 200, easing: 'cubic-bezier(.2, 0, 0, 1)' };
+  const tb = $('machines').querySelector(`[data-mopen="${CSS.escape(n)}"]`);
+  tb?.querySelector('.chev').animate([{ rotate: was ? '90deg' : '0deg' }, { rotate: was ? '0deg' : '90deg' }], ease);
+  if (!was) tb?.closest('tbody').querySelectorAll('tr.nest').forEach((r) => r.animate([{ opacity: 0, translate: '0 -3px' }, { opacity: 1, translate: '0 0' }], ease));
 });
 
 // colour popover
