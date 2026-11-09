@@ -105,7 +105,10 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .mk.idle { box-shadow: 0 0 0 3px rgba(245,176,65,.35); }
 .mk.off { background: none; box-shadow: inset 0 0 0 2px var(--mc); }
 .mw { font-size: 12.5px; color: var(--faint); }
-.stog { display: inline-flex; align-items: center; gap: 2px; height: 24px; padding: 0 2px 0 8px; margin-left: -2px; border-radius: 6px; font-size: 12.5px; color: var(--muted); transition-property: background-color, color; transition-duration: .15s; }
+.mtab tr.can { cursor: pointer; }
+.mtab tr.can:hover td { background: #0a0a0a; }
+.mtab tr.can:hover .stog { color: var(--text); }
+.stog { display: inline-flex; align-items: center; gap: 1px; height: 22px; min-width: 22px; justify-content: center; padding: 0 2px; margin-left: -4px; border-radius: 6px; font-size: 12.5px; color: var(--muted); transition-property: background-color, color; transition-duration: .15s; }
 .stog:hover { background: var(--pill); color: var(--text); }
 .stog:active { scale: .96; }
 .stog .chev { display: inline-grid; width: 14px; height: 14px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
@@ -126,9 +129,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .dstrip.hatch { background: repeating-linear-gradient(135deg, #1d1d1d 0 2px, #0b0b0b 2px 6px); box-shadow: inset 0 0 0 1px var(--line2); }
 .dstrip i { display: block; height: 100%; flex: none; min-width: 3px; border-radius: 5px; background: var(--c); opacity: .35; transition-property: opacity; transition-duration: .12s; }
 .dstrip i.me { opacity: 1; }
-.dstrip i:not(.me):not(.rest) { background: var(--lf, #333); opacity: 1; }
-.dstrip.claude { --lf: #4b2a20; } .dstrip.codex { --lf: #333; }
-.dstrip i:not(.me):not(.rest):hover { background: color-mix(in srgb, var(--c) 45%, var(--lf, #333)); }
+.dstrip i:not(.me):not(.rest) { opacity: 1; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #000) 0 2px, color-mix(in srgb, var(--c) 16%, #000) 2px 6px); }
+.dstrip i:not(.me):not(.rest):hover { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #000) 0 2px, color-mix(in srgb, var(--c) 30%, #000) 2px 6px); }
 .dstrip i.rest { background: none; min-width: 0; }
 .dstrip i:hover { opacity: .8; } .dstrip i.me:hover { opacity: 1; }
 .mtip { position: fixed; z-index: 50; display: none; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 9px 11px; font-size: 12.5px; min-width: 230px; box-shadow: 0 12px 32px rgba(0,0,0,.8); }
@@ -805,14 +807,19 @@ function drawChart(el, spec) {
     const rect = svg.getBoundingClientRect();
     const px = ((clientX - rect.left) / rect.width) * W;
     const i = Math.max(0, Math.min(n - 1, Math.round(((px - L) / (W - L - R)) * (n - 1))));
+    // within 10px of a weekly reset: snap to it and name it
+    let snap = null;
+    for (const ln of spec.lanes) for (const r of ln.resets) { const d = Math.abs(xt(r) - px); if (d < 10 && (!snap || d < snap.d)) snap = { d, r, ln }; }
+    const cx = snap ? xt(snap.r) : x(i);
     const cur = svg.querySelector('.cur');
-    cur.setAttribute('x1', x(i)); cur.setAttribute('x2', x(i)); cur.setAttribute('visibility', 'visible');
+    cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.setAttribute('visibility', 'visible');
+    cur.setAttribute('stroke', snap ? snap.ln.c : '#3a3a3a');
     const tot = shown.reduce((a, l) => a + l.vals[i], 0);
-    tip.innerHTML = `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
+    tip.innerHTML = (snap ? `<div class="r" style="margin-bottom:6px"><b>${spec.lanes.length > 1 ? esc(snap.ln.label) + ' · ' : ''}Weekly limit reset</b><span class="muted">${esc(fmtT(snap.r))}</span></div>` : '') + `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
       spec.lanes.map((ln) => { const bd = ln.bands.find(([a, b]) => series[i].t + step / 2 >= a && series[i].t + step / 2 < b); return bd ? `<div class="r" style="color:var(--muted);font-size:12px"><span>${esc(ln.label)} · 5h window</span><span>${bd[2]}% of limit</span></div>` : ''; }).join('') +
       (shown.length ? shown.map((l) => `<div class="r"><span>${l.html}</span><b class="num">${fmtV(l.vals[i])}</b></div>`).join('') + (spec.total && shown.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
     tip.style.display = 'block';
-    const left = (x(i) / W) * rect.width;
+    const left = (cx / W) * rect.width;
     tip.style.left = (left + 14 + tip.offsetWidth > rect.width ? Math.max(0, left - 14 - tip.offsetWidth) : left + 14) + 'px';
     tip.style.top = '4px';
   };
@@ -1123,9 +1130,9 @@ function renderMachines() {
     const open = sess.length && mOpen.has(m.nick);
     const tone = sess.length ? (fresh(m.nick) ? 'run' : 'idle') : m.online ? 'on' : 'off';
     const word = sess.length || m.online ? '' : ago(now - m.lastSeen);
-    const toggle = sess.length ? `<button class="stog" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" title="${open ? 'Hide' : 'Show'} sessions">${sess.length} ${fresh(m.nick) ? 'active' : 'idle'} session${sess.length > 1 ? 's' : ''}<span class="chev">${chevD}</span></button>` : '';
+    const toggle = sess.length ? `<button class="stog" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" aria-label="${open ? 'Hide' : 'Show'} ${sess.length} session${sess.length > 1 ? 's' : ''}">${sess.length > 1 ? `<span class="num">${sess.length}</span>` : ''}<span class="chev">${chevD}</span></button>` : '';
     const old = m.ver && cmpVer(m.ver, newest) < 0;
-    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row" data-n="${esc(m.nick)}">
+    const head = `<tr class="mr${off ? ' off' : ''}${sess.length ? ' can' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row"${sess.length ? ` data-mrow="${esc(m.nick)}"` : ''} data-n="${esc(m.nick)}">
       <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" ></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${toggle}${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? `<span class="upd" title="Update available: v${esc(m.ver)}, newest v${esc(newest)}" aria-label="Update available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>` : ''}${m.nick === viewer ? '<span class="you">this machine</span>' : ''}</span>
         <span class="show-s">${one ? strip(one.sub, m.nick) : ''}</span></td>
       <td class="hide-s scell">${use.length === 1 ? strip(use[0].sub, m.nick) : ''}</td>
@@ -1172,9 +1179,10 @@ $('machines').addEventListener('pointermove', (e) => {
 });
 $('machines').addEventListener('pointerleave', () => { mtip.style.display = 'none'; });
 $('machines').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-mopen]');
+  // the chevron, or anywhere on a row with sessions that is not another control
+  const b = e.target.closest('[data-mopen]') || (!e.target.closest('button, a') && e.target.closest('[data-mrow]'));
   if (!b) return;
-  const n = b.dataset.mopen;
+  const n = b.dataset.mopen || b.dataset.mrow;
   mOpen.has(n) ? mOpen.delete(n) : mOpen.add(n);
   ls.set('mopen', [...mOpen]);
   renderMachines();
