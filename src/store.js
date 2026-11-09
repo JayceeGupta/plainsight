@@ -24,6 +24,8 @@ function validateEvent(ev, origin, seq) {
   }
   if ('heavy' in ev && typeof ev.heavy !== 'boolean') return 'bad heavy';
   if ('bf' in ev && ev.bf !== 1) return 'bad bf';
+  if ('turn' in ev && ev.turn !== 1) return 'bad turn';
+  if ('end' in ev && ev.end !== 1) return 'bad end';
   if (ev.k === 'color' && !/^#[0-9a-f]{6}$/.test(ev.c || '')) return 'bad color';
   if ('lim' in ev && !(Array.isArray(ev.lim) && ev.lim.length <= 4 && ev.lim.every((w) => w && typeof w === 'object'
     && [w.m, w.u, w.r].every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1e13)))) return 'bad lim';

@@ -121,8 +121,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .mtip .tnote { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line2); color: var(--muted); }
 .stl { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--line); }
 .stl i { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 4px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc, var(--mc)) 75%, transparent); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--pc, var(--mc)) 80%, #000) 0 1.2px, color-mix(in srgb, var(--pc, var(--mc)) 18%, #000) 1.2px 5px); }
-.stl i::before { content: ""; position: absolute; inset: -8px 0; }
-.stl i:hover { box-shadow: inset 0 0 0 1px var(--pc, var(--mc)); }
+.stl u { position: absolute; top: -8px; bottom: -8px; min-width: 6px; z-index: 1; }
+.stl u:hover + i { box-shadow: inset 0 0 0 1px var(--pc, var(--mc)); background: repeating-linear-gradient(135deg, var(--pc, var(--mc)) 0 1.2px, color-mix(in srgb, var(--pc, var(--mc)) 30%, #000) 1.2px 5px); }
 .stl b { position: absolute; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: color-mix(in srgb, var(--pc, var(--mc)) 55%, #000); }
 .stl b.on { background: var(--pc, var(--mc)); }
 .stl b.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--pc, var(--mc)); animation: ping 2.4s cubic-bezier(0, 0, .2, 1) infinite; }
@@ -1141,7 +1141,7 @@ function renderMachines() {
   const bySub = Object.fromEntries(subs.map((x) => [x.sub, val(x.totals)]));
   const live = {};
   data.live.forEach((x) => { (live[x.machine] = live[x.machine] || []).push(x); });
-  const fresh = (n) => (live[n] || []).some((x) => now - x.last < 3 * 60e3);
+  const fresh = (n) => (live[n] || []).some(isActive);
   const useOf = (n) => data.machineUsage.filter((u) => u.machine === n).sort((x, y) => val(y.totals) - val(x.totals));
   const best = (n) => useOf(n)[0] || { totals: { cost: 0, tokens: 0 }, sub: null };
   const newest = data.machines.reduce((a, m) => (cmpVer(m.ver, a) > 0 ? m.ver : a), '0');
@@ -1208,7 +1208,7 @@ function renderMachines() {
       return [now - sc[0] * 3600e3, now, sc[1]];
     };
     const liveRows = open ? sess.map((x) => {
-      const f = now - x.last < 3 * 60e3;
+      const f = isActive(x);
       const [w0, w1, sc] = winOf(x.sub, x.start), pos = (t) => Math.max(0, Math.min(100, ((t - w0) / (w1 - w0)) * 100));
       const a2 = pos(x.last);
       // blocks closer than about 4px on this scale draw as one
@@ -1218,9 +1218,13 @@ function renderMachines() {
         const l = blocks[blocks.length - 1];
         if (l && k.a - l.b <= near) { l.b = k.b; l.c += k.c; l.k += k.k; l.n += k.n; } else blocks.push({ ...k });
       }
-      const blk = blocks.map((k) => `<i data-mtip="blk" data-a="${k.a}" data-b="${k.b}" data-c="${k.c}" data-k="${k.k}" data-nm="${k.n}" data-model="${esc(x.model)}" style="left:${pos(k.a)}%;width:${Math.max(0, pos(k.b) - pos(k.a))}%"></i>`).join('');
-      const tip = `${pretty(x.model)}: ${f ? 'active' : 'idle'} · started ${new Date(x.start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · this stretch ${dur(now - x.streak)} · last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
-      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})"><td title="${esc(tip)}"><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt lvt-s num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stw"><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span><span class="stl">${blk}<b class="${f ? 'on' : ''}" style="left:${a2}%"></b></span><span class="stsc num">${sc}</span></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
+      const blk = blocks.map((k, j) => {
+        const l = pos(k.a), r = pos(k.b), pl = j ? pos(blocks[j - 1].b) : -Infinity, nr = j < blocks.length - 1 ? pos(blocks[j + 1].a) : Infinity;
+        const el = Math.min(1.5, (l - pl) / 2, l), er = Math.min(1.5, (nr - r) / 2, 100 - r);
+        return `<u data-mtip="blk" data-a="${k.a}" data-b="${k.b}" data-c="${k.c}" data-k="${k.k}" data-nm="${k.n}" data-model="${esc(x.model || '')}" style="left:${l - el}%;width:${r - l + el + er}%"></u><i style="left:${l}%;width:${Math.max(0, r - l)}%"></i>`;
+      }).join('');
+      const tip = `${x.model ? pretty(x.model) : 'Working'}: ${f ? 'active' : 'idle'} · started ${new Date(x.start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · this stretch ${dur(now - x.streak)} · last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
+      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})"><td title="${esc(tip)}"><span class="lvm">${glyph(x.provider)}<span>${x.model ? esc(pretty(x.model)) : 'Working…'}</span><span class="lvt lvt-s num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stw"><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span><span class="stl">${blk}<b class="${f ? 'on' : ''}" style="left:${a2}%"></b></span><span class="stsc num">${sc}</span></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
     }) : [];
     const rows = [...subRows, ...liveRows];
     if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
@@ -1230,19 +1234,20 @@ function renderMachines() {
 // hover card. On a row: the machine itself (status and details; its numbers are already in the columns).
 // On a strip part: whose part and how big.
 // The same card on a row and on a strip part (a part adds its share line).
+const isActive = (x) => (x.active != null ? x.active : Date.now() - x.last < 3 * 60e3);
 function machineTip(el) {
   if (el.dataset.mtip === 'blk') {
     const d = el.dataset, a = +d.a, b = +d.b, n = +d.nm;
     const tm = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const day = new Date(a).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
     const rows = [['When', `${day}, ${tm(a)}${b - a >= 60e3 ? ' – ' + tm(b) : ''}`], ['Length', b - a >= 60e3 ? dur(b - a).replace(/ \d+s$/, '') : 'under a minute'], ['Cost', fmtC(+d.c)], ['Tokens', fmtN(+d.k)], ['Messages', String(n)]];
-    return `<b>${esc(pretty(d.model))}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span class="num">${esc(v)}</span></div>`).join('');
+    return `<b>${d.model ? esc(pretty(d.model)) : 'Working…'}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span class="num">${esc(v)}</span></div>`).join('');
   }
   {
     const n = el.dataset.n, m = data.machines.find((x) => x.nick === n);
     if (!m) return '';
     const now = Date.now(), sess = data.live.filter((x) => x.machine === n);
-    const active = sess.some((x) => now - x.last < 3 * 60e3);
+    const active = sess.some(isActive);
     const newest = data.machines.reduce((a, x) => (cmpVer(x.ver, a) > 0 ? x.ver : a), '0');
     const rows = [
       ['Status', ''],
@@ -1336,7 +1341,8 @@ function setLive(on) {
   if (on) {
     let pending = null;
     es = new EventSource('/api/live');
-    es.addEventListener('change', () => { if (!pending) pending = setTimeout(() => { pending = null; qcache.clear(); load(); }, 800); });
+    es.addEventListener('change', () => { if (!pending) pending = setTimeout(() => { pending = null; qcache.clear(); load(); }, 250); });
+    es.addEventListener('open', () => { qcache.clear(); load(); }); // reconnected: changes may have been missed
   }
 }
 
@@ -1353,7 +1359,8 @@ setInterval(() => {
   document.querySelectorAll('[data-since]').forEach((el) => { el.textContent = dur(now - Number(el.dataset.since)); });
   document.querySelectorAll('[data-ago]').forEach((el) => { el.textContent = ago(now - Number(el.dataset.ago)); });
 }, 1000);
-setInterval(() => { if (!S.live) { qcache.clear(); load(); } }, 60e3);
+setInterval(() => { qcache.clear(); load(); }, 30e3); // also a safety net if the live stream stalls
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.live) { qcache.clear(); load(); } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { qcache.clear(); load(); } });
 let rz = null;
 addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (data) { renderCharts(); renderModal(); } }, 120); });

@@ -10,6 +10,7 @@ const ONLINE_MS = 5 * 60e3;
 const LIVE_MS = 10 * 60e3;
 const STREAK_GAP = 30 * 60e3;
 const BURST_GAP = 10 * 60e3;
+const TURN_MAX = 30 * 60e3; // a turn with no reply for this long is treated as abandoned
 const MAX_BLOCKS = 300;
 
 function bucketSize(range, res) {
@@ -38,6 +39,7 @@ function index(events) {
   const anns = [];
   const usage = [];
   const lims = []; // hb events carrying plan limits
+  const prompts = []; // hb events marking a prompt sent (a turn started)
   const subFirst = new Map(); // sub -> origin that announced it first (its label wins)
   const subLabels = new Map(); // sub|origin -> newest sub event
   const colors = new Map(); // machine nick -> { c, t }, newest wins
@@ -53,13 +55,14 @@ function index(events) {
       if (!f || ev.t < f.t) subFirst.set(ev.sub, { o: ev.o, t: ev.t });
       const lk = `${ev.sub}|${ev.o}`, l = subLabels.get(lk);
       if (!l || ev.t >= l.t) subLabels.set(lk, ev);
-    } else if (ev.k === 'hb' && ev.sub && Array.isArray(ev.lim)) lims.push(ev); else if (ev.k === 'ann') anns.push(ev);
+    } else if (ev.k === 'hb' && ev.sub && ev.turn === 1 && ev.sid) prompts.push(ev);
+    else if (ev.k === 'hb' && ev.sub && Array.isArray(ev.lim)) lims.push(ev); else if (ev.k === 'ann') anns.push(ev);
     else if (ev.k === 'color') { const x = colors.get(ev.mach); if (!x || ev.t >= x.t) colors.set(ev.mach, { c: ev.c, t: ev.t }); }
     else if (ev.k === 'u') usage.push(ev);
   }
   // Every machine on a subscription announces its own label; the first machine to announce it names it.
   for (const [sub, f] of subFirst) { const ev = subLabels.get(`${sub}|${f.o}`); subs.set(sub, { sub, label: ev.label, provider: ev.p, t: ev.t }); }
-  return { nodes, subs, anns, usage, colors, lims };
+  return { nodes, subs, anns, usage, colors, lims, prompts };
 }
 
 function machineName(nodes, origin) {
@@ -75,7 +78,7 @@ function parseList(v) {
 
 // q: { range, subs, machines, providers, tz (minutes, as Date#getTimezoneOffset) }
 function summarize(events, q = {}, now = Date.now()) {
-  const { nodes, subs, anns, usage, colors, lims } = index(events);
+  const { nodes, subs, anns, usage, colors, lims, prompts } = index(events);
   const subsF = parseList(q.subs);
   const limits = limitInfo(lims, now);
   let range = RANGES[q.range] || LIMIT_RANGES[q.range] ? q.range : '7d';
@@ -120,6 +123,7 @@ function summarize(events, q = {}, now = Date.now()) {
     // "running for" = current stretch of activity; a 30 min pause (or a resumed old session) restarts it
     if (ev.t - s.last > STREAK_GAP) s.streak = ev.t;
     if (ev.t >= s.last) { s.last = ev.t; s.model = ev.m; }
+    if (ev.end === 1 && ev.t > (s.endT || 0)) s.endT = ev.t;
     add(s.totals, ev, c);
 
     if (ev.t < from || ev.t > now + 60e3) continue;
@@ -171,6 +175,24 @@ function summarize(events, q = {}, now = Date.now()) {
     .filter((m) => !machF || machF.has(m.nick))
     .sort((a, b) => b.lastSeen - a.lastSeen);
 
+  // prompts: a session shows up the moment a prompt is sent, before any reply is written
+  for (const ev of prompts) {
+    if (!pass(ev)) continue;
+    const sk = `${ev.o}|${ev.sub}|${ev.sid}`;
+    let s = sessions.get(sk);
+    if (!s) { s = { machine: machineName(nodes, ev.o), origin: ev.o, sub: ev.sub, provider: ev.p, sid: ev.sid, start: ev.t, streak: ev.t, last: ev.t, model: null, totals: emptyTotals() }; sessions.set(sk, s); }
+    if (ev.t > (s.prompt || 0)) s.prompt = ev.t;
+    if (ev.t > s.last) { if (ev.t - s.last > STREAK_GAP) s.streak = ev.t; s.last = ev.t; }
+    if (ev.t < s.start) s.start = ev.t;
+  }
+  // active: a turn is running (prompt after the last finished reply, for at most TURN_MAX).
+  // Without turn markers (older peers): any message in the last 3 minutes.
+  for (const s of sessions.values()) {
+    s.active = s.prompt || s.endT
+      ? (s.prompt || 0) > (s.endT || 0) ? now - s.prompt < TURN_MAX : now - s.last < 3 * 60e3 && s.last > (s.endT || 0)
+      : now - s.last < 3 * 60e3;
+    delete s.endT;
+  }
   const live = [...sessions.values()]
     .filter((s) => now - s.last < LIVE_MS)
     .map((s) => ({ ...s, label: subInfo(s.sub, s.provider).label }))
@@ -182,13 +204,14 @@ function summarize(events, q = {}, now = Date.now()) {
     const list = msgs.get(`${ev.o}|${ev.sub}|${ev.sid}`);
     if (!list || !pass(ev)) continue;
     const c = prices.cost(ev);
-    list.push([ev.t, c ? c.input + c.cacheRead + c.cacheWrite + c.output : 0, (ev.in || 0) + (ev.cr || 0) + (ev.cw || 0) + (ev.out || 0)]);
+    list.push([ev.t, c ? c.input + c.cacheRead + c.cacheWrite + c.output : 0, (ev.in || 0) + (ev.cr || 0) + (ev.cw || 0) + (ev.out || 0), 1]);
   }
+  for (const ev of prompts) { const list = msgs.get(`${ev.o}|${ev.sub}|${ev.sid}`); if (list && pass(ev)) list.push([ev.t, 0, 0, 0]); }
   for (const s of live) {
     const blocks = [];
-    for (const [t, c, k] of msgs.get(`${s.origin}|${s.sub}|${s.sid}`).sort((x, y) => x[0] - y[0])) {
+    for (const [t, c, k, m] of msgs.get(`${s.origin}|${s.sub}|${s.sid}`).sort((x, y) => x[0] - y[0])) {
       const l = blocks[blocks.length - 1];
-      if (l && t - l.b <= BURST_GAP) { l.b = t; l.c += c; l.k += k; l.n++; } else blocks.push({ a: t, b: t, c, k, n: 1 });
+      if (l && t - l.b <= BURST_GAP) { l.b = Math.max(l.b, t); l.c += c; l.k += k; l.n += m; } else blocks.push({ a: t, b: t, c, k, n: m });
     }
     s.blocks = blocks.slice(-MAX_BLOCKS);
   }

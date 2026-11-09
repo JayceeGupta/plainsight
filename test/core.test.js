@@ -88,6 +88,23 @@ test('aggregate: subscriptions are never summed together', () => {
   assert.deepStrictEqual(only.subscriptions.map((x) => x.label), ['Max two']);
 });
 
+test('live: a prompt shows the session at once; end_turn ends the turn', () => {
+  const now = Date.now();
+  const P = (t) => JSON.stringify({ type: 'user', uuid: 'u' + t, sessionId: 'S1', timestamp: new Date(t).toISOString(), message: { role: 'user', content: 'write an essay' } });
+  const A = (t, stop) => JSON.stringify({ type: 'assistant', requestId: 'r' + t, sessionId: 'S1', timestamp: new Date(t).toISOString(), message: { id: 'm' + t, model: 'claude-opus-5-5', stop_reason: stop, usage: { input_tokens: 1, output_tokens: 9 } } });
+  const tool = JSON.stringify({ type: 'user', sessionId: 'S1', timestamp: new Date(now).toISOString(), message: { role: 'user', content: [{ type: 'tool_result' }] } });
+  const evs = parseClaude([P(now - 20e3), tool, A(now - 5e3, 'end_turn')], {});
+  assert.deepStrictEqual(evs.map((e) => [e.k, e.turn, e.end]), [['hb', 1, undefined], ['u', undefined, 1]]);
+  const s = new Store(tmp());
+  const base = [{ k: 'hello', nick: 'box-a' }, { k: 'sub', sub: 'sub1', p: 'claude', label: 'Max' }];
+  s.appendLocal(B, [...base, ...parseClaude([P(now - 20e3)], {}).map((e) => ({ ...e, sub: 'sub1' }))]);
+  const busy = summarize(s.all(), { range: '24h' }, now).live;
+  assert.deepStrictEqual(busy.map((x) => [x.active, x.model]), [[true, null]]);
+  s.appendLocal(B, parseClaude([A(now - 5e3, 'end_turn')], {}).map((e) => ({ ...e, sub: 'sub1' })));
+  const done = summarize(s.all(), { range: '24h' }, now).live;
+  assert.deepStrictEqual(done.map((x) => [x.active, x.model, x.blocks.length, x.blocks[0].n]), [[false, 'claude-opus-5-5', 1, 1]]);
+});
+
 test('aggregate: live sessions carry blocks of work split by 10 min pauses', () => {
   const s = new Store(tmp());
   const now = Date.now(), M = 60e3;

@@ -234,7 +234,7 @@ async function main() {
     if (!sseTimer) sseTimer = setTimeout(() => {
       sseTimer = null;
       for (const r of sse) r.write(`event: change\ndata: ${Date.now()}\n\n`);
-    }, 1000);
+    }, 300);
   });
 
   async function scan() {
@@ -264,7 +264,7 @@ async function main() {
   const joinTunnel = () => { if (viewOk && syncer.ready && tunnel.configured()) tunnel.start(); };
   syncer.run().then(joinTunnel);
 
-  setInterval(scan, 5000);
+  setInterval(scan, 2000);
   startLimits(cfg, store);
   setInterval(() => { refreshTailscale().then(() => syncer.run()).then(joinTunnel); }, 60e3);
   setInterval(() => store.appendLocal(self, [{ k: 'hb' }]), 120e3);

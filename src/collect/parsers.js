@@ -7,6 +7,16 @@ const { hash, subId } = require('../util');
 function parseClaude(lines, ctx) {
   const out = [];
   for (const line of lines) {
+    // a typed prompt (not a tool result): rides on hb so older peers accept it
+    if (line.startsWith('{"') && line.includes('"type":"user"') && !line.includes('"tool_result"')) {
+      let o;
+      try { o = JSON.parse(line); } catch { continue; }
+      const t = Date.parse(o && o.timestamp);
+      if (o && o.type === 'user' && o.message && o.message.role === 'user' && !o.isMeta && Number.isFinite(t)) {
+        out.push({ k: 'hb', p: 'claude', t, id: hash(`cp:${o.uuid || line}`, 20), sid: hash(o.sessionId || 'none', 12), turn: 1 });
+      }
+      continue;
+    }
     if (!line.includes('"usage"')) continue;
     let o;
     try { o = JSON.parse(line); } catch { continue; }
@@ -22,6 +32,7 @@ function parseClaude(lines, ctx) {
       m: String(msg.model).slice(0, 80),
       in: num(u.input_tokens), cw: num(u.cache_creation_input_tokens), cr: num(u.cache_read_input_tokens),
       out: num(u.output_tokens),
+      ...(msg.stop_reason === 'end_turn' ? { end: 1 } : {}),
     });
   }
   return out;
