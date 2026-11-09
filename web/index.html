@@ -77,7 +77,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .srow .name .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .srow .val { font-size: 17px; font-weight: 600; }
 .srow .det { grid-column: 1 / -1; color: var(--muted); font-size: 14px; }
-.glyph { font-size: 16px; line-height: 1; flex: none; }
+.glyph { font-size: 16px; line-height: 1; flex: none; display: inline-flex; vertical-align: -2px; }
+.glyph svg { width: 1em; height: 1em; display: block; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 4px; font-size: 13px; color: var(--muted); }
 .chips span { display: inline-flex; align-items: center; gap: 6px; }
@@ -201,6 +202,24 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .lrow .top button.who:hover .l { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
 .lrow .top .val { margin-left: auto; font-size: 17px; font-weight: 650; white-space: nowrap; }
 .lrow .det { color: var(--muted); font-size: 13px; margin-top: -8px; }
+.lim { display: grid; gap: 0; }
+.lbar { position: relative; height: 34px; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px; width: 100%; text-align: left;
+  background: repeating-linear-gradient(135deg, #1b1b1b 0 2px, #0c0c0c 2px 7px); border: 1px solid var(--line2); }
+.lbar .lfill { position: absolute; inset: 0 auto 0 0; background: var(--lf, #3a3a3a); border-radius: 7px 0 0 7px; }
+.lbar.claude { --lf: #4b2a20; } .lbar.codex { --lf: #333; }
+.lim.warn .lbar { --lf: #5a4313; } .lim.bad .lbar { --lf: #5c1f1f; }
+.lbar .lpace { position: absolute; top: 5px; bottom: 5px; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
+.lbar .ltxt, .lbar .lreset { position: relative; font-size: 13px; white-space: nowrap; }
+.lbar .ltxt b { font-weight: 600; margin-right: 4px; }
+.lbar .lreset { color: var(--text); background: rgba(0,0,0,.55); padding: 2px 7px; border-radius: 6px; font-size: 12px; }
+.lbar:hover { border-color: #3a3a3a; }
+.lsub { padding: 8px 2px 4px; display: grid; gap: 6px; }
+.lm { display: grid; grid-template-columns: minmax(0, 1fr) 90px 48px 64px; gap: 10px; align-items: center; font-size: 13px; }
+.lm .who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; } .lm .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm .lmbar { height: 6px; background: var(--line2); border-radius: 3px; overflow: hidden; } .lm .lmbar i { display: block; height: 100%; border-radius: 3px; }
+.lm b, .lm .muted { text-align: right; }
+.lanenote { font-size: 12.5px; color: var(--faint); margin: 10px 0 0; line-height: 1.6; }
+.lanenote svg { vertical-align: -1px; margin: 0 6px 0 0; }
 .meter .k, .msplit .k { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .meter .k b { color: var(--text); font-weight: 600; }
 .meter .mtrack { height: 8px; border-radius: 4px; background: var(--line2); margin-top: 6px; overflow: hidden; }
@@ -387,11 +406,15 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // One colour per machine, assigned oldest-first so colours stay put as machines come and go.
 const MPAL = ['#60a5fa', '#e8794a', '#4ade80', '#c084fc', '#facc15', '#f472b6', '#2dd4bf', '#f87171', '#a3e635', '#fb923c', '#818cf8', '#94a3b8'];
-const GLYPH = { claude: '<span class="glyph" style="color:var(--claude)">✳</span>', codex: '<span class="glyph" style="color:var(--codex)">◎</span>' };
+// provider marks (Simple Icons, CC0)
+const GLYPH = {
+  claude: '<span class="glyph" style="color:var(--claude)" role="img" aria-label="Claude"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m4.714 15.956l4.718-2.648l.079-.23l-.08-.128h-.23l-.79-.048l-2.695-.073l-2.337-.097l-2.265-.122l-.57-.121l-.535-.704l.055-.353l.48-.321l.685.06l1.518.104l2.277.157l1.651.098l2.447.255h.389l.054-.158l-.133-.097l-.103-.098l-2.356-1.596l-2.55-1.688l-1.336-.972l-.722-.491L2 6.223l-.158-1.008l.656-.722l.88.06l.224.061l.893.686l1.906 1.476l2.49 1.833l.364.304l.146-.104l.018-.072l-.164-.274l-1.354-2.446l-1.445-2.49l-.644-1.032l-.17-.619a3 3 0 0 1-.103-.729L6.287.133L6.7 0l.995.134l.42.364l.619 1.415L9.735 4.14l1.555 3.03l.455.898l.243.832l.09.255h.159V9.01l.127-1.706l.237-2.095l.23-2.695l.08-.76l.376-.91l.747-.492l.583.28l.48.685l-.067.444l-.286 1.851l-.558 2.903l-.365 1.942h.213l.243-.242l.983-1.306l1.652-2.064l.728-.82l.85-.904l.547-.431h1.032l.759 1.129l-.34 1.166l-1.063 1.347l-.88 1.142l-1.263 1.7l-.79 1.36l.074.11l.188-.02l2.853-.606l1.542-.28l1.84-.315l.832.388l.09.395l-.327.807l-1.967.486l-2.307.462l-3.436.813l-.043.03l.049.061l1.548.146l.662.036h1.62l3.018.225l.79.522l.473.638l-.08.485l-1.213.62l-1.64-.389l-3.825-.91l-1.31-.329h-.183v.11l1.093 1.068l2.003 1.81l2.508 2.33l.127.578l-.321.455l-.34-.049l-2.204-1.657l-.85-.747l-1.925-1.62h-.127v.17l.443.649l2.343 3.521l.122 1.08l-.17.353l-.607.213l-.668-.122l-1.372-1.924l-1.415-2.168l-1.141-1.943l-.14.08l-.674 7.254l-.316.37l-.728.28l-.607-.461l-.322-.747l.322-1.476l.388-1.924l.316-1.53l.285-1.9l.17-.632l-.012-.042l-.14.018l-1.432 1.967l-2.18 2.945l-1.724 1.845l-.413.164l-.716-.37l.066-.662l.401-.589l2.386-3.036l1.439-1.882l.929-1.086l-.006-.158h-.055L4.138 18.56l-1.13.146l-.485-.456l.06-.746l.231-.243l1.907-1.312Z"/></svg></span>',
+  codex: '<span class="glyph" style="color:var(--codex)" role="img" aria-label="Codex"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a6 6 0 0 0-.516-4.91a6.05 6.05 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a6 6 0 0 0-3.998 2.9a6.05 6.05 0 0 0 .743 7.097a5.98 5.98 0 0 0 .51 4.911a6.05 6.05 0 0 0 6.515 2.9A6 6 0 0 0 13.26 24a6.06 6.06 0 0 0 5.772-4.206a6 6 0 0 0 3.997-2.9a6.06 6.06 0 0 0-.747-7.073M13.26 22.43a4.48 4.48 0 0 1-2.876-1.04l.141-.081l4.779-2.758a.8.8 0 0 0 .392-.681v-6.737l2.02 1.168a.07.07 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494M3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085l4.783 2.759a.77.77 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646M2.34 7.896a4.5 4.5 0 0 1 2.366-1.973V11.6a.77.77 0 0 0 .388.677l5.815 3.354l-2.02 1.168a.08.08 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.08.08 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667m2.01-3.023l-.141-.085l-4.774-2.782a.78.78 0 0 0-.785 0L9.409 9.23V6.897a.07.07 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.8.8 0 0 0-.393.681zm1.097-2.365l2.602-1.5l2.607 1.5v2.999l-2.597 1.5l-2.607-1.5Z"/></svg></span>',
+};
 const glyph = (p) => GLYPH[p] || '<span class="glyph faint">•</span>';
 const PROV = (p) => p === 'claude' ? 'Claude Code' : p === 'codex' ? 'Codex' : p;
 const ls = { get(k, d) { try { const v = localStorage.getItem('ps:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('ps:' + k, JSON.stringify(v)); } catch {} } };
-const CHART0 = { mode: 'comb', type: 'lines', lanes: true, fill: true, curve: 'smooth', styles: {}, hidden: [] };
+const CHART0 = { res: 'hour', mode: 'comb', type: 'lines', lanes: true, fill: true, curve: 'smooth', styles: {}, hidden: [] };
 const S = { range: ls.get('range', '24h'), metric: ls.get('metric', 'cost'), bd: ['time', 'machine'].includes(ls.get('bd', 'model')) ? ls.get('bd') : 'model', merge: ls.get('merge', 'split') === 'merge' ? 'merge' : 'split', chart: { ...CHART0, ...ls.get('chart', {}) }, subs: ls.get('subs', []), machines: ls.get('machines', []), providers: ls.get('providers', []), live: ls.get('live', true) };
 let data = null, es = null;
 
@@ -442,7 +465,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(); });
 
 async function load() {
-  const p = new URLSearchParams({ range: S.range, tz: String(new Date().getTimezoneOffset()) });
+  const p = new URLSearchParams({ range: S.range, tz: String(new Date().getTimezoneOffset()), res: S.chart.res });
   if (S.subs.length) p.set('subs', S.subs.join(','));
   if (S.machines.length) p.set('machines', S.machines.join(','));
   if (S.providers.length) p.set('providers', S.providers.join(','));
@@ -519,12 +542,33 @@ document.addEventListener('click', (e) => {
   else if (s) toggleFilter('subs', s.dataset.sfilter);
 });
 
+const openLim = new Set(); // "sub|minutes" rows expanded to per-machine
+const left = (ms) => { const m = Math.max(0, Math.round(ms / 60e3)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`; };
 function limitRows(sub) {
   const L = (data.limits || {})[sub];
   if (!L) return '';
-  const stale = Date.now() - L.t > 20 * 60e3 ? ` · as of ${ago(Date.now() - L.t)}` : '';
-  return L.windows.map((w) => `<div class="meter${w.u >= 80 ? ' hot' : ''}"><div class="k"><span>${winName(w.m)} limit <b class="num">${w.u}%</b></span><span>resets ${esc(resetText(w.r))}${stale}</span></div><div class="mtrack" role="meter" aria-valuenow="${w.u}" aria-valuemin="0" aria-valuemax="100" aria-label="${winName(w.m)} limit used"><i style="width:${w.u}%"></i></div></div>`).join('');
+  const now = Date.now(), prov = subInfo(sub).provider;
+  const stale = now - L.t > 20 * 60e3 ? ` · as of ${ago(now - L.t)}` : '';
+  return L.windows.map((w) => {
+    const key = `${sub}|${w.m}`, open = openLim.has(key);
+    const rem = 100 - w.u, len = w.m * 60e3;
+    const timeLeft = Math.max(0, Math.min(100, ((w.r - now) / len) * 100));
+    const pace = rem >= timeLeft ? 'under pace: room to spare' : 'ahead of pace: using it faster than time passes';
+    const tone = rem <= 10 ? ' bad' : rem <= 25 ? ' warn' : '';
+    const sp = Object.entries(w.split || {}).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
+    const tot = sp.reduce((a, x) => a + x[1], 0);
+    const rows = open ? `<div class="lsub">${sp.length ? sp.map(([m, c]) => { const pct = tot ? (w.u * c) / tot : 0; return `<div class="lm"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><span class="lmbar"><i style="width:${Math.min(100, pct).toFixed(2)}%;background:${mcol(m)}"></i></span><b class="num">≈${pct.toFixed(pct < 10 ? 1 : 0)}%</b><span class="num muted">${fmtC(c)}</span></div>`; }).join('') + '<p class="dhint" style="margin:6px 0 0">Share of the limit used, split by each machine\'s estimated cost since this window started.</p>' : '<p class="dhint" style="margin:6px 0 0">No usage in this window yet.</p>'}</div>` : '';
+    return `<div class="lim${tone}"><button class="lbar ${prov}" data-lexp="${esc(key)}" aria-expanded="${open}" aria-label="${winName(w.m)} limit: ${rem}% left, resets in ${left(w.r - now)}, ${pace}" title="${rem}% of the limit left · ${Math.round(timeLeft)}% of the window's time left · ${pace}${stale}">
+      <i class="lfill" style="width:${rem}%"></i><i class="lpace" style="left:${timeLeft}%"></i>
+      <span class="ltxt"><b>${winName(w.m)}</b> <span class="num">${rem}% left</span></span><span class="lreset num">↻ ${left(w.r - now)}</span></button>${rows}</div>`;
+  }).join('');
 }
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-lexp]');
+  if (!b) return;
+  openLim.has(b.dataset.lexp) ? openLim.delete(b.dataset.lexp) : openLim.add(b.dataset.lexp);
+  renderHero();
+});
 function splitBar(sub) {
   const ms = data.machineUsage.filter((m) => m.sub === sub && val(m.totals) > 0).sort((a, b) => val(b.totals) - val(a.totals));
   if (!ms.length) return '';
@@ -587,12 +631,12 @@ function renderCharts() {
   const subs = data.subscriptions;
   const what = S.metric === 'cost' ? 'cost' : 'tokens';
   const multi = subs.length > 1, comb = multi && S.chart.mode === 'comb';
-  const head = `<div class="chartHead"><div class="chartTitle">${label} ${what}</div>${multi ? `<div class="seg" id="cmode" role="group" aria-label="Chart layout"><button data-v="comb" aria-pressed="${comb}">One chart</button><button data-v="sep" aria-pressed="${!comb}">Per subscription</button></div>` : ''}<button class="ib" id="copt" title="Chart options" aria-label="Chart options">${gear}</button></div>`;
+  const head = `<div class="chartHead"><div class="chartTitle">${label} ${what}</div>${data.range === '7d' ? `<div class="seg" id="cres" role="group" aria-label="Points"><button data-v="hour" aria-pressed="${S.chart.res !== 'day'}">Hourly</button><button data-v="day" aria-pressed="${S.chart.res === 'day'}">Daily</button></div>` : ''}${multi ? `<div class="seg" id="cmode" role="group" aria-label="Chart layout"><button data-v="comb" aria-pressed="${comb}">One chart</button><button data-v="sep" aria-pressed="${!comb}">Per subscription</button></div>` : ''}<button class="ib" id="copt" title="Chart options" aria-label="Chart options">${gear}</button></div>`;
   if (!subs.length) { $('charts').innerHTML = head + '<div class="empty">No usage in this period.</div>'; return; }
   const hidden = new Set(S.chart.hidden || []);
   if (comb) {
     const anyLim = subs.some((s) => (data.limits || {})[s.sub]);
-    $('charts').innerHTML = head + chartBox('data-comb="1"') + `<div class="cleg">${subs.map((s) => { const st = subStyle(s.sub); return `<button data-hide="${esc(s.sub)}" aria-pressed="${!hidden.has(s.sub)}" title="Show or hide">${dashSwatch(st.c, st.dash)}${glyph(s.provider)}${esc(s.label)}</button>`; }).join('')}${anyLim && S.chart.lanes ? '<span class="static"><svg width="10" height="10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" transform="rotate(45 5 5)" fill="#8e8e8e"/></svg>long-window reset</span><span class="static"><svg width="18" height="8" aria-hidden="true"><line x1="2" x2="16" y1="4" y2="4" stroke="#8e8e8e" stroke-width="8" stroke-linecap="round"/></svg>5h windows</span>' : ''}</div>`;
+    $('charts').innerHTML = head + chartBox('data-comb="1"') + `<div class="cleg">${subs.map((s) => { const st = subStyle(s.sub); return `<button data-hide="${esc(s.sub)}" aria-pressed="${!hidden.has(s.sub)}" title="Show or hide">${dashSwatch(st.c, st.dash)}${glyph(s.provider)}${esc(s.label)}</button>`; }).join('')}</div>${anyLim && S.chart.lanes ? LANE_NOTE : ''}`;
     const vis = subs.filter((s) => !hidden.has(s.sub));
     drawChart($('charts').querySelector('.chart'), {
       label: `${what} by subscription`,
@@ -602,6 +646,7 @@ function renderCharts() {
     return;
   }
   $('charts').innerHTML = head + subs.map((s, i) => `<div>${multi ? `<div class="subhead" style="margin:${i ? 18 : 0}px 0 6px">${glyph(s.provider)}${esc(s.label)}</div>` : ''}${chartBox(`data-i="${i}"`)}</div>`).join('');
+  if (S.chart.lanes && subs.some((s) => (data.limits || {})[s.sub])) $('charts').insertAdjacentHTML('beforeend', LANE_NOTE);
   $('charts').querySelectorAll('.chart').forEach((el) => {
     const sub = subs[Number(el.dataset.i)].sub;
     const order = data.options.machineOrder || data.options.machines;
@@ -616,10 +661,11 @@ function renderCharts() {
   });
 }
 // spec: { lines: [{ html, c, dash, w, o, fill, dim, vals }], lanes: [laneOf()], total, label }
+const LANE_NOTE = '<p class="lanenote"><svg width="26" height="10" aria-hidden="true"><rect width="26" height="10" rx="3" fill="#8e8e8e" fill-opacity=".2"/><rect width="11" height="10" rx="3" fill="#8e8e8e" fill-opacity=".75"/></svg>Strip above the chart: each 5-hour limit window, filled to how much of the limit it used. <svg width="8" height="12" aria-hidden="true"><line x1="4" x2="4" y1="0" y2="12" stroke="#8e8e8e" stroke-dasharray="3 3"/></svg>Dashed line: weekly limit reset. Hover the chart for details.</p>';
 function drawChart(el, spec) {
   const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
   const small = matchMedia('(max-width:640px)').matches;
-  const LH = 14, laneBlock = spec.lanes.length ? spec.lanes.length * LH + 6 : 0;
+  const LH = 18, laneBlock = spec.lanes.length ? spec.lanes.length * LH + 6 : 0;
   const W = svg.clientWidth || 800, L = small ? 50 : 66, R = 6, T = 8 + laneBlock, B = 26;
   const H = (spec.height || (small ? 210 : 300)) + laneBlock;
   const series = data.series, step = data.step, n = series.length;
@@ -634,17 +680,18 @@ function drawChart(el, spec) {
   const y = (v) => T + (H - T - B) * (1 - v / nice);
   const fmtT = (t) => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   let g = '';
+  // limit strip: one row per subscription; each 5h window is a box filled to the % of the limit it used
   spec.lanes.forEach((ln, li) => {
-    const ly = 6 + li * LH + 4;
-    const caps = ln.dash ? 'butt' : 'round';
-    g += `<text x="${L - 10}" y="${ly + 4}" text-anchor="end">${esc(ln.label)}</text><line x1="${L}" x2="${W - R}" y1="${ly}" y2="${ly}" stroke="#141414" stroke-width="8" stroke-linecap="round"/>`;
-    for (const [a, b] of ln.bands) {
+    const top = 6 + li * LH, h = 12, mid = top + h / 2;
+    g += `<text x="${L - 10}" y="${mid + 4}" text-anchor="end">${esc(ln.label)}</text><rect x="${L}" y="${top}" width="${W - L - R}" height="${h}" rx="3" fill="#0f0f0f"/>`;
+    for (const [a, b, u = 0] of ln.bands) {
       if (b <= t0 || a >= tN + step) continue;
-      g += `<line x1="${xt(a) + 3}" x2="${Math.max(xt(a) + 4, xt(b) - 3)}" y1="${ly}" y2="${ly}" stroke="${ln.c}" stroke-opacity=".5" stroke-width="8" stroke-linecap="${caps}" stroke-dasharray="${ln.dash}"><title>${esc(ln.name)}: ${ln.short} window ${esc(fmtT(a))} to ${esc(fmtT(b))}</title></line>`;
+      const x0 = xt(a), x1 = Math.max(x0 + 3, xt(b) - 1), xf = Math.min(x1, Math.max(x0, xt(a + ((b - a) * u) / 100)));
+      g += `<g><title>${esc(ln.name)}: ${ln.short} window ${esc(fmtT(a))} to ${esc(fmtT(b))}, used ${u}% of the limit</title><rect x="${x0}" y="${top}" width="${x1 - x0}" height="${h}" rx="3" fill="${ln.c}" fill-opacity=".16" stroke="${ln.dash ? ln.c : 'none'}" stroke-opacity=".7" stroke-dasharray="${ln.dash}"/>${xf > x0 ? `<rect x="${x0}" y="${top}" width="${xf - x0}" height="${h}" rx="3" fill="${ln.c}" fill-opacity=".6"/>` : ''}${x1 - x0 > 34 ? `<text x="${x0 + 5}" y="${mid + 3.5}" style="fill:var(--text);font-size:9.5px;font-weight:600">${u}%</text>` : ''}</g>`;
     }
     for (const r of ln.resets) {
       const rx = xt(r);
-      g += `<line x1="${rx}" x2="${rx}" y1="${ly}" y2="${H - B}" stroke="${ln.c}" stroke-opacity=".7" stroke-dasharray="2 4"/><rect x="${rx - 4}" y="${ly - 4}" width="8" height="8" transform="rotate(45 ${rx} ${ly})" fill="${ln.c}"><title>${esc(ln.name)}: limit reset ${esc(fmtT(r))}</title></rect>`;
+      g += `<g><title>${esc(ln.name)}: weekly limit reset ${esc(fmtT(r))}</title><line x1="${rx}" x2="${rx}" y1="${top - 2}" y2="${H - B}" stroke="${ln.c}" stroke-opacity=".75" stroke-width="1.2" stroke-dasharray="3 3"/><rect x="${rx - 1.5}" y="${top - 2}" width="3" height="${h + 4}" rx="1.5" fill="${ln.c}"/></g>`;
     }
   });
   for (let i = 0; i <= 2; i++) { const v = (nice * i) / 2; g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : fmtV(v)}</text>`; }
@@ -684,6 +731,7 @@ function drawChart(el, spec) {
     cur.setAttribute('x1', x(i)); cur.setAttribute('x2', x(i)); cur.setAttribute('visibility', 'visible');
     const tot = shown.reduce((a, l) => a + l.vals[i], 0);
     tip.innerHTML = `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
+      spec.lanes.map((ln) => { const bd = ln.bands.find(([a, b]) => series[i].t + step / 2 >= a && series[i].t + step / 2 < b); return bd ? `<div class="r" style="color:var(--muted);font-size:12px"><span>${esc(ln.label)} · 5h window</span><span>${bd[2]}% of limit</span></div>` : ''; }).join('') +
       (shown.length ? shown.map((l) => `<div class="r"><span>${l.html}</span><b class="num">${fmtV(l.vals[i])}</b></div>`).join('') + (spec.total && shown.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
     tip.style.display = 'block';
     const left = (x(i) / W) * rect.width;
@@ -699,6 +747,8 @@ function drawChart(el, spec) {
 }
 function saveChart() { ls.set('chart', S.chart); }
 $('charts').addEventListener('click', (e) => {
+  const res = e.target.closest('#cres button');
+  if (res) { S.chart.res = res.dataset.v; saveChart(); load(); return; }
   const mode = e.target.closest('#cmode button');
   if (mode) { S.chart.mode = mode.dataset.v; saveChart(); renderCharts(); return; }
   const hb = e.target.closest('[data-hide]');

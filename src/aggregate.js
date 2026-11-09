@@ -10,7 +10,8 @@ const ONLINE_MS = 5 * 60e3;
 const LIVE_MS = 10 * 60e3;
 const STREAK_GAP = 30 * 60e3;
 
-function bucketSize(range) {
+function bucketSize(range, res) {
+  if (range === '7d' && res === 'day') return 864e5;
   return { '1h': 5 * 60e3, '5h': 15 * 60e3, '24h': 3600e3, '7d': 3600e3, ...LIMIT_RANGES }[range] || 864e5;
 }
 
@@ -84,7 +85,7 @@ function summarize(events, q = {}, now = Date.now()) {
     const w = cand.length === 1 && limits[cand[0]].windows.slice().sort((a, b) => a.m - b.m)[range === 'win' ? 0 : limits[cand[0]].windows.length - 1];
     if (w) { limitSub = cand[0]; from = w.start; } else { range = range === 'win' ? '5h' : '7d'; from = now - RANGES[range]; }
   }
-  const step = bucketSize(range);
+  const step = bucketSize(range, q.res);
   const tzMs = (Number(q.tz) || 0) * 60e3;
   const align = (t) => (step >= 864e5 ? Math.floor((t - tzMs) / step) * step + tzMs : Math.floor(t / step) * step);
   const machF = parseList(q.machines);
@@ -185,8 +186,19 @@ function summarize(events, q = {}, now = Date.now()) {
   for (const s of inView) {
     const L = limits[s];
     if (!L) continue;
+    // who used the current windows: estimated cost per machine since each window started
+    const windows = L.windows.map((w) => {
+      const split = {};
+      if (w.start < now) for (const ev of usage) {
+        if (ev.sub !== s || ev.t < w.start || ev.t > now + 60e3) continue;
+        const c = prices.cost(ev);
+        const mn = machineName(nodes, ev.o);
+        split[mn] = (split[mn] || 0) + (c ? c.input + c.cacheRead + c.cacheWrite + c.output : 0);
+      }
+      return { ...w, split };
+    });
     limitsOut[s] = {
-      t: L.t, windows: L.windows,
+      t: L.t, windows,
       // short windows only up to 7 days, as their own bands
       bands: now - from <= RANGES['7d'] + 3600e3 ? L.bands.filter(([a, b]) => b > from && a < now) : [],
       resets: L.resets(from, now),
@@ -236,8 +248,14 @@ function limitInfo(lims, now) {
     const bands = [];
     const shortM = ms[0];
     if (shortM && shortM < 1440 && ms.length > 1) {
-      const seen = new Set();
-      for (const ev of evs) for (const w of ev.lim) if (w.m === shortM && !seen.has(w.r)) { seen.add(w.r); bands.push([w.r - shortM * 60e3, w.r]); }
+      // [start, end, highest % used seen in that window]
+      const seen = new Map();
+      for (const ev of evs) for (const w of ev.lim) {
+        if (w.m !== shortM) continue;
+        const r = Math.round(w.r / 60e3) * 60e3; // events stored before rounding was added
+        const b = seen.get(r);
+        if (b) b[2] = Math.max(b[2], w.u); else { const nb = [r - shortM * 60e3, r, w.u]; seen.set(r, nb); bands.push(nb); }
+      }
     }
     const longW = windows.filter((w) => w.m >= 1440).pop();
     out[sub] = {

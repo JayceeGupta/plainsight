@@ -101,7 +101,9 @@ test('aggregate: first machine names a subscription; limits give bands, resets a
   assert.strictEqual(d.subscriptions[0].label, 'Claude Max');
   const L = d.limits.x;
   assert.deepStrictEqual(L.windows.map((w) => [w.m, w.u]), [[300, 20], [10080, 60]]);
-  assert.deepStrictEqual(L.bands, [[now - 9 * H, now - 4 * H], [now - 2 * H, now + 3 * H]]);
+  assert.deepStrictEqual(L.bands, [[now - 9 * H, now - 4 * H, 90], [now - 2 * H, now + 3 * H, 20]]);
+  assert.ok(L.windows[0].split[Object.keys(L.windows[0].split)[0]] >= 0);
+  assert.strictEqual(summarize(s.all(), { range: '7d', res: 'day' }, now).step, 864e5);
   assert.deepStrictEqual(L.resets, [now + 2 * 864e5 - wk]);
   const w = summarize(s.all(), { range: 'win' }, now);
   assert.strictEqual(w.limitSub, 'x');

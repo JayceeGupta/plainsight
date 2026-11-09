@@ -24,7 +24,8 @@ function parseUsage(j) {
   const out = [];
   for (const [k, m] of Object.entries(WINDOWS)) {
     const w = j && j[k];
-    const r = w && Date.parse(w.resets_at);
+    // reset times jitter by a fraction of a second between calls; minute precision keeps one window one window
+    const r = w && Math.round(Date.parse(w.resets_at) / 60e3) * 60e3;
     if (w && Number.isFinite(r) && typeof w.utilization === 'number') out.push({ m, u: Math.max(0, Math.min(100, Math.round(w.utilization))), r });
   }
   return out;
