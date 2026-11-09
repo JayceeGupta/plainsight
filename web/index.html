@@ -353,6 +353,11 @@ tr.nest td.v { font-size: 14.5px; color: var(--text); }
 .dchart { margin: 4px 0 18px; }
 .dhint { font-size: 12.5px; color: var(--faint); margin: 0 0 6px; }
 .dm { display: grid; }
+.dfind { width: 100%; height: 34px; margin: 0 0 8px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 8px; background: #050505; color: var(--text); font: inherit; font-size: 14px; outline: none; }
+.dfind:focus { border-color: #3a3a3a; }
+.dfind::placeholder { color: var(--faint); }
+.dmore { justify-self: start; margin-top: 6px; height: 28px; padding: 0 9px; border-radius: 7px; font-size: 13.5px; color: var(--faint); transition-property: background-color, color; transition-duration: .15s; }
+.dmore:hover { background: var(--pill); color: var(--text); }
 .dm button { display: grid; grid-template-columns: minmax(0, 1fr) 90px 64px 74px; gap: 4px 12px; align-items: center; padding: 9px 8px; border-top: 1px solid var(--line); border-radius: 8px; text-align: left; transition: opacity .15s, background .15s; font-size: 14px; }
 .dm button:hover { background: #0c0c0c; }
 .dm button { user-select: none; -webkit-user-select: none; }
@@ -777,6 +782,7 @@ function renderCharts() {
   });
 }
 // spec: { lines: [{ html, c, dash, w, o, fill, dim, vals }], lanes: [laneOf()], total, label }
+let clipN = 0;
 function drawChart(el, spec) {
   const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
   const small = matchMedia('(max-width:640px)').matches;
@@ -836,7 +842,8 @@ function drawChart(el, spec) {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.style.height = H + 'px';
   svg.setAttribute('aria-label', spec.label || '');
-  svg.innerHTML = g + paths + `<line class="cur" y1="${T}" y2="${H - B}" stroke="#3a3a3a" visibility="hidden"/>`;
+  const cp = 'cp' + (++clipN);
+  svg.innerHTML = g + `<defs><clipPath id="${cp}"><rect x="${L}" y="${T - 2}" width="${W - L - R}" height="${H - T - B + 3}"/></clipPath></defs><g clip-path="url(#${cp})">${paths}</g>` + `<line class="cur" y1="${T}" y2="${H - B}" stroke="#3a3a3a" visibility="hidden"/>`;
   const shown = spec.lines.filter((l) => !l.dim);
   const show = (clientX) => {
     const rect = svg.getBoundingClientRect();
@@ -1034,7 +1041,7 @@ $('breakdown').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.
 // that the page filters allow.
 let MD = null;
 function openModel(g) {
-  MD = { model: g.model, provider: g.provider, subs: g.subs, priced: g.priced, ex: new Set(), hi: null };
+  MD = { model: g.model, provider: g.provider, subs: g.subs, priced: g.priced, ex: new Set(), hi: null, q: '', more: false };
   $('dlg').showModal();
   renderModal();
 }
@@ -1046,6 +1053,10 @@ function renderModal() {
   const ms = [...pm].map(([m, l]) => [m, sumT(l)]).sort((a, b) => val(b[1]) - val(a[1]));
   if (!ms.length) { $('dlg').close(); return; } // filtered away
   const all = sumT(ms.map((x) => x[1]));
+  // long lists: the top 6 plus any picked or left-out machine, unless searching or expanded
+  const q = MD.q.trim().toLowerCase();
+  const listed = q ? ms.filter(([m]) => m.toLowerCase().includes(q)) : MD.more || ms.length <= 8 ? ms : ms.filter(([m], i) => i < 6 || MD.hi === m || MD.ex.has(m));
+  const hidden = q ? 0 : ms.length - listed.length;
   const inc = ms.filter(([m]) => !MD.ex.has(m));
   const sel = MD.hi ? ms.filter(([m]) => m === MD.hi) : inc;
   const t = sumT(sel.map((x) => x[1]));
@@ -1059,7 +1070,8 @@ function renderModal() {
     <div class="dstats">${[['Cost', MD.priced ? fmtC(t.cost) : '—'], ['Tokens', fmtN(t.tokens)], ['Per 1M tokens', MD.priced && t.tokens ? fmtC(t.cost / t.tokens * 1e6) : '—'], ['Cache hit', inputSide ? (t.cr / inputSide * 100).toFixed(1) + '%' : '—']].map(([k, v]) => `<div><div class="muted" style="font-size:14px">${k}</div><div class="v num">${v}</div></div>`).join('')}</div>
     <div class="chart dchart"><svg role="img"></svg><div class="tip"></div></div>
     ${ms.length > 1 ? '<p class="dhint">Click a machine to highlight it · Ctrl or Shift-click to leave it out</p>' : ''}
-    <div class="dm${MD.hi ? ' hi' : ''}">${ms.map(([m, mt]) => `<button data-dm="${esc(m)}" aria-pressed="${MD.hi === m}" class="${MD.ex.has(m) ? 'ex' : ''}" style="--mc:${mcol(m)}"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><b class="r num">${fmtV(val(mt))}</b><span class="r num muted">${val(all) ? (val(mt) / val(all) * 100).toFixed(1) : '0.0'}%</span><span class="r num muted tk">${S.metric === 'cost' ? fmtN(mt.tokens) : fmtC(mt.cost)}</span><i class="dbar" style="width:${val(ms[0][1]) ? (val(mt) / val(ms[0][1]) * 100).toFixed(2) : 0}%"></i></button>`).join('')}</div>
+    ${ms.length > 8 ? `<input class="dfind" type="search" placeholder="Find machine" aria-label="Find machine" value="${esc(MD.q)}">` : ''}
+    <div class="dm${MD.hi ? ' hi' : ''}">${listed.map(([m, mt]) => `<button data-dm="${esc(m)}" aria-pressed="${MD.hi === m}" class="${MD.ex.has(m) ? 'ex' : ''}" style="--mc:${mcol(m)}"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><b class="r num">${fmtV(val(mt))}</b><span class="r num muted">${val(all) ? (val(mt) / val(all) * 100).toFixed(1) : '0.0'}%</span><span class="r num muted tk">${S.metric === 'cost' ? fmtN(mt.tokens) : fmtC(mt.cost)}</span><i class="dbar" style="width:${val(ms[0][1]) ? (val(mt) / val(ms[0][1]) * 100).toFixed(2) : 0}%"></i></button>`).join('')}</div>${hidden ? `<button class="dmore" data-dmore>+${hidden} more</button>` : ''}
     <div class="dtypes" style="margin-top:26px"><div><h2>Cost by type</h2>${typeBlock(t, true)}</div><div><h2>Tokens by type</h2>${typeBlock(t, false)}</div></div>`;
   drawChart($('dlgBody').querySelector('.chart'), {
     label: `${pretty(model)} by machine`, height: 200, total: true, stack: true,
@@ -1070,7 +1082,15 @@ function renderModal() {
     lanes: S.chart.lanes ? subs.map(laneOf).filter(Boolean) : [],
   });
 }
+$('dlgBody').addEventListener('input', (e) => {
+  if (!e.target.matches('.dfind')) return;
+  MD.q = e.target.value;
+  renderModal();
+  const f = $('dlgBody').querySelector('.dfind');
+  f.focus(); f.setSelectionRange(f.value.length, f.value.length);
+});
 $('dlgBody').addEventListener('click', (e) => {
+  if (e.target.closest('[data-dmore]')) { MD.more = true; renderModal(); return; }
   const b = e.target.closest('[data-dm]');
   if (!b || !MD) return;
   const m = b.dataset.dm;
