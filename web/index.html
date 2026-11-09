@@ -98,18 +98,27 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .swatch::before { content: ""; position: absolute; inset: -9px; }
 .swatch:hover { scale: 1.2; }
 .swatch:active { scale: .96; }
-/* status */
-.pill { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border-radius: 99px; font-size: 13px; color: var(--muted); background: var(--raised); white-space: nowrap; }
-.pill.off { background: none; padding-left: 0; color: var(--faint); }
-.pill.run { color: var(--ok); background: rgba(74,222,128,.1); transition-property: background-color; transition-duration: .15s; }
-.pill.run:hover { background: rgba(74,222,128,.16); }
-.pill.run.idle { color: var(--warn); background: rgba(245,176,65,.1); }
-.pill.run.idle:hover { background: rgba(245,176,65,.16); }
-.pill.run:active { scale: .96; }
-.pill .pulse { width: 6px; height: 6px; }
-.pill .chev { display: inline-grid; width: 14px; height: 14px; margin-right: -3px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
-.pill .chev svg { width: 14px; height: 14px; }
-.pill[aria-expanded="true"] .chev { rotate: 90deg; }
+/* status: dot + word, every state aligned the same way */
+.stw { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mst { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); white-space: nowrap; }
+.mst.off { color: var(--faint); } .mst.off .sd { background: none; box-shadow: inset 0 0 0 1.5px var(--faint); }
+.mst .sd { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--faint); }
+.mst.run { color: var(--text); } .mst.run .sd { background: var(--ok); box-shadow: 0 0 0 3px rgba(74,222,128,.18); }
+.mst.idle .sd { background: var(--warn); }
+.mst.on .sd { background: var(--ok); }
+.disc { display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 6px 0 9px; border-radius: 7px; font-size: 13px; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line2); transition-property: background-color, color; transition-duration: .15s; }
+.disc:hover { background: var(--pill); color: var(--text); }
+.disc:active { scale: .96; }
+.disc .chev { display: inline-grid; width: 14px; height: 14px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
+.disc .chev svg { width: 14px; height: 14px; }
+.disc[aria-expanded="true"] .chev { rotate: 90deg; }
+.show-s { display: none; }
+/* sortable headers */
+th .sortb { display: inline-flex; align-items: center; gap: 5px; color: inherit; font: inherit; }
+th .sortb .sa { font-size: 11px; color: var(--faint); opacity: 0; transition-property: opacity; transition-duration: .15s; }
+th .sortb:hover, th .sortb.on { color: var(--text); }
+th .sortb:hover .sa, th .sortb.on .sa { opacity: 1; }
+th.r .sortb { flex-direction: row-reverse; }
 /* live session rows */
 .mtab tr.lv td { color: var(--muted); font-size: 13.5px; }
 .mtab .lvm { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
@@ -135,12 +144,6 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .anns { display: grid; gap: 8px; margin-top: 18px; }
 .ann { border: 1px solid rgba(245,176,65,.35); background: rgba(245,176,65,.06); border-radius: 12px; padding: 11px 14px; display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: baseline; }
 .ann b.k { color: var(--warn); font-weight: 600; }
-.live { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
-.card { border: 1px solid var(--line); background: var(--raised); border-radius: 14px; padding: 14px 16px; position: relative; overflow: hidden; }
-.card.mc::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--mc); }
-.lc .t { display: flex; align-items: center; gap: 8px; font-weight: 600; flex-wrap: wrap; }
-.lc .meta { color: var(--muted); font-size: 13.5px; margin-top: 8px; display: grid; gap: 3px; }
-.lc .meta b { color: var(--text); font-weight: 600; }
 .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: p 1.6s infinite; flex: none; }
 .pulse.idle { background: var(--warn); animation: none; }
 @keyframes p { 50% { opacity: .35; } }
@@ -187,12 +190,6 @@ button.nm { text-align: left; }
 button.nm:hover .l { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
 
 /* machines */
-.machines { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-.mcard .t { display: flex; align-items: center; gap: 9px; font-weight: 600; }
-.mcard .meta { color: var(--muted); font-size: 13.5px; margin-top: 8px; display: grid; gap: 2px; }
-.st { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 99px; margin-left: auto; }
-.st.on { color: var(--ok); background: rgba(74,222,128,.1); }
-.st.off { color: var(--muted); background: var(--pill); }
 
 /* dialog */
 dialog { background: #050505; color: var(--text); border: 1px solid var(--line2); border-radius: 18px; padding: 26px 30px 28px; width: min(980px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-shadow: 0 24px 80px rgba(0,0,0,.9); }
@@ -340,6 +337,9 @@ footer b { color: var(--muted); font-weight: 500; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .stat .v { font-size: 21px; }
   .hide-s { display: none; }
+  .show-s { display: block; margin-top: 2px; }
+  .mtab .nm { gap: 6px; }
+  .mtab tr.nest td:first-child { padding-left: 18px; }
   td { padding: 13px 6px; }
   td.v, .nm .n { font-size: 15px; }
   dialog { padding: 22px 18px 24px; border-radius: 16px; }
@@ -914,8 +914,8 @@ function renderBreakdown() {
       data.modelMachines.filter((r) => r.model === g.model && g.subs.includes(r.sub)).forEach((r) => { pm[r.machine] = (pm[r.machine] || 0) + val(r.totals); });
       const den = merged ? allTot : subTot[g.subs[0]];
       return { ...g, t, share: den ? val(t) / den : 0, parts: Object.entries(pm).filter((p) => p[1] > 0).sort((a, b) => b[1] - a[1]) };
-    }).sort((a, b) => val(b.t) - val(a.t) || b.t.tokens - a.t.tokens);
-    $('breakdown').innerHTML = bdGroups.length ? `<thead><tr><th>#</th><th>Model</th><th class="r">Cost</th><th class="r hide-s">Share</th><th class="r">Tokens</th><th></th></tr></thead><tbody>` +
+    }).sort(sorter('bdm', { name: (g) => pretty(g.model).toLowerCase(), cost: (g) => g.t.cost, share: (g) => g.share, tokens: (g) => g.t.tokens }, (a, b) => val(b.t) - val(a.t) || b.t.tokens - a.t.tokens));
+    $('breakdown').innerHTML = bdGroups.length ? `<thead><tr><th>#</th>${sortTh('bdm', 'name', 'Model')}${sortTh('bdm', 'cost', 'Cost', 'r')}${sortTh('bdm', 'share', 'Share', 'r hide-s')}${sortTh('bdm', 'tokens', 'Tokens', 'r')}<th></th></tr></thead><tbody>` +
       bdGroups.map((g, i) => {
         const subNote = !multi ? '' : merged ? (g.subs.length > 1 ? `${g.subs.length} subscriptions` : subInfo(g.subs[0]).label) : subInfo(g.subs[0]).label;
         return `<tr class="click" tabindex="0" data-g="${i}" aria-label="Open ${esc(pretty(g.model))}"><td class="muted num">${i + 1}</td><td style="width:60%"><span class="nm" style="width:100%"><span class="n">${glyph(g.provider)}<span class="l">${esc(pretty(g.model))}</span>${subNote ? `<span class="sub2">· ${esc(subNote)}</span>` : ''}</span>${splitTrack(g.parts, g.share)}</span></td><td class="r v num">${g.priced ? fmtC(g.t.cost) : '<span class="muted" style="font-weight:400">Unpriced</span>'}</td><td class="r v num hide-s">${(g.share * 100).toFixed(1)}%</td><td class="r v num">${fmtN(g.t.tokens)}</td><td class="chev">${chev}</td></tr>`;
@@ -925,9 +925,10 @@ function renderBreakdown() {
   if (S.bd === 'machine') {
     const by = new Map();
     for (const u of data.machineUsage) { const a = by.get(u.machine) || []; a.push(u); by.set(u.machine, a); }
-    const ms = [...by.entries()].sort((a, b) => Math.max(...b[1].map((u) => val(u.totals))) - Math.max(...a[1].map((u) => val(u.totals))));
+    const top = (us) => Math.max(...us.map((u) => val(u.totals)));
+    const ms = [...by.entries()].sort(sorter('bdx', { name: ([m]) => m.toLowerCase(), value: ([, us]) => top(us), other: ([, us]) => Math.max(...us.map((u) => (S.metric === 'cost' ? u.totals.tokens : u.totals.cost))) }, (a, b) => top(b[1]) - top(a[1])));
     const row = (u) => `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${subTot[u.sub] ? (val(u.totals) / subTot[u.sub] * 100).toFixed(1) : '0.0'}%</td><td class="r v num">${S.metric === 'cost' ? fmtN(u.totals.tokens) : fmtC(u.totals.cost)}</td>`;
-    $('breakdown').innerHTML = ms.length ? `<thead><tr><th>#</th><th>Machine</th><th class="r">${S.metric === 'cost' ? 'Cost' : 'Tokens'}</th><th class="r hide-s">Share of sub</th><th class="r">${S.metric === 'cost' ? 'Tokens' : 'Cost'}</th><th></th></tr></thead><tbody>` +
+    $('breakdown').innerHTML = ms.length ? `<thead><tr><th>#</th>${sortTh('bdx', 'name', 'Machine')}${sortTh('bdx', 'value', S.metric === 'cost' ? 'Cost' : 'Tokens', 'r')}<th class="r hide-s">Share of sub</th>${sortTh('bdx', 'other', S.metric === 'cost' ? 'Tokens' : 'Cost', 'r')}<th></th></tr></thead><tbody>` +
       ms.map(([m, us], i) => {
         const one = us.length === 1;
         const head = `<tr class="click grp" tabindex="0" data-mfilter="${esc(m)}" title="${S.machines.includes(m) ? 'Remove from filter' : 'Filter the page to this machine'}"><td class="muted num">${i + 1}</td><td><span class="nm"><span class="n">${mdot(m)}<span class="l">${esc(m)}</span>${!one ? `<span class="sub2">· ${us.length} subscriptions</span>` : multi ? `<span class="sub2">· ${esc(subInfo(us[0].sub).label)}</span>` : ''}</span></span></td>${one ? row(us[0]) : '<td></td><td class="hide-s"></td><td></td>'}<td class="chev">${chev}</td></tr>`;
@@ -936,8 +937,9 @@ function renderBreakdown() {
     return;
   }
   // per hour / day: newest first, only periods with usage
-  const rows = data.series.slice().reverse().flatMap((b) => Object.entries(b.v).map(([sub, t]) => ({ sub, b, t })));
-  $('breakdown').innerHTML = rows.length ? `<thead><tr><th>#</th><th>${day ? 'Day' : 'Hour'}</th><th class="r">Cost</th><th class="r hide-s">Share</th><th class="r">Tokens</th><th></th></tr></thead><tbody>` +
+  const rows = data.series.slice().reverse().flatMap((b) => Object.entries(b.v).map(([sub, t]) => ({ sub, b, t })))
+    .sort(sorter('bdt', { name: (r) => r.b.t, cost: (r) => r.t.cost, share: (r) => (subTot[r.sub] ? val(r.t) / subTot[r.sub] : 0), tokens: (r) => r.t.tokens }, (a, b) => b.b.t - a.b.t));
+  $('breakdown').innerHTML = rows.length ? `<thead><tr><th>#</th>${sortTh('bdt', 'name', day ? 'Day' : 'Hour')}${sortTh('bdt', 'cost', 'Cost', 'r')}${sortTh('bdt', 'share', 'Share', 'r hide-s')}${sortTh('bdt', 'tokens', 'Tokens', 'r')}<th></th></tr></thead><tbody>` +
     rows.map((r, i) => {
       const share = subTot[r.sub] ? val(r.t) / subTot[r.sub] : 0;
       const parts = Object.entries(((r.b.m || {})[r.sub]) || {}).map(([m, c]) => [m, S.metric === 'cost' ? c.cost : c.tokens]).filter((p) => p[1] > 0).sort((a, b) => b[1] - a[1]);
@@ -1002,10 +1004,34 @@ $('dlgBody').addEventListener('click', (e) => {
 $('dlgClose').onclick = () => $('dlg').close();
 $('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
 
+// ---- sortable tables
+const SORT = ls.get('sort', {});
+const firstDir = (key) => (key === 'name' ? 1 : -1);
+function sortTh(tab, key, label, cls = '') {
+  const st = SORT[tab], on = st && st.k === key;
+  return `<th class="${cls}" aria-sort="${on ? (st.d > 0 ? 'ascending' : 'descending') : 'none'}"><button class="sortb${on ? ' on' : ''}" data-sort="${tab}:${key}">${label}<span class="sa" aria-hidden="true">${on ? (st.d > 0 ? '↑' : '↓') : '↕'}</span></button></th>`;
+}
+function sorter(tab, get, fallback) {
+  const st = SORT[tab];
+  if (!st || !get[st.k]) return fallback;
+  return (a, b) => { const x = get[st.k](a), y = get[st.k](b); return (typeof x === 'string' ? x.localeCompare(y) : x - y) * st.d || fallback(a, b); };
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sort]');
+  if (!b) return;
+  const [tab, key] = b.dataset.sort.split(':'), cur = SORT[tab];
+  if (!cur || cur.k !== key) SORT[tab] = { k: key, d: firstDir(key) };
+  else if (cur.d === firstDir(key)) cur.d = -cur.d;
+  else delete SORT[tab];
+  ls.set('sort', SORT);
+  tab === 'machines' ? renderMachines() : renderBreakdown();
+});
+
 // Machines: same table language as Breakdown. One row per machine; subscriptions nested under it,
 // live sessions behind a disclosure (remembered per device).
 const mOpen = new Set(ls.get('mopen', []));
 const chevD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+function cmpVer(a, b) { const x = String(a || 0).split('.').map(Number), y = String(b || 0).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; }
 function renderMachines() {
   const now = Date.now();
   const subs = data.subscriptions;
@@ -1014,14 +1040,21 @@ function renderMachines() {
   const live = {};
   data.live.forEach((x) => { (live[x.machine] = live[x.machine] || []).push(x); });
   const rank = (m) => (live[m.nick] ? 0 : m.online ? 1 : 2);
-  const ms = data.machines.slice().sort((x, y) => rank(x) - rank(y) || y.lastSeen - x.lastSeen);
+  const useOf = (n) => data.machineUsage.filter((u) => u.machine === n);
+  const best = (n) => useOf(n).reduce((a, u) => (val(u.totals) > val(a.totals) ? u : a), { totals: { cost: 0, tokens: 0 }, sub: null });
+  const newest = data.machines.reduce((a, m) => (cmpVer(m.ver, a) > 0 ? m.ver : a), '0');
+  const ms = data.machines.slice().sort(sorter('machines', {
+    name: (m) => m.nick.toLowerCase(), status: (m) => 2 - rank(m), value: (m) => val(best(m.nick).totals),
+    share: (m) => { const u = best(m.nick); return u.sub && bySub[u.sub] ? val(u.totals) / bySub[u.sub] : 0; },
+    other: (m) => (S.metric === 'cost' ? best(m.nick).totals.tokens : best(m.nick).totals.cost),
+  }, (x, y) => rank(x) - rank(y) || y.lastSeen - x.lastSeen));
   const nActive = Object.values(live).filter((l) => l.some((x) => now - x.last < 3 * 60e3)).length;
   const nIdle = Object.keys(live).length - nActive;
   $('liveNote').textContent = nActive ? `${nActive} in use right now${nIdle ? `, ${nIdle} idle` : ''}` : nIdle ? `${nIdle} idle, none active` : 'nobody in the last 10 minutes';
   if (!ms.length) { $('machines').innerHTML = '<tbody><tr><td class="muted" style="padding-left:0">No machines yet.</td></tr></tbody>'; return; }
   const cells = (u) => u ? `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${bySub[u.sub] ? (val(u.totals) / bySub[u.sub] * 100).toFixed(1) : '0.0'}%</td><td class="r v num">${S.metric === 'cost' ? fmtN(u.totals.tokens) : fmtC(u.totals.cost)}</td>`
     : '<td class="r faint">–</td><td class="r faint hide-s">–</td><td class="r faint">–</td>';
-  $('machines').innerHTML = `<thead><tr><th>Machine</th><th class="hide-s">Status</th><th class="r">${S.metric === 'cost' ? 'Cost' : 'Tokens'}</th><th class="r hide-s">Share${multi ? ' of sub' : ''}</th><th class="r">${S.metric === 'cost' ? 'Tokens' : 'Cost'}</th></tr></thead>` + ms.map((m) => {
+  $('machines').innerHTML = `<thead><tr>${sortTh('machines', 'name', 'Machine')}${sortTh('machines', 'status', 'Status', 'hide-s')}${sortTh('machines', 'value', S.metric === 'cost' ? 'Cost' : 'Tokens', 'r')}${sortTh('machines', 'share', 'Share' + (multi ? ' of sub' : ''), 'r hide-s')}${sortTh('machines', 'other', S.metric === 'cost' ? 'Tokens' : 'Cost', 'r')}</tr></thead>` + ms.map((m) => {
     const sess = (live[m.nick] || []).sort((x, y) => y.last - x.last);
     const use = data.machineUsage.filter((u) => u.machine === m.nick).sort((x, y) => val(y.totals) - val(x.totals));
     const one = use.length <= 1 ? use[0] : null;
@@ -1029,11 +1062,14 @@ function renderMachines() {
     const off = !m.online && !sess.length;
     const open = sess.length && mOpen.has(m.nick);
     const fresh = sess.some((x) => now - x.last < 3 * 60e3);
-    const status = sess.length
-      ? `<button class="pill run${fresh ? '' : ' idle'}" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" title="${open ? 'Hide' : 'Show'} sessions"><span class="pulse${fresh ? '' : ' idle'}"></span>${fresh ? 'In use' : 'Idle'} · ${sess.length} session${sess.length > 1 ? 's' : ''}<span class="chev">${chevD}</span></button>`
-      : m.online ? '<span class="pill">Online</span>' : `<span class="pill off">Offline · ${ago(now - m.lastSeen)}</span>`;
-    const meta = [m.op, m.os, m.ver ? 'v' + m.ver : '', m.nick === data.self.nick ? 'serving this page' : ''].filter(Boolean).map(esc).join(' · ');
-    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}"><td style="width:46%"><span class="nm" style="width:100%"><span class="n"><button class="swatch" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"></button><button class="l mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button><span class="sub2 hide-s">${meta}</span></span>${one ? `<span class="track"><span class="fill" style="width:${Math.min(100, share * 100).toFixed(2)}%"><i style="flex:1;background:var(--mc)"></i></span></span>` : ''}</span></td><td class="hide-s">${status}</td>${use.length > 1 ? '<td></td><td class="hide-s"></td><td></td>' : cells(one)}</tr>`;
+    const word = sess.length ? (fresh ? 'In use' : 'Idle') : m.online ? 'Online' : `Offline · ${ago(now - m.lastSeen)}`;
+    const tone = sess.length ? (fresh ? 'run' : 'idle') : m.online ? 'on' : 'off';
+    const stat = `<span class="mst ${tone}"><i class="sd"></i>${word}</span>`;
+    const disc = sess.length ? `<button class="disc" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" title="${open ? 'Hide' : 'Show'} sessions">${sess.length} session${sess.length > 1 ? 's' : ''}<span class="chev">${chevD}</span></button>` : '';
+    const status = `<span class="stw">${stat}${disc}</span>`;
+    const old = m.ver && cmpVer(m.ver, newest) < 0;
+    const meta = [m.op, m.os, m.ver ? 'v' + m.ver + (old ? ' (update available)' : '') : '', m.nick === data.self.nick ? 'serving this page' : ''].filter(Boolean).map(esc).join(' · ');
+    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}"><td style="width:46%"><span class="nm" style="width:100%"><span class="n"><button class="swatch" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"></button><button class="l mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button><span class="sub2 hide-s">${meta}</span></span><span class="show-s">${status}</span>${one ? `<span class="track"><span class="fill" style="width:${Math.min(100, share * 100).toFixed(2)}%"><i style="flex:1;background:var(--mc)"></i></span></span>` : ''}</span></td><td class="hide-s">${status}</td>${use.length > 1 ? '<td></td><td class="hide-s"></td><td></td>' : cells(one)}</tr>`;
     const subRows = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s"></td>${cells(u)}</tr>`) : [];
     const liveRows = open ? sess.map((x) => {
       const fresh = now - x.last < 3 * 60e3;
