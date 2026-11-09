@@ -106,11 +106,12 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .mk.off { background: none; box-shadow: inset 0 0 0 2px var(--mc); }
 .mw { font-size: 12.5px; color: var(--faint); }
 .mw.run { color: var(--ok); } .mw.idle { color: var(--warn); }
-.upd { font-size: 11.5px; color: var(--warn); box-shadow: inset 0 0 0 1px rgba(245,176,65,.35); border-radius: 99px; padding: 0 7px; line-height: 18px; }
+.upd { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--warn); background: rgba(245,176,65,.12); }
+.upd svg { width: 12px; height: 12px; }
 .you { font-size: 11.5px; color: var(--faint); box-shadow: inset 0 0 0 1px var(--line2); border-radius: 99px; padding: 0 7px; line-height: 18px; }
 .scell { width: 36%; }
 .dstrip { display: flex; width: 100%; height: 10px; border-radius: 3px; overflow: hidden; background: var(--line2); }
-.dstrip.lim { background: repeating-linear-gradient(135deg, #1d1d1d 0 2px, #0b0b0b 2px 6px); box-shadow: inset 0 0 0 1px var(--line2); }
+.dstrip.hatch { background: repeating-linear-gradient(135deg, #1d1d1d 0 2px, #0b0b0b 2px 6px); box-shadow: inset 0 0 0 1px var(--line2); }
 .dstrip i { display: block; height: 100%; flex: none; background: var(--c); opacity: .35; box-shadow: inset -1px 0 0 #000; transition-property: opacity; transition-duration: .12s; }
 .dstrip i.me { opacity: 1; }
 .dstrip i:hover { opacity: .8; } .dstrip i.me:hover { opacity: 1; }
@@ -252,8 +253,6 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .lm .who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; } .lm .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lm .lmbar { height: 6px; background: var(--line2); border-radius: 3px; overflow: hidden; } .lm .lmbar i { display: block; height: 100%; border-radius: 3px; }
 .lm b, .lm .muted { text-align: right; }
-.lanenote { font-size: 12.5px; color: var(--faint); margin: 10px 0 0; line-height: 1.6; }
-.lanenote svg { vertical-align: -1px; margin: 0 6px 0 0; }
 .meter .k, .msplit .k { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .meter .k b { color: var(--text); font-weight: 600; }
 .meter .mtrack { height: 8px; border-radius: 4px; background: var(--line2); margin-top: 6px; overflow: hidden; }
@@ -624,7 +623,7 @@ function limitRows(sub) {
     const tone = rem <= 10 ? ' bad' : rem <= 25 ? ' warn' : '';
     const sp = Object.entries(w.split || {}).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
     const tot = sp.reduce((a, x) => a + x[1], 0);
-    const rows = open ? `<div class="lsub">${sp.length ? sp.map(([m, c]) => { const pct = tot ? (w.u * c) / tot : 0; return `<div class="lm"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><span class="lmbar"><i style="width:${Math.min(100, pct).toFixed(2)}%;background:${mcol(m)}"></i></span><b class="num">≈${pct.toFixed(pct < 10 ? 1 : 0)}%</b><span class="num muted">${fmtC(c)}</span></div>`; }).join('') + '<p class="dhint" style="margin:6px 0 0">Share of the limit used, split by each machine\'s estimated cost since this window started.</p>' : '<p class="dhint" style="margin:6px 0 0">No usage in this window yet.</p>'}</div>` : '';
+    const rows = open ? `<div class="lsub">${sp.length ? sp.map(([m, c]) => { const pct = tot ? (w.u * c) / tot : 0; return `<div class="lm"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><span class="lmbar"><i style="width:${Math.min(100, pct).toFixed(2)}%;background:${mcol(m)}"></i></span><b class="num">≈${pct.toFixed(pct < 10 ? 1 : 0)}%</b><span class="num muted">${fmtC(c)}</span></div>`; }).join('') : ''}</div>` : '';
     return `<div class="lim${tone}"><button class="lbar ${prov}" data-lexp="${esc(key)}" aria-expanded="${open}" aria-label="${winName(w.m)} limit: ${rem}% left, resets in ${left(w.r - now)}, ${pace}" title="${rem}% of the limit left · ${Math.round(timeLeft)}% of the window's time left · ${pace}${stale}">
       <i class="lfill" style="width:${rem}%"></i><i class="lpace" style="left:${timeLeft}%"></i>
       <span class="ltxt"><b>${winName(w.m)}</b> <span class="num">${rem}% left</span></span><span class="lreset num">↻ ${left(w.r - now)}</span></button>${rows}</div>`;
@@ -649,7 +648,7 @@ function renderHero() {
   if (subs.length === 1) {
     const s = subs[0], t = s.totals;
     $('hero').textContent = fmtV(val(t));
-    $('heroSub').innerHTML = `${glyph(s.provider)} ${esc(s.label)} · <span class="num">${t.sessions}</span> sessions · ${S.metric === 'cost' ? 'API estimate · ' + fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}${since}`;
+    $('heroSub').innerHTML = `${glyph(s.provider)} ${esc(s.label)} · <span class="num">${t.sessions}</span> sessions · ${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}${since}`;
     $('subs').className = 'led one';
     $('subs').innerHTML = `<div class="lrow">${limitRows(s.sub)}${splitBar(s.sub)}</div>`;
     return;
@@ -703,7 +702,7 @@ function renderCharts() {
   const hidden = new Set(S.chart.hidden || []);
   if (comb) {
     const anyLim = subs.some((s) => (data.limits || {})[s.sub]);
-    $('charts').innerHTML = head + chartBox('data-comb="1"') + `<div class="cleg">${subs.map((s) => { const st = subStyle(s.sub); return `<button data-hide="${esc(s.sub)}" aria-pressed="${!hidden.has(s.sub)}" title="Show or hide">${dashSwatch(st.c, st.dash)}${glyph(s.provider)}${esc(s.label)}</button>`; }).join('')}</div>${anyLim && S.chart.lanes ? LANE_NOTE : ''}`;
+    $('charts').innerHTML = head + chartBox('data-comb="1"') + `<div class="cleg">${subs.map((s) => { const st = subStyle(s.sub); return `<button data-hide="${esc(s.sub)}" aria-pressed="${!hidden.has(s.sub)}" title="Show or hide">${dashSwatch(st.c, st.dash)}${glyph(s.provider)}${esc(s.label)}</button>`; }).join('')}</div>`;
     const vis = subs.filter((s) => !hidden.has(s.sub));
     drawChart($('charts').querySelector('.chart'), {
       label: `${what} by subscription`,
@@ -713,7 +712,6 @@ function renderCharts() {
     return;
   }
   $('charts').innerHTML = head + subs.map((s, i) => `<div>${multi ? `<div class="subhead" style="margin:${i ? 18 : 0}px 0 6px">${glyph(s.provider)}${esc(s.label)}</div>` : ''}${chartBox(`data-i="${i}"`)}</div>`).join('');
-  if (S.chart.lanes && subs.some((s) => (data.limits || {})[s.sub])) $('charts').insertAdjacentHTML('beforeend', LANE_NOTE);
   $('charts').querySelectorAll('.chart').forEach((el) => {
     const sub = subs[Number(el.dataset.i)].sub;
     const order = data.options.machineOrder || data.options.machines;
@@ -728,7 +726,6 @@ function renderCharts() {
   });
 }
 // spec: { lines: [{ html, c, dash, w, o, fill, dim, vals }], lanes: [laneOf()], total, label }
-const LANE_NOTE = '<p class="lanenote"><svg width="26" height="10" aria-hidden="true"><rect width="26" height="10" rx="3" fill="#8e8e8e" fill-opacity=".2"/><rect width="11" height="10" rx="3" fill="#8e8e8e" fill-opacity=".75"/></svg>Strip above the chart: each 5-hour limit window, filled to how much of the limit it used. <svg width="8" height="12" aria-hidden="true"><line x1="4" x2="4" y1="0" y2="12" stroke="#8e8e8e" stroke-dasharray="3 3"/></svg>Dashed line: weekly limit reset. Hover the chart for details.</p>';
 function drawChart(el, spec) {
   const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
   const small = matchMedia('(max-width:640px)').matches;
@@ -758,7 +755,7 @@ function drawChart(el, spec) {
     }
     for (const r of ln.resets) {
       const rx = xt(r);
-      g += `<g><title>${esc(ln.name)}: weekly limit reset ${esc(fmtT(r))}</title><line x1="${rx}" x2="${rx}" y1="${top - 2}" y2="${H - B}" stroke="${ln.c}" stroke-opacity=".75" stroke-width="1.2" stroke-dasharray="3 3"/><rect x="${rx - 1.5}" y="${top - 2}" width="3" height="${h + 4}" rx="1.5" fill="${ln.c}"/></g>`;
+      g += `<g><title>${esc(ln.name)}: weekly limit reset ${esc(fmtT(r))}</title><line x1="${rx}" x2="${rx}" y1="${top - 2}" y2="${H - B}" stroke="${ln.c}" stroke-opacity=".75" stroke-width="1.2" stroke-dasharray="3 3"/><line x1="${rx}" x2="${rx}" y1="${top - 2}" y2="${H - B}" stroke="transparent" stroke-width="12" style="pointer-events:stroke;cursor:help"/><rect x="${rx - 1.5}" y="${top - 2}" width="3" height="${h + 4}" rx="1.5" fill="${ln.c}"/></g>`;
     }
   });
   for (let i = 0; i <= 2; i++) { const v = (nice * i) / 2; g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : fmtV(v)}</text>`; }
@@ -1084,21 +1081,22 @@ function renderMachines() {
   // with what is left hatched. Without limit data it is the period's usage split by machine.
   const strips = {};
   for (const s of subs) {
-    const L = (data.limits || {})[s.sub], w = L && L.windows[L.windows.length - 1];
+    const L = (data.limits || {})[s.sub];
+    const w = L && data.limitSub === s.sub && (data.range === 'win' ? L.windows[0] : data.range === 'week' ? L.windows[L.windows.length - 1] : null);
     if (w) {
       const tot = Object.values(w.split || {}).reduce((a, c) => a + c, 0);
-      strips[s.sub] = { what: `${winName(w.m)} limit`, used: w.u, segs: order.map((n) => [n, tot ? (w.u * ((w.split || {})[n] || 0)) / tot : 0]).filter((x) => x[1] > 0) };
+      strips[s.sub] = { what: `${winName(w.m)} limit used`, used: w.u, segs: order.map((n) => [n, tot ? (w.u * ((w.split || {})[n] || 0)) / tot : 0]).filter((x) => x[1] > 0) };
     } else {
-      strips[s.sub] = { what: 'usage', used: 100, segs: order.map((n) => { const u = useOf(n).find((x) => x.sub === s.sub); return [n, u && bySub[s.sub] ? (val(u.totals) / bySub[s.sub]) * 100 : 0]; }).filter((x) => x[1] > 0) };
+      strips[s.sub] = { what: `Share of ${data.range === 'win' || data.range === 'week' ? 'usage' : 'the last ' + data.range}`, used: 100, segs: order.map((n) => { const u = useOf(n).find((x) => x.sub === s.sub); return [n, u && bySub[s.sub] ? (val(u.totals) / bySub[s.sub]) * 100 : 0]; }).filter((x) => x[1] > 0) };
     }
   }
   const strip = (sub, me) => {
     const st = strips[sub];
     if (!st) return '';
-    return `<span class="dstrip${st.used < 100 ? ' lim' : ''}">${st.segs.map(([n, p]) => `<i class="${n === me ? 'me' : ''}" style="width:${p.toFixed(3)}%;--c:${mcol(n)}" data-mtip="seg" data-n="${esc(n)}" data-sub="${esc(sub)}" data-p="${p.toFixed(1)}"></i>`).join('')}</span>`;
+    return `<span class="dstrip${st.used < 100 ? ' hatch' : ''}">${st.segs.map(([n, p]) => `<i class="${n === me ? 'me' : ''}" style="width:${p.toFixed(3)}%;--c:${mcol(n)}" data-mtip="seg" data-n="${esc(n)}" data-sub="${esc(sub)}" data-p="${p.toFixed(1)}"></i>`).join('')}</span>`;
   };
   const sw = Object.values(strips)[0];
-  const stripHead = sw && sw.used < 100 ? `${sw.what} used` : 'Share of usage';
+  const stripHead = sw ? sw.what : '';
   const cells = (u, m) => u
     ? `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${bySub[u.sub] ? (val(u.totals) / bySub[u.sub] * 100).toFixed(1) : '0.0'}%</td>`
     : '<td class="r faint">–</td><td class="r faint hide-s">–</td>';
@@ -1112,7 +1110,7 @@ function renderMachines() {
     const word = sess.length ? (fresh(m.nick) ? 'in use' : 'idle') : m.online ? '' : ago(now - m.lastSeen);
     const old = m.ver && cmpVer(m.ver, newest) < 0;
     const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row" data-n="${esc(m.nick)}">
-      <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" title="Change colour"></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? '<span class="upd">update</span>' : ''}${m.nick === viewer ? '<span class="you">this machine</span>' : ''}</span>
+      <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" title="Change colour"></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? `<span class="upd" title="Update available: v${esc(m.ver)}, newest v${esc(newest)}" aria-label="Update available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>` : ''}${m.nick === viewer ? '<span class="you">this machine</span>' : ''}</span>
         <span class="show-s">${one ? strip(one.sub, m.nick) : ''}</span></td>
       <td class="hide-s scell">${use.length === 1 ? strip(use[0].sub, m.nick) : ''}</td>
       ${use.length > 1 ? '<td></td><td class="hide-s"></td>' : cells(one, m)}
@@ -1135,8 +1133,10 @@ function machineTip(el) {
   const sess = data.live.filter((x) => x.machine === n);
   const st = sess.length ? `${sess.length} session${sess.length > 1 ? 's' : ''}, last ${ago(now - Math.max(...sess.map((x) => x.last)))}` : m.online ? 'Online' : `Offline, last seen ${ago(now - m.lastSeen)}`;
   const rows = [['Status', st], ...use.map((u) => [data.subscriptions.length > 1 ? subInfo(u.sub).label : 'Cost', `${fmtC(u.totals.cost)} · ${fmtN(u.totals.tokens)} tokens`])];
-  if (el.dataset.mtip === 'seg') { const L = (data.limits || {})[el.dataset.sub]; rows.push([L ? `${winName(L.windows[L.windows.length - 1].m)} limit used` : 'Share of usage', `≈${el.dataset.p}%`]); }
+  if (el.dataset.mtip === 'seg') { const L = (data.limits || {})[el.dataset.sub]; rows.push([data.limitSub === el.dataset.sub && L ? `${winName(L.windows[data.range === 'win' ? 0 : L.windows.length - 1].m)} limit used` : 'Share of usage', `≈${el.dataset.p}%`]); }
   rows.push(['Machine', [m.op, m.os, m.ver ? 'v' + m.ver : ''].filter(Boolean).join(' · ') || '–']);
+  const newest = data.machines.reduce((a, x) => (cmpVer(x.ver, a) > 0 ? x.ver : a), '0');
+  if (m.ver && cmpVer(m.ver, newest) < 0) rows.push(['Update', `v${newest} available: plainsight update`]);
   if (n === data.self.nick) rows.push(['', 'Serving this page']);
   return `<b>${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
 }
