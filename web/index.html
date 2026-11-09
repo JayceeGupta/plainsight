@@ -107,9 +107,10 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .mw { font-size: 12.5px; color: var(--faint); }
 .mtab tr.can { cursor: pointer; }
 .mtab tr.can:hover td { background: #0a0a0a; }
-.mtab tr.can:hover .stog { color: var(--text); }
+.mtab tr.can:hover .stog:not(.run):not(.idle) { color: var(--text); }
 .stog { display: inline-flex; align-items: center; gap: 1px; height: 22px; min-width: 22px; justify-content: center; padding: 0 2px; margin-left: -4px; border-radius: 6px; font-size: 12.5px; color: var(--muted); transition-property: background-color, color; transition-duration: .15s; }
-.stog:hover { background: var(--pill); color: var(--text); }
+.stog:hover { background: var(--pill); }
+.stog:not(.run):not(.idle):hover { color: var(--text); }
 .stog:active { scale: .96; }
 .stog.run { color: var(--ok); } .stog.run .chev { animation: blink 1.6s ease-in-out infinite; }
 .stog.idle { color: var(--warn); }
@@ -118,13 +119,13 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .stog.run .chev, .stl b { animation-timing-function: steps(1, end) !important; animation-duration: 1.1s !important; }
 .mtip .tnote { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line2); color: var(--muted); }
 .stl { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--line); }
-.stl i { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 3px; background: var(--mc); }
-.stl i.pre { background: color-mix(in srgb, var(--mc) 30%, transparent); }
-.stl b { position: absolute; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--mc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc) 30%, transparent); animation: blink 1.6s ease-in-out infinite; }
+.stl i { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 3px; background: color-mix(in srgb, var(--pc, var(--mc)) 70%, transparent); }
+.stl i.pre { background: color-mix(in srgb, var(--pc, var(--mc)) 25%, transparent); }
+.stl b { position: absolute; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: color-mix(in srgb, var(--pc, var(--mc)) 85%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc, var(--mc)) 25%, transparent); animation: blink 1.6s ease-in-out infinite; }
 .mtip { min-width: 0; }
 .stog .chev { display: inline-grid; width: 14px; height: 14px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
 .stog .chev svg { width: 14px; height: 14px; }
-.stog[aria-expanded="true"] { color: var(--text); }
+.stog:not(.run):not(.idle)[aria-expanded="true"] { color: var(--text); }
 .stog[aria-expanded="true"] .chev { rotate: 90deg; }
 .lvt { font-size: 12.5px; color: var(--faint); }
 .ltrack { display: block; height: 4px; border-radius: 2px; background: var(--line2); overflow: hidden; }
@@ -1086,6 +1087,8 @@ document.addEventListener('click', (e) => {
 // live sessions behind a disclosure (remembered per device).
 const mOpen = new Set(ls.get('mopen', []));
 const chevD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+// two chevrons: more than one session
+const chevDD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6-6 6M13 6l6 6-6 6"/></svg>';
 function cmpVer(a, b) { const x = String(a || 0).split('.').map(Number), y = String(b || 0).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; }
 function renderMachines() {
   const now = Date.now();
@@ -1143,7 +1146,7 @@ function renderMachines() {
     const tone = sess.length ? (fresh(m.nick) ? 'run' : 'idle') : m.online ? 'on' : 'off';
     const word = sess.length || m.online ? '' : ago(now - m.lastSeen);
     // chevron: green and blinking while a session is active, amber when idle, grey otherwise
-    const toggle = canOpen ? `<button class="stog ${sess.length ? tone : ''}" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" aria-label="${open ? 'Hide' : 'Show'} ${sess.length ? `${sess.length} ${tone === 'run' ? 'active' : 'idle'} session${sess.length > 1 ? 's' : ''}` : 'subscriptions'}">${sess.length > 1 ? `<span class="num">${sess.length}</span>` : ''}<span class="chev">${chevD}</span></button>` : '';
+    const toggle = canOpen ? `<button class="stog ${sess.length ? tone : ''}" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" aria-label="${open ? 'Hide' : 'Show'} ${sess.length ? `${sess.length} ${tone === 'run' ? 'active' : 'idle'} session${sess.length > 1 ? 's' : ''}` : 'subscriptions'}"><span class="chev">${sess.length > 1 ? chevDD : chevD}</span></button>` : '';
     const old = m.ver && cmpVer(m.ver, newest) < 0;
     const head = `<tr class="mr${canOpen ? ' can' : ''}${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row" data-n="${esc(m.nick)}"${canOpen ? ` data-mrow="${esc(m.nick)}"` : ''}>
       <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" ></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${toggle}${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? `<span class="upd" title="Update available: v${esc(m.ver)}, newest v${esc(newest)}" aria-label="Update available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>` : ''}</span>
@@ -1160,7 +1163,7 @@ function renderMachines() {
       const [w0, w1] = winOf(x.sub), pos = (t) => Math.max(0, Math.min(100, ((t - w0) / (w1 - w0)) * 100));
       const a0 = pos(x.start), a1 = pos(x.streak), a2 = pos(x.last);
       const tip = `${pretty(x.model)}: ${f ? 'active' : 'idle'} · started ${new Date(x.start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · this stretch ${dur(now - x.streak)} · last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
-      return `<tr class="nest lv" style="--mc:${mcol(m.nick)}" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stl">${a1 > a0 ? `<i class="pre" style="left:${a0}%;width:${a1 - a0}%"></i>` : ''}<i class="run" style="left:${a1}%;width:${Math.max(0, a2 - a1)}%"></i>${f ? `<b style="left:${a2}%"></b>` : ''}</span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
+      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})" title="${esc(tip)}"><td><span class="lvm">${glyph(x.provider)}<span>${esc(pretty(x.model))}</span><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stl">${a1 > a0 ? `<i class="pre" style="left:${a0}%;width:${a1 - a0}%"></i>` : ''}<i class="run" style="left:${a1}%;width:${Math.max(0, a2 - a1)}%"></i>${f ? `<b style="left:${a2}%"></b>` : ''}</span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
     }) : [];
     const rows = [...subRows, ...liveRows];
     if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
@@ -1169,8 +1172,9 @@ function renderMachines() {
 }
 // hover card. On a row: the machine itself (status and details; its numbers are already in the columns).
 // On a strip part: whose part and how big.
+// The same card on a row and on a strip part (a part adds its share line).
 function machineTip(el) {
-  if (el.dataset.mtip === 'row') {
+  {
     const n = el.dataset.n, m = data.machines.find((x) => x.nick === n);
     if (!m) return '';
     const now = Date.now(), sess = data.live.filter((x) => x.machine === n);
@@ -1182,12 +1186,13 @@ function machineTip(el) {
       ['Version', m.ver ? `v${m.ver}${cmpVer(m.ver, newest) < 0 ? ` (v${newest} available)` : ''}` : '–'],
       ['First seen', new Date(m.firstSeen).toLocaleDateString([], { month: 'short', day: 'numeric' })],
     ];
+    if (el.dataset.mtip === 'seg') {
+      const L = (data.limits || {})[el.dataset.sub];
+      rows.unshift([data.limitSub === el.dataset.sub && L ? `${winName(L.windows[data.range === 'win' ? 0 : L.windows.length - 1].m)} limit used` : 'Share of usage', `≈${el.dataset.p}%`]);
+    }
     const notes = [n === (LOCAL ? data.self.nick : null) ? 'This machine' : '', n === data.self.nick ? 'Serving this page' : '', m.ver && cmpVer(m.ver, newest) < 0 ? 'Update with: plainsight update' : ''].filter(Boolean);
-    return `<b>${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join('') + (notes.length ? `<div class="tnote">${notes.map(esc).join(' · ')}</div>` : '');
+    return `<b>${mdot(n)} ${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join('') + (notes.length ? `<div class="tnote">${notes.map(esc).join(' · ')}</div>` : '');
   }
-  const L = (data.limits || {})[el.dataset.sub];
-  const what = data.limitSub === el.dataset.sub && L ? `of the ${winName(L.windows[data.range === 'win' ? 0 : L.windows.length - 1].m).toLowerCase()} limit` : 'of usage';
-  return `<div class="r"><span>${mdot(el.dataset.n)} ${esc(el.dataset.n)}</span><b class="num">≈${el.dataset.p}% <span class="muted" style="font-weight:400">${what}</span></b></div>`;
 }
 const mtip = document.createElement('div');
 mtip.className = 'mtip';
