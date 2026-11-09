@@ -45,7 +45,12 @@ header { position: sticky; top: 0; z-index: 20; background: rgba(0,0,0,.86); bac
 .dd.open .menu { display: block; }
 .menu label { display: flex; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
 .menu label:hover { background: var(--pill); }
-.menu input { accent-color: #f5f5f5; width: 15px; height: 15px; margin: 0; }
+/* no tick boxes: the row itself shows the choice (inputs stay for keyboard and screen readers) */
+.menu input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.menu label { color: var(--muted); margin: 1px 0; }
+.menu label:has(input:checked) { background: var(--pill); color: var(--text); font-weight: 560; }
+.menu label:has(input:checked)::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--text); margin-left: 12px; flex: none; }
+.menu label:has(input:checked):not(:has(.note))::after { margin-left: auto; }
 .menu hr { border: 0; border-top: 1px solid var(--line2); margin: 4px 8px; }
 .menu .note { color: var(--muted); font-size: 12px; margin-left: auto; padding-left: 12px; }
 .tools { display: flex; align-items: center; gap: 10px; }
