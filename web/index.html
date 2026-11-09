@@ -52,6 +52,8 @@ header { position: sticky; top: 0; z-index: 20; background: rgba(0,0,0,.86); bac
 .seg { display: inline-flex; background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 3px; flex: none; }
 .seg button { padding: 5px 12px; border-radius: 7px; color: var(--muted); white-space: nowrap; font-weight: 500; }
 .seg button[aria-pressed="true"] { background: var(--pill); color: var(--text); font-weight: 600; }
+.seg button:disabled { color: #3a3a3a; cursor: default; }
+.seg .segdiv { width: 1px; background: var(--line2); margin: 4px 3px; }
 .ib { width: 34px; height: 34px; display: inline-grid; place-items: center; border-radius: 9px; color: var(--muted); flex: none; }
 .ib:hover { background: var(--pill); color: var(--text); }
 .ib svg { width: 17px; height: 17px; }
@@ -188,14 +190,99 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .dstats .v { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
 .dtypes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 
+/* subscriptions list (limits + machine split) */
+.led { margin-top: 26px; border-top: 1px solid var(--line); }
+.led.one { margin-top: 22px; border-top: 0; }
+.lrow { padding: 14px 0 16px; border-bottom: 1px solid var(--line); display: grid; gap: 12px; }
+.led.one .lrow { padding-top: 0; border-bottom: 0; }
+.lrow .top { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+.lrow .top .who { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; min-width: 0; }
+.lrow .top .who .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow .top button.who:hover .l { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
+.lrow .top .val { margin-left: auto; font-size: 17px; font-weight: 650; white-space: nowrap; }
+.lrow .det { color: var(--muted); font-size: 13px; margin-top: -8px; }
+.meter .k, .msplit .k { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.meter .k b { color: var(--text); font-weight: 600; }
+.meter .mtrack { height: 8px; border-radius: 4px; background: var(--line2); margin-top: 6px; overflow: hidden; }
+.meter .mtrack i { display: block; height: 100%; border-radius: 4px; background: var(--text); }
+.meter.hot .mtrack i { background: var(--warn); } .meter.hot .k b { color: var(--warn); }
+.msplit .k span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.msplit .sb { display: flex; gap: 2px; height: 8px; margin-top: 6px; }
+.msplit .sb button { height: 100%; border-radius: 4px; min-width: 4px; background: var(--mc); transition: opacity .15s; }
+.msplit .sb:hover button:not(:hover) { opacity: .45; }
+
+/* chart head, legend, options */
+.chartHead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.chartHead .chartTitle { margin: 0; margin-right: auto; }
+.charts { align-content: start; }
+.cleg { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 8px; }
+.cleg button { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; border-radius: 99px; font-size: 13px; color: var(--muted); transition: opacity .15s; }
+.cleg button:hover { background: var(--pill); color: var(--text); }
+.cleg button[aria-pressed="false"] { opacity: .4; text-decoration: line-through; text-decoration-color: var(--faint); }
+.cleg .static { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; font-size: 13px; color: var(--faint); }
+.cpop { width: 300px; }
+.cpop h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.cpop .opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 8px; }
+.cpop .seg button { padding: 3px 9px; font-size: 12.5px; }
+.cpop .srow3 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--line2); }
+.cpop .srow3 .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpop .dashes { display: inline-flex; gap: 2px; }
+.cpop .dashes button { width: 30px; height: 22px; border-radius: 6px; display: grid; place-items: center; }
+.cpop .dashes button[aria-pressed="true"] { background: var(--pill); }
+.cpop input[type=color] { width: 22px; height: 22px; border: 0; border-radius: 50%; padding: 0; background: none; cursor: pointer; }
+.cpop input[type=color]::-webkit-color-swatch-wrapper { padding: 0; } .cpop input[type=color]::-webkit-color-swatch { border: 1px solid var(--line2); border-radius: 50%; }
+
+/* breakdown */
+.bdtools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chips2 { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: 99px; border: 1px solid var(--line2); font-size: 13px; transition: opacity .15s, border-color .15s; }
+.chip b { color: var(--muted); font-weight: 560; }
+.chip:hover { border-color: #3a3a3a; }
+.chip[aria-pressed="true"] { border-color: #5a5a5a; background: #111; }
+.chips2.focus .chip[aria-pressed="false"]:not(.ghost) { opacity: .4; }
+.chip.ghost { color: var(--muted); border-style: dashed; }
+tr.click { cursor: pointer; }
+tr.click:hover td, tr.click:focus-visible td { background: #0b0b0b; }
+tr.click:focus-visible { outline: none; }
+tr.click:focus-visible td:first-child { box-shadow: inset 2px 0 0 #3b82f6; }
+td.chev { width: 22px; color: var(--faint); padding-left: 4px; }
+tr.click:hover td.chev, tr.click:focus-visible td.chev { color: var(--text); }
+td.chev svg { width: 15px; height: 15px; display: block; }
+.nm .track { display: flex; gap: 2px; }
+.nm .track i { display: block; height: 2px; border-radius: 1px; min-width: 2px; }
+.nm .sub2 { color: var(--muted); font-size: 13px; font-weight: 400; white-space: nowrap; }
+tr.grp td { font-weight: 600; }
+tr.nest td { padding-top: 8px; padding-bottom: 8px; color: var(--muted); font-size: 14px; border-bottom: 0; }
+tr.nest td:nth-child(2) { padding-left: 24px; }
+tr.nest.last td { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+tr.nest td.v { font-size: 14.5px; color: var(--text); }
+
+/* model modal: machine list */
+.dchart { margin: 4px 0 18px; }
+.dhint { font-size: 12.5px; color: var(--faint); margin: 0 0 6px; }
+.dm { display: grid; }
+.dm button { display: grid; grid-template-columns: minmax(0, 1fr) 90px 64px 74px; gap: 4px 12px; align-items: center; padding: 9px 8px; border-top: 1px solid var(--line); border-radius: 8px; text-align: left; transition: opacity .15s, background .15s; font-size: 14px; }
+.dm button:hover { background: #0c0c0c; }
+.dm button { user-select: none; -webkit-user-select: none; }
+.dm button .who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.dm button .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm button .dbar { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--mc); }
+.dm button[aria-pressed="true"] { background: #101010; box-shadow: inset 2px 0 0 var(--mc); }
+.dm button.ex { opacity: .32; }
+.dm button.ex .who span { text-decoration: line-through; text-decoration-color: var(--faint); }
+.dm.hi button[aria-pressed="false"]:not(.ex) { opacity: .55; }
+
 footer { margin-top: 48px; color: var(--faint); font-size: 13px; line-height: 1.6; }
 footer b { color: var(--muted); font-weight: 500; }
 .err { color: var(--bad); margin-top: 16px; }
 
-/* tablet */
-@media (max-width: 1000px) {
+/* header wraps before the filters and the period switch collide */
+@media (max-width: 1300px) {
   .bar { flex-wrap: wrap; }
   .crumbs { flex-basis: 100%; }
+}
+/* tablet */
+@media (max-width: 1000px) {
   .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .top { grid-template-columns: 1fr; gap: 32px; }
 }
@@ -206,8 +293,10 @@ footer b { color: var(--muted); font-weight: 500; }
   .crumbs { overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--pad)); padding: 0 var(--pad); flex-basis: calc(100% + 2 * var(--pad)); }
   .crumbs::-webkit-scrollbar { display: none; }
   .tools { width: 100%; }
-  #range { flex: 1; }
-  #range button { flex: 1; padding: 6px 4px; }
+  #range { flex: 1; overflow-x: auto; scrollbar-width: none; }
+  #range button { flex: 1; padding: 6px 7px; }
+  .dm button { grid-template-columns: minmax(0, 1fr) 76px 56px; }
+  .dm button .tk { display: none; }
   #metric button { padding: 6px 9px; }
   #liveBtn span, #refresh { display: none; }
   #liveBtn { padding: 0; width: 34px; justify-content: center; }
@@ -248,7 +337,7 @@ footer b { color: var(--muted); font-weight: 500; }
     </nav>
     <div class="tools">
       <div class="seg" id="range" role="group" aria-label="Period">
-        <button data-v="5h" title="Matches the 5-hour rolling limit window">5h</button><button data-v="24h">24h</button><button data-v="7d">7d</button><button data-v="30d">30d</button><button data-v="90d">90d</button>
+        <button data-v="5h">5h</button><button data-v="24h">24h</button><button data-v="7d">7d</button><button data-v="30d">30d</button><button data-v="90d">90d</button><i class="segdiv"></i><button data-v="win" title="Since the current 5-hour limit window started">This window</button><button data-v="week" title="Since the weekly limit last reset">This week</button>
       </div>
       <div class="seg" id="metric" role="group" aria-label="Metric"><button data-v="cost">Cost</button><button data-v="tokens">Tokens</button></div>
       <button class="ib" id="liveBtn" aria-pressed="false" title="Stream updates as they happen"><i></i><span>Live</span></button>
@@ -279,13 +368,15 @@ footer b { color: var(--muted); font-weight: 500; }
     <div id="types"></div>
   </section>
   <section>
-    <div class="head2"><h2>Breakdown</h2><div class="seg" id="bd" role="group" aria-label="Breakdown"><button data-v="model">Model</button><button data-v="time">Day</button></div></div>
+    <div class="head2"><h2>Breakdown</h2><div class="bdtools"><div class="seg" id="merge" role="group" aria-label="Subscriptions"><button data-v="split">Per subscription</button><button data-v="merge">Merged</button></div><div class="seg" id="bd" role="group" aria-label="Group by"><button data-v="model">Model</button><button data-v="machine">Machine</button><button data-v="time">Day</button></div></div></div>
+    <div class="chips2" id="mchips"></div>
     <table id="breakdown"></table>
   </section>
   <div class="err" id="err"></div>
   <footer id="foot"></footer>
 </main>
 <div class="pop" id="pop" role="dialog" aria-label="Machine colour"></div>
+<div class="pop cpop" id="cpop" role="dialog" aria-label="Chart options"></div>
 <dialog id="dlg" aria-labelledby="dlgTitle">
   <button class="ib x" id="dlgClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <div id="dlgBody"></div>
@@ -300,7 +391,8 @@ const GLYPH = { claude: '<span class="glyph" style="color:var(--claude)">✳</sp
 const glyph = (p) => GLYPH[p] || '<span class="glyph faint">•</span>';
 const PROV = (p) => p === 'claude' ? 'Claude Code' : p === 'codex' ? 'Codex' : p;
 const ls = { get(k, d) { try { const v = localStorage.getItem('ps:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('ps:' + k, JSON.stringify(v)); } catch {} } };
-const S = { range: ls.get('range', '24h'), metric: ls.get('metric', 'cost'), bd: ls.get('bd', 'model') === 'time' ? 'time' : 'model', subs: ls.get('subs', []), machines: ls.get('machines', []), providers: ls.get('providers', []), live: ls.get('live', true) };
+const CHART0 = { mode: 'comb', type: 'lines', lanes: true, fill: true, curve: 'smooth', styles: {}, hidden: [] };
+const S = { range: ls.get('range', '24h'), metric: ls.get('metric', 'cost'), bd: ['time', 'machine'].includes(ls.get('bd', 'model')) ? ls.get('bd') : 'model', merge: ls.get('merge', 'split') === 'merge' ? 'merge' : 'split', chart: { ...CHART0, ...ls.get('chart', {}) }, subs: ls.get('subs', []), machines: ls.get('machines', []), providers: ls.get('providers', []), live: ls.get('live', true) };
 let data = null, es = null;
 
 const fmtN = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : n >= 1e7 ? 1 : 2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(n));
@@ -369,7 +461,13 @@ function render() {
   const online = new Set(data.machines.filter((m) => m.online).map((m) => m.nick));
   dropdown('dd-machines', 'machines', (o.machineOrder || o.machines).map((m) => ({ v: m, label: m, html: `${mdot(m)}${esc(m)}`, note: online.has(m) ? 'online' : '' })), 'All machines', 'machines');
   dropdown('dd-providers', 'providers', o.providers.map((p) => ({ v: p, label: PROV(p), html: `${glyph(p)}${esc(PROV(p))}` })), 'All providers', 'providers');
-  renderAnns(); renderHero(); renderCharts(); renderMachines(); renderTotals(); renderTypes(); renderBreakdown();
+  // limit ranges need exactly one subscription in view that reports limits; the server falls back otherwise
+  const limOk = Object.keys(data.limits || {}).length === 1 && data.subscriptions.length <= 1;
+  $('range').querySelectorAll('button').forEach((b) => {
+    if (b.dataset.v === 'win' || b.dataset.v === 'week') { b.disabled = !limOk && data.range !== b.dataset.v; b.title = b.disabled ? 'Needs one subscription in view with limit data' : b.dataset.v === 'win' ? 'Since the current 5-hour window started' : 'Since the weekly limit last reset'; }
+    b.setAttribute('aria-pressed', String(b.dataset.v === data.range));
+  });
+  renderAnns(); renderHero(); renderCharts(); renderMachines(); renderTotals(); renderTypes(); renderBreakdown(); renderModal();
   $('foot').innerHTML = `${data.machines.length} machine${data.machines.length === 1 ? '' : 's'} known, ${online.size} online · served by <b>${esc(data.self.nick)}</b>${LOCAL ? '' : ' · read-only view'}`;
 }
 
@@ -377,27 +475,88 @@ function renderAnns() {
   $('anns').innerHTML = data.announcements.map((a) => `<div class="ann"><b class="k">${a.heavy ? 'Heavy work' : 'Heads up'}</b><span>${mdot(a.machine)} <b>${esc(a.machine)}</b>${a.op ? ` (${esc(a.op)})` : ''}: ${esc(a.msg)}</span><span class="muted">until ${new Date(a.until).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${a.heavy ? ' · the 5h limit will likely be used up' : ''}</span></div>`).join('');
 }
 
+// ---- names, limits, styles
+// "claude-opus-5-5" -> "Claude Opus 5.5", "gpt-5.4-codex" -> "GPT-5.4 Codex"; the raw id stays in the model modal
+function pretty(id) {
+  const t = String(id).replace(/-\d{8}$/, '').split('-'), o = [];
+  const isN = (w) => /^\d+(\.\d+)?$/.test(w);
+  for (const w of t) { if (isN(w) && o.length && isN(o[o.length - 1])) o[o.length - 1] += '.' + w; else o.push(w); }
+  const words = o.map((w) => /^gpt$/i.test(w) ? 'GPT' : /^\d/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1));
+  if (words[0] === 'GPT' && words[1] && /^\d/.test(words[1])) words.splice(0, 2, 'GPT-' + words[1]);
+  return words.join(' ');
+}
+const DASHES = ['', '7 4', '1.5 3.5', '9 3 2 3'];
+const subStyle = (sub) => {
+  const i = data.options.subscriptions.findIndex((s) => s.sub === sub);
+  const st = (S.chart.styles || {})[sub] || {};
+  return { c: st.c || '#f5f5f5', dash: st.dash != null ? st.dash : DASHES[Math.max(0, i) % DASHES.length] };
+};
+const shortLabel = (l) => (String(l).replace(/^(claude|codex|chatgpt|openai)\s+/i, '') || String(l)).slice(0, 8);
+const winName = (m) => m === 300 ? '5h' : m === 10080 ? 'Week' : m === 43200 ? 'Month' : m % 1440 === 0 ? m / 1440 + 'd' : m % 60 === 0 ? m / 60 + 'h' : m + 'm';
+function resetText(r) {
+  const d = new Date(r), dt = r - Date.now();
+  if (dt < 864e5) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (dt < 6 * 864e5) return d.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+const dashSwatch = (c, dash) => `<svg width="20" height="8" aria-hidden="true"><line x1="1" x2="19" y1="4" y2="4" stroke="${c}" stroke-width="2" stroke-dasharray="${dash}"/></svg>`;
+function laneOf(sub) {
+  const L = (data.limits || {})[sub];
+  if (!L) return null;
+  const st = subStyle(sub), label = subInfo(sub).label;
+  return { name: label, label: shortLabel(label), c: st.c, dash: st.dash, bands: L.bands, resets: L.resets, short: winName((L.windows[0] || {}).m || 300) };
+}
+// one filter for the whole page: header menus, chips, split bars and rows all edit the same list
+function toggleFilter(key, v) {
+  const set = new Set(S[key]);
+  set.has(v) ? set.delete(v) : set.add(v);
+  S[key] = [...set]; ls.set(key, S[key]);
+  load();
+}
+document.addEventListener('click', (e) => {
+  const m = e.target.closest('[data-mfilter]'), s = e.target.closest('[data-sfilter]');
+  if (m) toggleFilter('machines', m.dataset.mfilter);
+  else if (s) toggleFilter('subs', s.dataset.sfilter);
+});
+
+function limitRows(sub) {
+  const L = (data.limits || {})[sub];
+  if (!L) return '';
+  const stale = Date.now() - L.t > 20 * 60e3 ? ` · as of ${ago(Date.now() - L.t)}` : '';
+  return L.windows.map((w) => `<div class="meter${w.u >= 80 ? ' hot' : ''}"><div class="k"><span>${winName(w.m)} limit <b class="num">${w.u}%</b></span><span>resets ${esc(resetText(w.r))}${stale}</span></div><div class="mtrack" role="meter" aria-valuenow="${w.u}" aria-valuemin="0" aria-valuemax="100" aria-label="${winName(w.m)} limit used"><i style="width:${w.u}%"></i></div></div>`).join('');
+}
+function splitBar(sub) {
+  const ms = data.machineUsage.filter((m) => m.sub === sub && val(m.totals) > 0).sort((a, b) => val(b.totals) - val(a.totals));
+  if (!ms.length) return '';
+  const top = ms[0];
+  return `<div class="msplit"><div class="k"><span>${esc(top.machine)} <b class="num" style="color:var(--text);font-weight:600">${fmtV(val(top.totals))}</b>${ms.length > 1 ? ` <span class="faint">+${ms.length - 1} machine${ms.length > 2 ? 's' : ''}</span>` : ''}</span><span>by machine</span></div>
+    <div class="sb">${ms.map((m) => `<button data-mfilter="${esc(m.machine)}" style="--mc:${mcol(m.machine)};flex:${val(m.totals)}" title="${esc(m.machine)} ${fmtV(val(m.totals))} · click to filter" aria-label="Filter to ${esc(m.machine)}"></button>`).join('')}</div></div>`;
+}
 function renderHero() {
   const subs = data.subscriptions;
+  const since = data.limitSub ? ` · since ${new Date(data.from).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : '';
   if (subs.length === 1) {
-    const t = subs[0].totals;
+    const s = subs[0], t = s.totals;
     $('hero').textContent = fmtV(val(t));
-    $('heroSub').innerHTML = `<span class="num">${t.sessions}</span> sessions${S.metric === 'cost' ? ' · API estimate' : ' · processed tokens'}`;
-  } else {
-    $('hero').textContent = subs.length ? `${subs.length} subscriptions` : 'No usage';
-    $('heroSub').textContent = subs.length ? 'Shown separately, never added together' : `Nothing recorded in the last ${data.range}`;
+    $('heroSub').innerHTML = `${glyph(s.provider)} ${esc(s.label)} · <span class="num">${t.sessions}</span> sessions · ${S.metric === 'cost' ? 'API estimate · ' + fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}${since}`;
+    $('subs').className = 'led one';
+    $('subs').innerHTML = `<div class="lrow">${limitRows(s.sub)}${splitBar(s.sub)}</div>`;
+    return;
   }
+  $('hero').textContent = subs.length ? `${subs.length} subscriptions` : 'No usage';
+  $('heroSub').textContent = subs.length ? 'Shown separately, never added together' : `Nothing recorded in this period`;
+  $('subs').className = 'led';
+  // an empty limit window still shows how much of the limit is left
+  if (!subs.length && data.limitSub) { $('subs').className = 'led one'; $('subs').innerHTML = `<div class="lrow">${limitRows(data.limitSub)}</div>`; return; }
   $('subs').innerHTML = subs.map((s) => {
     const t = s.totals;
-    const ms = data.machineUsage.filter((m) => m.sub === s.sub);
-    return `<div class="srow"><div class="name">${glyph(s.provider)}<span class="l">${esc(s.label)}</span><span class="muted" style="font-size:13px;font-weight:400;white-space:nowrap">${t.sessions} sessions</span></div>
-      <div class="val num">${fmtV(val(t))}</div>
-      <div class="det num">${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}</div>
-      <div class="chips" style="grid-column:1/-1">${ms.map((m) => `<span>${mdot(m.machine)}${esc(m.machine)} <b class="num" style="color:var(--text);font-weight:560">${fmtV(val(m.totals))}</b></span>`).join('')}</div></div>`;
+    return `<div class="lrow"><div class="top"><button class="who" data-sfilter="${esc(s.sub)}" title="Show only this subscription">${glyph(s.provider)}<span class="l">${esc(s.label)}</span></button><span class="val num">${fmtV(val(t))}</span></div>
+      <div class="det num">${t.sessions} sessions · ${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}</div>
+      ${limitRows(s.sub)}${splitBar(s.sub)}</div>`;
   }).join('');
 }
 
-// ---- charts: one per subscription, machines stacked in their colours
+// ---- charts: one chart with a line per subscription, or one chart per subscription with a line per machine
 function monotone(pts) {
   const n = pts.length;
   if (n < 2) return n ? `M${pts[0][0]},${pts[0][1]}` : '';
@@ -412,61 +571,120 @@ function monotone(pts) {
   }
   return d;
 }
+const linePath = (pts) => S.chart.curve === 'straight' ? 'M' + pts.map((p) => p.join(',')).join('L') : monotone(pts);
 function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p; return 10 * p; }
 function tickLabel(t, step, long) {
   const d = new Date(t);
-  if (step >= 864e5) return d.toLocaleDateString([], { month: 'short', day: 'numeric', ...(long ? { weekday: 'short' } : {}) });
+  // hourly points over several days (7d) still label the axis with dates
+  if (step >= 864e5 || (data.series.length > 30 && !long)) return d.toLocaleDateString([], { month: 'short', day: 'numeric', ...(long ? { weekday: 'short' } : {}) });
   return d.toLocaleTimeString([], { hour: 'numeric', ...(step < 3600e3 || long ? { minute: '2-digit' } : {}) }).toUpperCase();
 }
+const gear = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>';
+const chartBox = (attrs) => `<div class="chart" ${attrs}><svg role="img"></svg><div class="tip"></div></div>`;
 function renderCharts() {
   const step = data.step;
   const label = step >= 864e5 ? 'Daily' : step >= 3600e3 ? 'Hourly' : step >= 900e3 ? '15-minute' : '5-minute';
   const subs = data.subscriptions;
   const what = S.metric === 'cost' ? 'cost' : 'tokens';
-  if (!subs.length) { $('charts').innerHTML = `<div><div class="chartTitle">${label} ${what}</div><div class="empty">No usage in this period.</div></div>`; return; }
-  $('charts').innerHTML = subs.map((s, i) => `<div><div class="chartTitle">${label} ${what}${subs.length > 1 ? `<span class="muted" style="font-size:14px;font-weight:500">${glyph(s.provider)} ${esc(s.label)}</span>` : ''}</div><div class="chart" data-i="${i}"><svg role="img"></svg><div class="tip"></div></div></div>`).join('');
-  $('charts').querySelectorAll('.chart').forEach((el) => drawChart(el, subs[Number(el.dataset.i)].sub));
+  const multi = subs.length > 1, comb = multi && S.chart.mode === 'comb';
+  const head = `<div class="chartHead"><div class="chartTitle">${label} ${what}</div>${multi ? `<div class="seg" id="cmode" role="group" aria-label="Chart layout"><button data-v="comb" aria-pressed="${comb}">One chart</button><button data-v="sep" aria-pressed="${!comb}">Per subscription</button></div>` : ''}<button class="ib" id="copt" title="Chart options" aria-label="Chart options">${gear}</button></div>`;
+  if (!subs.length) { $('charts').innerHTML = head + '<div class="empty">No usage in this period.</div>'; return; }
+  const hidden = new Set(S.chart.hidden || []);
+  if (comb) {
+    const anyLim = subs.some((s) => (data.limits || {})[s.sub]);
+    $('charts').innerHTML = head + chartBox('data-comb="1"') + `<div class="cleg">${subs.map((s) => { const st = subStyle(s.sub); return `<button data-hide="${esc(s.sub)}" aria-pressed="${!hidden.has(s.sub)}" title="Show or hide">${dashSwatch(st.c, st.dash)}${glyph(s.provider)}${esc(s.label)}</button>`; }).join('')}${anyLim && S.chart.lanes ? '<span class="static"><svg width="10" height="10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" transform="rotate(45 5 5)" fill="#8e8e8e"/></svg>long-window reset</span><span class="static"><svg width="18" height="8" aria-hidden="true"><line x1="2" x2="16" y1="4" y2="4" stroke="#8e8e8e" stroke-width="8" stroke-linecap="round"/></svg>5h windows</span>' : ''}</div>`;
+    const vis = subs.filter((s) => !hidden.has(s.sub));
+    drawChart($('charts').querySelector('.chart'), {
+      label: `${what} by subscription`,
+      lines: vis.map((s) => { const st = subStyle(s.sub); return { html: `${glyph(s.provider)}${esc(s.label)}`, c: st.c, dash: st.dash, fill: S.chart.fill, vals: data.series.map((b) => (b.v[s.sub] ? val(b.v[s.sub]) : 0)) }; }),
+      lanes: S.chart.lanes ? vis.map((s) => laneOf(s.sub)).filter(Boolean) : [],
+    });
+    return;
+  }
+  $('charts').innerHTML = head + subs.map((s, i) => `<div>${multi ? `<div class="subhead" style="margin:${i ? 18 : 0}px 0 6px">${glyph(s.provider)}${esc(s.label)}</div>` : ''}${chartBox(`data-i="${i}"`)}</div>`).join('');
+  $('charts').querySelectorAll('.chart').forEach((el) => {
+    const sub = subs[Number(el.dataset.i)].sub;
+    const order = data.options.machineOrder || data.options.machines;
+    const present = new Set(); data.series.forEach((b) => Object.keys((b.m || {})[sub] || {}).forEach((k) => present.add(k)));
+    const mv = (b, k) => { const c = ((b.m || {})[sub] || {})[k]; return c ? (S.metric === 'cost' ? c.cost : c.tokens) : 0; };
+    const lane = S.chart.lanes && laneOf(sub);
+    drawChart(el, {
+      label: `${what} for ${subInfo(sub).label} by machine`, total: true, stack: true,
+      lines: order.filter((k) => present.has(k)).map((k) => ({ html: `${mdot(k)}${esc(k)}`, c: mcol(k), fill: S.chart.fill, vals: data.series.map((b) => mv(b, k)) })),
+      lanes: lane ? [lane] : [],
+    });
+  });
 }
-function drawChart(el, sub) {
+// spec: { lines: [{ html, c, dash, w, o, fill, dim, vals }], lanes: [laneOf()], total, label }
+function drawChart(el, spec) {
   const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
   const small = matchMedia('(max-width:640px)').matches;
-  const W = svg.clientWidth || 800, H = small ? 210 : 300, L = small ? 50 : 66, R = 6, T = 8, B = 26;
-  const series = data.series, step = data.step;
-  const order = data.options.machineOrder || data.options.machines;
-  const present = new Set(); series.forEach((b) => Object.keys((b.m || {})[sub] || {}).forEach((k) => present.add(k)));
-  const keys = order.filter((k) => present.has(k));
-  const mv = (b, k) => { const c = ((b.m || {})[sub] || {})[k]; return c ? (S.metric === 'cost' ? c.cost : c.tokens) : 0; };
-  const stacks = series.map((b) => { let acc = 0; return keys.map((k) => { const y0 = acc; acc += mv(b, k); return [y0, acc]; }); });
-  const max = Math.max(1e-9, ...stacks.map((s) => (s.length ? s[s.length - 1][1] : 0)));
+  const LH = 14, laneBlock = spec.lanes.length ? spec.lanes.length * LH + 6 : 0;
+  const W = svg.clientWidth || 800, L = small ? 50 : 66, R = 6, T = 8 + laneBlock, B = 26;
+  const H = (spec.height || (small ? 210 : 300)) + laneBlock;
+  const series = data.series, step = data.step, n = series.length;
+  // stacked bars only where adding up is valid: machines inside one subscription (never across subscriptions)
+  const bars = spec.stack && S.chart.type === 'bars';
+  const live = spec.lines.filter((l) => !l.dim);
+  const max = Math.max(1e-9, ...(bars ? data.series.map((_, i) => live.reduce((a, l) => a + l.vals[i], 0)) : live.flatMap((l) => l.vals)));
   const nice = niceMax(max);
-  const x = (i) => L + (series.length <= 1 ? 0 : (i * (W - L - R)) / (series.length - 1));
+  const x = (i) => L + (n <= 1 ? 0 : (i * (W - L - R)) / (n - 1));
+  const t0 = series[0].t, tN = series[n - 1].t;
+  const xt = (t) => L + (tN === t0 ? 0 : Math.max(0, Math.min(1, (t - t0) / (tN - t0)))) * (W - L - R);
   const y = (v) => T + (H - T - B) * (1 - v / nice);
+  const fmtT = (t) => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   let g = '';
-  for (let i = 0; i <= 2; i++) { const v = (nice * i) / 2; g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : fmtV(v)}</text>`; }
-  const ticks = [0, Math.floor((series.length - 1) / 2), series.length - 1].filter((v, i, a) => a.indexOf(v) === i && v >= 0);
-  for (const i of ticks) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === series.length - 1 ? 'end' : 'middle'}">${esc(tickLabel(series[i].t, step))}</text>`;
-  let paths = '';
-  keys.forEach((k, ki) => {
-    const top = stacks.map((s, i) => [x(i), y(s[ki][1])]);
-    const bot = stacks.map((s, i) => [x(i), y(s[ki][0])]).reverse();
-    const c = mcol(k);
-    const up = monotone(top), down = monotone(bot).replace(/^M/, 'L');
-    paths += `<path d="${up}${down}Z" fill="${c}" fill-opacity="0.12"/><path d="${up}" fill="none" stroke="${c}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  spec.lanes.forEach((ln, li) => {
+    const ly = 6 + li * LH + 4;
+    const caps = ln.dash ? 'butt' : 'round';
+    g += `<text x="${L - 10}" y="${ly + 4}" text-anchor="end">${esc(ln.label)}</text><line x1="${L}" x2="${W - R}" y1="${ly}" y2="${ly}" stroke="#141414" stroke-width="8" stroke-linecap="round"/>`;
+    for (const [a, b] of ln.bands) {
+      if (b <= t0 || a >= tN + step) continue;
+      g += `<line x1="${xt(a) + 3}" x2="${Math.max(xt(a) + 4, xt(b) - 3)}" y1="${ly}" y2="${ly}" stroke="${ln.c}" stroke-opacity=".5" stroke-width="8" stroke-linecap="${caps}" stroke-dasharray="${ln.dash}"><title>${esc(ln.name)}: ${ln.short} window ${esc(fmtT(a))} to ${esc(fmtT(b))}</title></line>`;
+    }
+    for (const r of ln.resets) {
+      const rx = xt(r);
+      g += `<line x1="${rx}" x2="${rx}" y1="${ly}" y2="${H - B}" stroke="${ln.c}" stroke-opacity=".7" stroke-dasharray="2 4"/><rect x="${rx - 4}" y="${ly - 4}" width="8" height="8" transform="rotate(45 ${rx} ${ly})" fill="${ln.c}"><title>${esc(ln.name)}: limit reset ${esc(fmtT(r))}</title></rect>`;
+    }
   });
+  for (let i = 0; i <= 2; i++) { const v = (nice * i) / 2; g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : fmtV(v)}</text>`; }
+  const ticks = [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i && v >= 0);
+  for (const i of ticks) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${esc(tickLabel(series[i].t, step))}</text>`;
+  let paths = '';
+  if (bars) {
+    const bw = Math.max(1, Math.min(28, ((W - L - R) / n) * 0.7));
+    for (let i = 0; i < n; i++) {
+      let acc = 0;
+      const segs = live.filter((l) => l.vals[i] > 0);
+      segs.forEach((l, k) => {
+        const y0 = y(acc), y1 = y(acc + l.vals[i]);
+        acc += l.vals[i];
+        const gap = k < segs.length - 1 && y0 - y1 > 3 ? 1 : 0; // 2px surface gap between stacked segments
+        const bx = Math.max(L, Math.min(W - R - bw, x(i) - bw / 2));
+        paths += `<rect x="${bx}" y="${y1 + gap}" width="${bw}" height="${Math.max(0.5, y0 - y1 - gap)}" rx="${k === segs.length - 1 ? Math.min(2, bw / 2) : 0}" fill="${l.c}" opacity="${l.o != null ? l.o : 1}"/>`;
+      });
+    }
+  }
+  for (const l of bars ? [] : spec.lines) {
+    const pts = l.vals.map((v, i) => [x(i), y(v)]);
+    const up = linePath(pts);
+    if (l.fill && !l.dim) paths += `<path d="${up}L${x(n - 1)},${y(0)}L${x(0)},${y(0)}Z" fill="${l.c}" fill-opacity="${l.o != null ? 0.12 * l.o : 0.1}"/>`;
+    paths += `<path d="${up}" fill="none" stroke="${l.c}" stroke-width="${l.w || 1.8}" stroke-dasharray="${l.dash || ''}" stroke-linejoin="round" opacity="${l.o != null ? l.o : 1}"/>`;
+  }
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.style.height = H + 'px';
-  svg.setAttribute('aria-label', `${S.metric} for ${subInfo(sub).label}, stacked by machine`);
+  svg.setAttribute('aria-label', spec.label || '');
   svg.innerHTML = g + paths + `<line class="cur" y1="${T}" y2="${H - B}" stroke="#3a3a3a" visibility="hidden"/>`;
+  const shown = spec.lines.filter((l) => !l.dim);
   const show = (clientX) => {
     const rect = svg.getBoundingClientRect();
     const px = ((clientX - rect.left) / rect.width) * W;
-    const i = Math.max(0, Math.min(series.length - 1, Math.round(((px - L) / (W - L - R)) * (series.length - 1))));
+    const i = Math.max(0, Math.min(n - 1, Math.round(((px - L) / (W - L - R)) * (n - 1))));
     const cur = svg.querySelector('.cur');
     cur.setAttribute('x1', x(i)); cur.setAttribute('x2', x(i)); cur.setAttribute('visibility', 'visible');
-    const b = series[i];
-    const tot = keys.reduce((a, k) => a + mv(b, k), 0);
-    tip.innerHTML = `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(b.t, step, true))}</div>` +
-      (keys.length ? keys.map((k) => `<div class="r"><span>${mdot(k)}${esc(k)}</span><b class="num">${fmtV(mv(b, k))}</b></div>`).join('') + (keys.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
+    const tot = shown.reduce((a, l) => a + l.vals[i], 0);
+    tip.innerHTML = `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
+      (shown.length ? shown.map((l) => `<div class="r"><span>${l.html}</span><b class="num">${fmtV(l.vals[i])}</b></div>`).join('') + (spec.total && shown.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
     tip.style.display = 'block';
     const left = (x(i) / W) * rect.width;
     tip.style.left = (left + 14 + tip.offsetWidth > rect.width ? Math.max(0, left - 14 - tip.offsetWidth) : left + 14) + 'px';
@@ -479,6 +697,56 @@ function drawChart(el, sub) {
   el.onclick = (e) => e.stopPropagation();
   document.addEventListener('click', hide, { once: true });
 }
+function saveChart() { ls.set('chart', S.chart); }
+$('charts').addEventListener('click', (e) => {
+  const mode = e.target.closest('#cmode button');
+  if (mode) { S.chart.mode = mode.dataset.v; saveChart(); renderCharts(); return; }
+  const hb = e.target.closest('[data-hide]');
+  if (hb) { const h = new Set(S.chart.hidden || []); h.has(hb.dataset.hide) ? h.delete(hb.dataset.hide) : h.add(hb.dataset.hide); S.chart.hidden = [...h]; saveChart(); renderCharts(); return; }
+  const ob = e.target.closest('#copt');
+  if (ob) { e.stopPropagation(); $('cpop').classList.contains('open') ? $('cpop').classList.remove('open') : openChartPop(ob); }
+});
+function segHtml(k, opts) { return `<div class="seg">${opts.map(([v, l]) => `<button data-ck="${k}" data-v="${v}" aria-pressed="${String(S.chart[k]) === String(v)}">${l}</button>`).join('')}</div>`; }
+function chartPopHtml() {
+  const subs = data.subscriptions;
+  return `<h4>Chart</h4>
+    <div class="opt"><span>Limit lanes</span>${segHtml('lanes', [[true, 'On'], [false, 'Off']])}</div>
+    <div class="opt"><span>Area fill</span>${segHtml('fill', [[true, 'On'], [false, 'Off']])}</div>
+    <div class="opt"><span>Type</span>${segHtml('type', [['lines', 'Lines'], ['bars', 'Stacked bars']])}</div>
+    ${S.chart.type === 'bars' && subs.length > 1 && S.chart.mode === 'comb' ? '<div class="faint" style="font-size:12px;margin:-4px 0 8px">Bars stack machines, so they show per subscription and in the model view. One chart keeps lines: subscriptions are never added.</div>' : ''}
+    <div class="opt"><span>Curve</span>${segHtml('curve', [['smooth', 'Smooth'], ['straight', 'Straight']])}</div>
+    ${subs.length > 1 ? `<div class="opt"><span>Layout</span>${segHtml('mode', [['comb', 'One chart'], ['sep', 'Per sub']])}</div>` : ''}
+    <h4 style="margin-top:14px">Subscription lines and lanes</h4>
+    ${subs.map((s) => { const st = subStyle(s.sub); return `<div class="srow3"><input type="color" data-sc="${esc(s.sub)}" value="${st.c}" aria-label="Colour for ${esc(s.label)}"><span class="l">${glyph(s.provider)} ${esc(s.label)}</span><span class="dashes">${DASHES.map((d) => `<button data-sd="${esc(s.sub)}" data-dash="${d}" aria-pressed="${st.dash === d}" aria-label="Line style">${dashSwatch(st.c, d)}</button>`).join('')}</span></div>`; }).join('')}
+    <div class="row"><span class="faint" style="font-size:12px">Saved on this device</span><button class="reset" data-creset>Reset</button></div>`;
+}
+function openChartPop(btn) {
+  const pop = $('cpop');
+  pop.innerHTML = chartPopHtml();
+  pop.classList.add('open');
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(12, Math.min(innerWidth - pop.offsetWidth - 12, r.right - pop.offsetWidth)) + 'px';
+  pop.style.top = (r.bottom + 8 + pop.offsetHeight > innerHeight - 12 ? Math.max(12, r.top - pop.offsetHeight - 8) : r.bottom + 8) + 'px';
+}
+$('cpop').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.ck) { const v = b.dataset.v; S.chart[b.dataset.ck] = v === 'true' ? true : v === 'false' ? false : v; }
+  else if (b.dataset.sd) { S.chart.styles = S.chart.styles || {}; S.chart.styles[b.dataset.sd] = { ...S.chart.styles[b.dataset.sd], dash: b.dataset.dash }; }
+  else if (b.dataset.creset !== undefined) S.chart = { ...CHART0 };
+  else return;
+  saveChart(); renderCharts(); $('cpop').innerHTML = chartPopHtml();
+});
+$('cpop').addEventListener('input', (e) => {
+  const sub = e.target.dataset.sc;
+  if (!sub) return;
+  S.chart.styles = S.chart.styles || {};
+  S.chart.styles[sub] = { ...S.chart.styles[sub], c: e.target.value.toLowerCase() };
+  saveChart(); renderCharts();
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('#cpop')) $('cpop').classList.remove('open'); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('cpop').classList.remove('open'); });
 
 function stat(k, v) { return `<div class="stat"><div class="k">${k}</div><div class="v num">${v}</div></div>`; }
 function renderTotals() {
@@ -503,37 +771,143 @@ function renderTypes() {
   $('types').innerHTML = data.subscriptions.map((s) => `<div class="block">${data.subscriptions.length > 1 ? `<div class="subhead">${glyph(s.provider)}${esc(s.label)}</div>` : ''}${typeBlock(s.totals, cost)}</div>`).join('') || '<div class="empty">No usage in this period.</div>';
 }
 
+// ---- breakdown: machine chips edit the page-wide machine filter
+const TF = ['in', 'cr', 'cw', 'out', 'rs', 'tokens', 'cost', 'costInput', 'costCacheRead', 'costCacheWrite', 'costOutput', 'savings', 'unpricedTokens', 'requests'];
+const sumT = (list) => { const o = {}; for (const f of TF) o[f] = 0; for (const t of list) for (const f of TF) o[f] += t[f] || 0; return o; };
+const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+let chipsAll = false;
+function renderChips() {
+  const all = data.options.machineOrder || data.options.machines;
+  if (all.length < 2) { $('mchips').innerHTML = ''; return; }
+  const use = {};
+  data.machineUsage.forEach((u) => { use[u.machine] = (use[u.machine] || 0) + u.totals.tokens; }); // order only, never shown
+  const sel = new Set(S.machines);
+  const ranked = all.slice().sort((a, b) => (sel.has(b) - sel.has(a)) || (use[b] || 0) - (use[a] || 0));
+  const LIMIT = 6, vis = chipsAll || ranked.length <= LIMIT + 1 ? ranked : ranked.slice(0, LIMIT);
+  $('mchips').className = 'chips2' + (sel.size ? ' focus' : '');
+  $('mchips').innerHTML = vis.map((m) => `<button class="chip" data-mfilter="${esc(m)}" aria-pressed="${sel.has(m)}" title="${sel.has(m) ? 'Remove from filter' : 'Filter to this machine'}">${mdot(m)}${esc(m)}</button>`).join('') +
+    (vis.length < ranked.length || chipsAll ? `<button class="chip ghost" data-more>${chipsAll ? 'Fewer' : `+${ranked.length - vis.length} more`}</button>` : '') +
+    (sel.size ? '<button class="chip ghost" data-mclear>Clear</button>' : '');
+}
+$('mchips').addEventListener('click', (e) => {
+  if (e.target.closest('[data-more]')) { chipsAll = !chipsAll; renderChips(); }
+  else if (e.target.closest('[data-mclear]')) { S.machines = []; ls.set('machines', []); load(); }
+});
+
+let bdGroups = [];
+function splitTrack(parts, share) {
+  const tot = parts.reduce((a, p) => a + p[1], 0) || 1;
+  return `<span class="track" style="width:min(100%, ${Math.max(1.5, share * 100).toFixed(2)}%)">${parts.map(([m, v]) => `<i style="flex:${v / tot};background:${mcol(m)}" title="${esc(m)} ${fmtV(v)}"></i>`).join('')}</span>`;
+}
 function renderBreakdown() {
+  renderChips();
   const day = data.step >= 864e5;
-  $('bd').querySelector('[data-v="time"]').textContent = day ? 'Day' : 'Hour';
-  const subTot = Object.fromEntries(data.subscriptions.map((s) => [s.sub, val(s.totals)]));
-  let rows = [];
-  if (S.bd === 'model') rows = data.models.map((m, i) => ({ sub: m.sub, name: m.model, lead: glyph(m.provider), color: 'var(--claude)', t: m.totals, priced: m.priced, idx: i }));
-  else rows = data.series.slice().reverse().flatMap((b) => Object.entries(b.v).map(([sub, t]) => ({ sub, name: tickLabel(b.t, data.step, true), lead: '', color: '#8e8e8e', t, priced: true })));
-  if (S.bd === 'model') rows.forEach((r) => { if (subInfo(r.sub).provider === 'codex') r.color = 'var(--codex)'; });
-  if (S.bd !== 'time') rows.sort((a, b) => val(b.t) - val(a.t) || b.t.tokens - a.t.tokens);
   const multi = data.subscriptions.length > 1;
-  const head = S.bd === 'model' ? 'Model' : day ? 'Day' : 'Hour';
-  $('breakdown').innerHTML = rows.length ? `<thead><tr><th>#</th><th>${head}</th>${multi ? '<th class="hide-s">Subscription</th>' : ''}<th class="r">Cost</th><th class="r hide-s">Share</th><th class="r">Tokens</th></tr></thead><tbody>` +
+  $('bd').querySelector('[data-v="time"]').textContent = day ? 'Day' : 'Hour';
+  $('merge').style.display = multi && S.bd === 'model' ? '' : 'none';
+  const subTot = Object.fromEntries(data.subscriptions.map((s) => [s.sub, val(s.totals)]));
+  const allTot = Object.values(subTot).reduce((a, b) => a + b, 0);
+  const empty = '<tbody><tr><td colspan="6" class="muted" style="padding-left:0">No usage in this period.</td></tr></tbody>';
+  if (S.bd === 'model') {
+    const merged = multi && S.merge === 'merge';
+    const groups = new Map();
+    for (const m of data.models) {
+      const key = merged ? m.model : `${m.sub}|${m.model}`;
+      const g = groups.get(key) || { key, model: m.model, provider: m.provider, subs: [], list: [], priced: false };
+      g.subs.push(m.sub); g.list.push(m.totals); g.priced = g.priced || m.priced;
+      groups.set(key, g);
+    }
+    bdGroups = [...groups.values()].map((g) => {
+      const t = sumT(g.list);
+      const pm = {};
+      data.modelMachines.filter((r) => r.model === g.model && g.subs.includes(r.sub)).forEach((r) => { pm[r.machine] = (pm[r.machine] || 0) + val(r.totals); });
+      const den = merged ? allTot : subTot[g.subs[0]];
+      return { ...g, t, share: den ? val(t) / den : 0, parts: Object.entries(pm).filter((p) => p[1] > 0).sort((a, b) => b[1] - a[1]) };
+    }).sort((a, b) => val(b.t) - val(a.t) || b.t.tokens - a.t.tokens);
+    $('breakdown').innerHTML = bdGroups.length ? `<thead><tr><th>#</th><th>Model</th><th class="r">Cost</th><th class="r hide-s">Share</th><th class="r">Tokens</th><th></th></tr></thead><tbody>` +
+      bdGroups.map((g, i) => {
+        const subNote = !multi ? '' : merged ? (g.subs.length > 1 ? `${g.subs.length} subscriptions` : subInfo(g.subs[0]).label) : subInfo(g.subs[0]).label;
+        return `<tr class="click" tabindex="0" data-g="${i}" aria-label="Open ${esc(pretty(g.model))}"><td class="muted num">${i + 1}</td><td style="width:60%"><span class="nm" style="width:100%"><span class="n">${glyph(g.provider)}<span class="l">${esc(pretty(g.model))}</span>${subNote ? `<span class="sub2">· ${esc(subNote)}</span>` : ''}</span>${splitTrack(g.parts, g.share)}</span></td><td class="r v num">${g.priced ? fmtC(g.t.cost) : '<span class="muted" style="font-weight:400">Unpriced</span>'}</td><td class="r v num hide-s">${(g.share * 100).toFixed(1)}%</td><td class="r v num">${fmtN(g.t.tokens)}</td><td class="chev">${chev}</td></tr>`;
+      }).join('') + '</tbody>' : empty;
+    return;
+  }
+  if (S.bd === 'machine') {
+    const by = new Map();
+    for (const u of data.machineUsage) { const a = by.get(u.machine) || []; a.push(u); by.set(u.machine, a); }
+    const ms = [...by.entries()].sort((a, b) => Math.max(...b[1].map((u) => val(u.totals))) - Math.max(...a[1].map((u) => val(u.totals))));
+    const row = (u) => `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${subTot[u.sub] ? (val(u.totals) / subTot[u.sub] * 100).toFixed(1) : '0.0'}%</td><td class="r v num">${S.metric === 'cost' ? fmtN(u.totals.tokens) : fmtC(u.totals.cost)}</td>`;
+    $('breakdown').innerHTML = ms.length ? `<thead><tr><th>#</th><th>Machine</th><th class="r">${S.metric === 'cost' ? 'Cost' : 'Tokens'}</th><th class="r hide-s">Share of sub</th><th class="r">${S.metric === 'cost' ? 'Tokens' : 'Cost'}</th><th></th></tr></thead><tbody>` +
+      ms.map(([m, us], i) => {
+        const one = us.length === 1;
+        const head = `<tr class="click grp" tabindex="0" data-mfilter="${esc(m)}" title="${S.machines.includes(m) ? 'Remove from filter' : 'Filter the page to this machine'}"><td class="muted num">${i + 1}</td><td><span class="nm"><span class="n">${mdot(m)}<span class="l">${esc(m)}</span>${!one ? `<span class="sub2">· ${us.length} subscriptions</span>` : multi ? `<span class="sub2">· ${esc(subInfo(us[0].sub).label)}</span>` : ''}</span></span></td>${one ? row(us[0]) : '<td></td><td class="hide-s"></td><td></td>'}<td class="chev">${chev}</td></tr>`;
+        return head + (one ? '' : us.sort((a, b) => val(b.totals) - val(a.totals)).map((u, j) => `<tr class="nest${j === us.length - 1 ? ' last' : ''}"><td></td><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td>${row(u)}<td></td></tr>`).join(''));
+      }).join('') + '</tbody>' : empty;
+    return;
+  }
+  // per hour / day: newest first, only periods with usage
+  const rows = data.series.slice().reverse().flatMap((b) => Object.entries(b.v).map(([sub, t]) => ({ sub, b, t })));
+  $('breakdown').innerHTML = rows.length ? `<thead><tr><th>#</th><th>${day ? 'Day' : 'Hour'}</th><th class="r">Cost</th><th class="r hide-s">Share</th><th class="r">Tokens</th><th></th></tr></thead><tbody>` +
     rows.map((r, i) => {
       const share = subTot[r.sub] ? val(r.t) / subTot[r.sub] : 0;
-      const inner = `<span class="n">${r.lead}<span class="l">${esc(r.name)}</span></span><span class="track"><span class="sbar" style="width:${(share * 100).toFixed(2)}%;background:${r.color}"></span></span>`;
-      return `<tr><td class="muted num">${i + 1}</td><td style="width:60%">${r.idx != null ? `<button class="nm" style="width:100%" data-model="${r.idx}">${inner}</button>` : `<span class="nm" style="width:100%">${inner}</span>`}</td>${multi ? `<td class="muted hide-s">${esc(subInfo(r.sub).label)}</td>` : ''}<td class="r v num">${r.priced ? fmtC(r.t.cost) : '<span class="muted" style="font-weight:400">Unpriced</span>'}</td><td class="r v num hide-s">${(share * 100).toFixed(1)}%</td><td class="r v num">${fmtN(r.t.tokens)}</td></tr>`;
-    }).join('') + '</tbody>' : '<tbody><tr><td colspan="6" class="muted" style="padding-left:0">No usage in this period.</td></tr></tbody>';
+      const parts = Object.entries(((r.b.m || {})[r.sub]) || {}).map(([m, c]) => [m, S.metric === 'cost' ? c.cost : c.tokens]).filter((p) => p[1] > 0).sort((a, b) => b[1] - a[1]);
+      return `<tr><td class="muted num">${i + 1}</td><td style="width:60%"><span class="nm" style="width:100%"><span class="n"><span class="l">${esc(tickLabel(r.b.t, data.step, true))}</span>${multi ? `<span class="sub2">· ${esc(subInfo(r.sub).label)}</span>` : ''}</span>${splitTrack(parts, share)}</span></td><td class="r v num">${fmtC(r.t.cost)}</td><td class="r v num hide-s">${(share * 100).toFixed(1)}%</td><td class="r v num">${fmtN(r.t.tokens)}</td><td></td></tr>`;
+    }).join('') + '</tbody>' : empty;
 }
-$('breakdown').addEventListener('click', (e) => { const b = e.target.closest('[data-model]'); if (b) openModel(data.models[Number(b.dataset.model)]); });
+$('breakdown').addEventListener('click', (e) => { const r = e.target.closest('tr[data-g]'); if (r) openModel(bdGroups[Number(r.dataset.g)]); });
+$('breakdown').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('tr.click')) { e.preventDefault(); e.target.click(); } });
 
-function openModel(m) {
-  const t = m.totals, sub = subInfo(m.sub);
-  const subTotal = (data.subscriptions.find((s) => s.sub === m.sub) || { totals: { cost: 0, tokens: 0 } }).totals;
-  const share = S.metric === 'cost' ? (subTotal.cost ? t.cost / subTotal.cost : 0) : (subTotal.tokens ? t.tokens / subTotal.tokens : 0);
-  const inputSide = t.in + t.cr + t.cw;
-  $('dlgBody').innerHTML = `<h3 id="dlgTitle">${glyph(m.provider)}${esc(m.model)}</h3>
-    <div class="muted" style="margin-top:6px">${esc(sub.label)} · ${(share * 100).toFixed(1)}% of ${S.metric === 'cost' ? 'cost' : 'tokens'}</div>
-    <div class="dstats">${[['Cost', m.priced ? fmtC(t.cost) : '—'], ['Tokens', fmtN(t.tokens)], ['Per 1M tokens', m.priced && t.tokens ? fmtC(t.cost / t.tokens * 1e6) : '—'], ['Cache hit', inputSide ? (t.cr / inputSide * 100).toFixed(1) + '%' : '—']].map(([k, v]) => `<div><div class="muted" style="font-size:14px">${k}</div><div class="v num">${v}</div></div>`).join('')}</div>
-    <div class="dtypes"><div><h2>Cost by type</h2>${typeBlock(t, true)}</div><div><h2>Tokens by type</h2>${typeBlock(t, false)}</div></div>`;
+// ---- model modal: everything comes from the summary already loaded, so it opens instantly.
+// Click a machine to highlight it; Ctrl/Cmd or Shift-click leaves it out (greyed). Starts with every machine
+// that the page filters allow.
+let MD = null;
+function openModel(g) {
+  MD = { model: g.model, provider: g.provider, subs: g.subs, priced: g.priced, ex: new Set(), hi: null };
   $('dlg').showModal();
+  renderModal();
 }
+function renderModal() {
+  if (!MD || !$('dlg').open) return;
+  const { model, subs } = MD;
+  const pm = new Map();
+  for (const r of data.modelMachines) if (r.model === model && subs.includes(r.sub)) { const a = pm.get(r.machine) || []; a.push(r.totals); pm.set(r.machine, a); }
+  const ms = [...pm].map(([m, l]) => [m, sumT(l)]).sort((a, b) => val(b[1]) - val(a[1]));
+  if (!ms.length) { $('dlg').close(); return; } // filtered away
+  const all = sumT(ms.map((x) => x[1]));
+  const inc = ms.filter(([m]) => !MD.ex.has(m));
+  const sel = MD.hi ? ms.filter(([m]) => m === MD.hi) : inc;
+  const t = sumT(sel.map((x) => x[1]));
+  const den = data.subscriptions.filter((s) => subs.includes(s.sub)).reduce((a, s) => a + val(s.totals), 0);
+  const inputSide = t.in + t.cr + t.cw;
+  const scope = MD.hi ? esc(MD.hi) : inc.length === ms.length ? (ms.length === 1 ? esc(ms[0][0]) : `all ${ms.length} machines`) : `${inc.length} of ${ms.length} machines`;
+  const subNames = subs.map((s) => esc(subInfo(s).label)).join(', ');
+  const series = (m) => data.series.map((b) => subs.reduce((a, s) => { const c = (b.x || {})[`${s}|${model}|${m}`]; return a + (c ? (S.metric === 'cost' ? c[0] : c[1]) : 0); }, 0));
+  $('dlgBody').innerHTML = `<h3 id="dlgTitle">${glyph(MD.provider)}${esc(pretty(model))}</h3>
+    <div class="muted" style="margin-top:6px">${subNames} · <span class="faint">${esc(model)}</span> · ${den ? (val(t) / den * 100).toFixed(1) : '0.0'}% of ${S.metric === 'cost' ? 'cost' : 'tokens'} · ${scope}</div>
+    <div class="dstats">${[['Cost', MD.priced ? fmtC(t.cost) : '—'], ['Tokens', fmtN(t.tokens)], ['Per 1M tokens', MD.priced && t.tokens ? fmtC(t.cost / t.tokens * 1e6) : '—'], ['Cache hit', inputSide ? (t.cr / inputSide * 100).toFixed(1) + '%' : '—']].map(([k, v]) => `<div><div class="muted" style="font-size:14px">${k}</div><div class="v num">${v}</div></div>`).join('')}</div>
+    <div class="chart dchart"><svg role="img"></svg><div class="tip"></div></div>
+    ${ms.length > 1 ? '<p class="dhint">Click a machine to highlight it · Ctrl or Shift-click to leave it out</p>' : ''}
+    <div class="dm${MD.hi ? ' hi' : ''}">${ms.map(([m, mt]) => `<button data-dm="${esc(m)}" aria-pressed="${MD.hi === m}" class="${MD.ex.has(m) ? 'ex' : ''}" style="--mc:${mcol(m)}"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><b class="r num">${fmtV(val(mt))}</b><span class="r num muted">${val(all) ? (val(mt) / val(all) * 100).toFixed(1) : '0.0'}%</span><span class="r num muted tk">${S.metric === 'cost' ? fmtN(mt.tokens) : fmtC(mt.cost)}</span><i class="dbar" style="width:${val(ms[0][1]) ? (val(mt) / val(ms[0][1]) * 100).toFixed(2) : 0}%"></i></button>`).join('')}</div>
+    <div class="dtypes" style="margin-top:26px"><div><h2>Cost by type</h2>${typeBlock(t, true)}</div><div><h2>Tokens by type</h2>${typeBlock(t, false)}</div></div>`;
+  drawChart($('dlgBody').querySelector('.chart'), {
+    label: `${pretty(model)} by machine`, height: 200, total: true, stack: true,
+    lines: ms.map(([m]) => {
+      const off = MD.ex.has(m), dimmed = MD.hi && MD.hi !== m;
+      return { html: `${mdot(m)}${esc(m)}`, c: off ? '#3a3a3a' : mcol(m), dim: off, o: off ? 0.35 : dimmed ? 0.3 : 1, w: MD.hi === m ? 2.4 : 1.8, fill: S.chart.fill && !off && !dimmed, vals: series(m) };
+    }),
+    lanes: S.chart.lanes ? subs.map(laneOf).filter(Boolean) : [],
+  });
+}
+$('dlgBody').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-dm]');
+  if (!b || !MD) return;
+  const m = b.dataset.dm;
+  if (e.ctrlKey || e.metaKey || e.shiftKey) {
+    const n = $('dlgBody').querySelectorAll('[data-dm]').length;
+    if (MD.ex.has(m)) MD.ex.delete(m);
+    else if (MD.ex.size < n - 1) { MD.ex.add(m); if (MD.hi === m) MD.hi = null; } // keep at least one
+  } else { MD.ex.delete(m); MD.hi = MD.hi === m ? null : m; }
+  renderModal();
+});
 $('dlgClose').onclick = () => $('dlg').close();
 $('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
 
@@ -566,7 +940,7 @@ function renderMachines() {
         ${subs.length === 1 ? `<div class="mbar"><i style="width:${(share * 100).toFixed(2)}%"></i></div>` : ''}
       </div>
       ${sess.length ? `<div class="sess">${sess.map((x) => `<div class="srow2${now - x.last < 3 * 60e3 ? '' : ' idle'}">
-        <span class="m">${glyph(x.provider)}${esc(x.model)}${subs.length > 1 || data.options.subscriptions.length > 1 ? ` <span class="faint">· ${esc(x.label)}</span>` : ''}</span>
+        <span class="m">${glyph(x.provider)}${esc(pretty(x.model))}${subs.length > 1 || data.options.subscriptions.length > 1 ? ` <span class="faint">· ${esc(x.label)}</span>` : ''}</span>
         <span class="t">running <b class="num" data-since="${x.streak}">${dur(now - x.streak)}</b> · last <span data-ago="${x.last}">${ago(now - x.last)}</span></span>
         <span class="r num">${fmtN(x.totals.tokens)} · <b>${fmtC(x.totals.cost)}</b></span></div>`).join('')}</div>` : ''}
     </div>`;
@@ -626,6 +1000,7 @@ function setLive(on) {
 seg('range', 'range', load);
 seg('metric', 'metric', () => data && render());
 seg('bd', 'bd', () => data && renderBreakdown());
+seg('merge', 'merge', () => data && renderBreakdown());
 $('liveBtn').onclick = () => setLive(!S.live);
 $('refresh').onclick = load;
 setLive(S.live);
@@ -638,7 +1013,7 @@ setInterval(() => {
 setInterval(() => { if (!S.live) load(); }, 60e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 let rz = null;
-addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => data && renderCharts(), 120); });
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (data) { renderCharts(); renderModal(); } }, 120); });
 </script>
 </body>
 </html>

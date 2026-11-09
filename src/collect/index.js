@@ -32,7 +32,7 @@ class Collector {
     if (!this.state.installedAt) this.state.installedAt = Date.now();
     this.fileLists = new Map(); // tracked index -> { at, files }
     this.seen = new Set();
-    for (const ev of store.get(cfg.nodeId)) if (ev.k === 'u') this.seen.add(ev.id);
+    for (const ev of store.get(cfg.nodeId)) if (ev.id) this.seen.add(ev.id);
     this.warned = new Set();
     this.busy = false;
   }

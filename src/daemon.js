@@ -9,6 +9,7 @@ const { Collector } = require('./collect');
 const { Syncer, status, tailscale, giveFor, ingestAll } = require('./sync');
 const { summarize } = require('./aggregate');
 const prices = require('./prices');
+const { startLimits } = require('./limits');
 const { Tunnel } = require('./tunnel');
 const { paths, loadConfig, log, VERSION, PROTOCOL, SERVICE } = require('./util');
 
@@ -264,6 +265,7 @@ async function main() {
   syncer.run().then(joinTunnel);
 
   setInterval(scan, 5000);
+  startLimits(cfg, store);
   setInterval(() => { refreshTailscale().then(() => syncer.run()).then(joinTunnel); }, 60e3);
   setInterval(() => store.appendLocal(self, [{ k: 'hb' }]), 120e3);
   setInterval(() => prices.refresh(), 6 * 3600e3);

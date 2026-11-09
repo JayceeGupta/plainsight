@@ -88,6 +88,35 @@ test('aggregate: subscriptions are never summed together', () => {
   assert.deepStrictEqual(only.subscriptions.map((x) => x.label), ['Max two']);
 });
 
+test('aggregate: first machine names a subscription; limits give bands, resets and the window range', () => {
+  const s = new Store(tmp());
+  const now = Date.parse('2026-11-09T12:00:00Z');
+  const H = 3600e3, wk = 7 * 864e5;
+  s.appendLocal(A, [{ k: 'sub', sub: 'x', p: 'claude', label: 'Claude Max', t: now - 10 * H },
+    { k: 'u', p: 'claude', sub: 'x', sid: 's', m: 'm', in: 1, cr: 0, cw: 0, out: 1, id: 'u1', t: now - 2 * H },
+    { k: 'hb', sub: 'x', p: 'claude', t: now - 6 * H, lim: [{ m: 300, u: 90, r: now - 4 * H }, { m: 10080, u: 50, r: now + 2 * 864e5 }] },
+    { k: 'hb', sub: 'x', p: 'claude', t: now - H, lim: [{ m: 300, u: 20, r: now + 3 * H }, { m: 10080, u: 60, r: now + 2 * 864e5 }] }]);
+  s.appendLocal(B, [{ k: 'sub', sub: 'x', p: 'claude', label: 'renamed later', t: now - H }]);
+  const d = summarize(s.all(), { range: '7d' }, now);
+  assert.strictEqual(d.subscriptions[0].label, 'Claude Max');
+  const L = d.limits.x;
+  assert.deepStrictEqual(L.windows.map((w) => [w.m, w.u]), [[300, 20], [10080, 60]]);
+  assert.deepStrictEqual(L.bands, [[now - 9 * H, now - 4 * H], [now - 2 * H, now + 3 * H]]);
+  assert.deepStrictEqual(L.resets, [now + 2 * 864e5 - wk]);
+  const w = summarize(s.all(), { range: 'win' }, now);
+  assert.strictEqual(w.limitSub, 'x');
+  assert.strictEqual(w.from, now - 2 * H);
+  assert.strictEqual(w.subscriptions[0].totals.tokens, 2);
+  // a store on an older version must still accept these heartbeats; garbage lim is refused
+  assert.throws(() => s.appendLocal(A, [{ k: 'hb', lim: [{ m: 'x' }] }]), /bad lim/);
+});
+
+test('codex parser: rate limits become heartbeat events only when they change', () => {
+  const rl = (u) => JSON.stringify({ timestamp: '2026-11-01T10:00:00Z', type: 'event_msg', payload: { type: 'token_count', rate_limits: { primary: { used_percent: u, window_minutes: 300, resets_at: 1793570000 }, secondary: null } } });
+  const evs = parseCodex([rl(10), rl(10), rl(12)], {});
+  assert.deepStrictEqual(evs.map((e) => [e.k, e.lim[0].u, e.lim[0].r]), [['hb', 10, 1793570000000], ['hb', 12, 1793570000000]]);
+});
+
 test('pool: default policy becomes isolated; custom policy is flagged', () => {
   const { policy, isDefault } = buildPolicy({ grants: [{ src: ['*'], dst: ['*'], ip: ['*'] }], ssh: [1] }, '100.1.2.3');
   assert.ok(isDefault);

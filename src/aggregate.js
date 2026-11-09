@@ -4,12 +4,14 @@
 const prices = require('./prices');
 
 const RANGES = { '1h': 3600e3, '5h': 5 * 3600e3, '24h': 24 * 3600e3, '7d': 7 * 864e5, '30d': 30 * 864e5, '90d': 90 * 864e5 };
+// 'win' / 'week': from the start of the current short / long limit window of one subscription
+const LIMIT_RANGES = { win: 900e3, week: 3600e3 };
 const ONLINE_MS = 5 * 60e3;
 const LIVE_MS = 10 * 60e3;
 const STREAK_GAP = 30 * 60e3;
 
 function bucketSize(range) {
-  return { '1h': 5 * 60e3, '5h': 15 * 60e3, '24h': 3600e3 }[range] || 864e5;
+  return { '1h': 5 * 60e3, '5h': 15 * 60e3, '24h': 3600e3, '7d': 3600e3, ...LIMIT_RANGES }[range] || 864e5;
 }
 
 function emptyTotals() {
@@ -32,6 +34,9 @@ function index(events) {
   const subs = new Map();
   const anns = [];
   const usage = [];
+  const lims = []; // hb events carrying plan limits
+  const subFirst = new Map(); // sub -> origin that announced it first (its label wins)
+  const subLabels = new Map(); // sub|origin -> newest sub event
   const colors = new Map(); // machine nick -> { c, t }, newest wins
   for (const ev of events) {
     let n = nodes.get(ev.o);
@@ -41,13 +46,17 @@ function index(events) {
     if (ev.k === 'hello' && ev.t >= n.helloT) {
       n.helloT = ev.t; n.nick = ev.nick || n.nick; n.host = ev.host || null; n.os = ev.os || null; n.op = ev.op || null; n.ver = ev.ver || null;
     } else if (ev.k === 'sub') {
-      const s = subs.get(ev.sub);
-      if (!s || ev.t >= s.t) subs.set(ev.sub, { sub: ev.sub, label: ev.label, provider: ev.p, t: ev.t });
-    } else if (ev.k === 'ann') anns.push(ev);
+      const f = subFirst.get(ev.sub);
+      if (!f || ev.t < f.t) subFirst.set(ev.sub, { o: ev.o, t: ev.t });
+      const lk = `${ev.sub}|${ev.o}`, l = subLabels.get(lk);
+      if (!l || ev.t >= l.t) subLabels.set(lk, ev);
+    } else if (ev.k === 'hb' && ev.sub && Array.isArray(ev.lim)) lims.push(ev); else if (ev.k === 'ann') anns.push(ev);
     else if (ev.k === 'color') { const x = colors.get(ev.mach); if (!x || ev.t >= x.t) colors.set(ev.mach, { c: ev.c, t: ev.t }); }
     else if (ev.k === 'u') usage.push(ev);
   }
-  return { nodes, subs, anns, usage, colors };
+  // Every machine on a subscription announces its own label; the first machine to announce it names it.
+  for (const [sub, f] of subFirst) { const ev = subLabels.get(`${sub}|${f.o}`); subs.set(sub, { sub, label: ev.label, provider: ev.p, t: ev.t }); }
+  return { nodes, subs, anns, usage, colors, lims };
 }
 
 function machineName(nodes, origin) {
@@ -63,24 +72,34 @@ function parseList(v) {
 
 // q: { range, subs, machines, providers, tz (minutes, as Date#getTimezoneOffset) }
 function summarize(events, q = {}, now = Date.now()) {
-  const range = RANGES[q.range] ? q.range : '7d';
-  const from = now - RANGES[range];
+  const { nodes, subs, anns, usage, colors, lims } = index(events);
+  const subsF = parseList(q.subs);
+  const limits = limitInfo(lims, now);
+  let range = RANGES[q.range] || LIMIT_RANGES[q.range] ? q.range : '7d';
+  let from = now - (RANGES[range] || 0);
+  let limitSub = null;
+  if (LIMIT_RANGES[range]) {
+    // one subscription in view, with known limits; otherwise fall back to a plain range
+    const cand = Object.keys(limits).filter((s) => !subsF || subsF.has(s));
+    const w = cand.length === 1 && limits[cand[0]].windows.slice().sort((a, b) => a.m - b.m)[range === 'win' ? 0 : limits[cand[0]].windows.length - 1];
+    if (w) { limitSub = cand[0]; from = w.start; } else { range = range === 'win' ? '5h' : '7d'; from = now - RANGES[range]; }
+  }
   const step = bucketSize(range);
   const tzMs = (Number(q.tz) || 0) * 60e3;
   const align = (t) => (step >= 864e5 ? Math.floor((t - tzMs) / step) * step + tzMs : Math.floor(t / step) * step);
-  const subsF = parseList(q.subs);
   const machF = parseList(q.machines);
   const provF = parseList(q.providers);
 
-  const { nodes, subs, anns, usage, colors } = index(events);
   const subInfo = (id, p) => subs.get(id) || { sub: id, label: `${p || 'unknown'} ${id.slice(0, 6)}`, provider: p };
   const pass = (ev) => (!subsF || subsF.has(ev.sub)) && (!machF || machF.has(machineName(nodes, ev.o))) && (!provF || provF.has(ev.p));
 
   const bySub = new Map();
   const byModel = new Map();
   const byMachine = new Map();
+  const byModelMachine = new Map();
   const buckets = new Map();
   const bucketsM = new Map();
+  const bucketsX = new Map();
   const sessionSets = new Map();
   const sessions = new Map(); // all-time per session, for live view
   const machineSubs = new Map();
@@ -110,6 +129,10 @@ function summarize(events, q = {}, now = Date.now()) {
     if (!byModel.has(mk)) byModel.set(mk, { sub: ev.sub, model: ev.m, provider: ev.p, priced: !!c, totals: emptyTotals() });
     add(byModel.get(mk).totals, ev, c);
 
+    const xk = `${ev.sub}|${ev.m}|${mname}`;
+    if (!byModelMachine.has(xk)) byModelMachine.set(xk, { sub: ev.sub, model: ev.m, machine: mname, totals: emptyTotals() });
+    add(byModelMachine.get(xk).totals, ev, c);
+
     const hk = `${ev.sub}|${mname}`;
     if (!byMachine.has(hk)) byMachine.set(hk, { sub: ev.sub, machine: mname, totals: emptyTotals(), sessions: new Set() });
     const bm = byMachine.get(hk);
@@ -126,14 +149,20 @@ function summarize(events, q = {}, now = Date.now()) {
     const bm2 = bucketsM.get(bt);
     const pm = (bm2[ev.sub] = bm2[ev.sub] || {});
     const cell = (pm[mname] = pm[mname] || { cost: 0, tokens: 0 });
-    cell.tokens += (ev.in || 0) + (ev.cr || 0) + (ev.cw || 0) + (ev.out || 0);
-    if (c) cell.cost += c.input + c.cacheRead + c.cacheWrite + c.output;
+    const tok = (ev.in || 0) + (ev.cr || 0) + (ev.cw || 0) + (ev.out || 0);
+    const cc = c ? c.input + c.cacheRead + c.cacheWrite + c.output : 0;
+    cell.tokens += tok; cell.cost += cc;
+    // per model and machine (model modal chart): x[sub|model|machine] = [cost, tokens]
+    if (!bucketsX.has(bt)) bucketsX.set(bt, {});
+    const bx = bucketsX.get(bt);
+    const xc = (bx[xk] = bx[xk] || [0, 0]);
+    xc[0] += cc; xc[1] += tok;
   }
   for (const [sub, set] of sessionSets) bySub.get(sub).totals.sessions = set.size;
 
   // Continuous bucket axis
   const series = [];
-  for (let t = align(from); t <= now; t += step) series.push({ t, v: buckets.get(t) || {}, m: bucketsM.get(t) || {} });
+  for (let t = align(from); t <= now; t += step) series.push({ t, v: buckets.get(t) || {}, m: bucketsM.get(t) || {}, x: bucketsX.get(t) || {} });
 
   const machines = [...groupMachines(nodes, machineSubs, now).values()]
     .filter((m) => !machF || machF.has(m.nick))
@@ -149,10 +178,26 @@ function summarize(events, q = {}, now = Date.now()) {
     .map((a) => ({ machine: machineName(nodes, a.o), op: (nodes.get(a.o) || {}).op || null, msg: a.msg, heavy: !!a.heavy, until: a.until, t: a.t }))
     .sort((a, b) => b.t - a.t);
 
+  // limit marks inside the shown period, per subscription in view
+  const inView = new Set(bySub.keys());
+  for (const s of Object.keys(limits)) if (subsF && !subsF.has(s)) inView.delete(s); else if (!subsF) inView.add(s);
+  const limitsOut = {};
+  for (const s of inView) {
+    const L = limits[s];
+    if (!L) continue;
+    limitsOut[s] = {
+      t: L.t, windows: L.windows,
+      // short windows only up to 7 days, as their own bands
+      bands: now - from <= RANGES['7d'] + 3600e3 ? L.bands.filter(([a, b]) => b > from && a < now) : [],
+      resets: L.resets(from, now),
+    };
+  }
+
   return {
-    now, range, from, step,
+    now, range, from, step, limitSub, limits: limitsOut,
     subscriptions: [...bySub.values()].sort((a, b) => b.totals.cost - a.totals.cost || b.totals.tokens - a.totals.tokens),
     models: [...byModel.values()].map((r) => ({ ...r, label: subInfo(r.sub, r.provider).label })).sort((a, b) => b.totals.cost - a.totals.cost || b.totals.tokens - a.totals.tokens),
+    modelMachines: [...byModelMachine.values()],
     machineUsage: [...byMachine.values()].map((r) => ({ sub: r.sub, label: subInfo(r.sub).label, machine: r.machine, totals: { ...r.totals, sessions: r.sessions.size } })).sort((a, b) => b.totals.tokens - a.totals.tokens),
     series,
     live,
@@ -167,6 +212,45 @@ function summarize(events, q = {}, now = Date.now()) {
       providers: [...new Set(usage.map((e) => e.p))].sort(),
     },
   };
+}
+
+// Latest plan limits per subscription, plus past short windows and long-window reset times.
+// lims: hb events { sub, t, lim: [{ m: minutes, u: % used, r: reset ms }] }
+function limitInfo(lims, now) {
+  const by = {};
+  for (const ev of lims) (by[ev.sub] = by[ev.sub] || []).push(ev);
+  const out = {};
+  for (const [sub, evs] of Object.entries(by)) {
+    evs.sort((a, b) => a.t - b.t);
+    const last = evs[evs.length - 1];
+    const ms = [...new Set(last.lim.map((w) => w.m))].sort((a, b) => a - b);
+    const windows = ms.map((m) => {
+      const w = last.lim.find((x) => x.m === m);
+      let r = w.r, u = w.u;
+      const len = m * 60e3;
+      // a fixed-period window (weekly/monthly) rolls over on its own; a lapsed 5h window is just empty
+      if (r <= now) { u = 0; if (m >= 1440) r += Math.ceil((now - r) / len) * len; }
+      return { m, u, r, start: r > now ? r - len : now, asOf: last.t };
+    });
+    // every short window ever seen = one band
+    const bands = [];
+    const shortM = ms[0];
+    if (shortM && shortM < 1440 && ms.length > 1) {
+      const seen = new Set();
+      for (const ev of evs) for (const w of ev.lim) if (w.m === shortM && !seen.has(w.r)) { seen.add(w.r); bands.push([w.r - shortM * 60e3, w.r]); }
+    }
+    const longW = windows.filter((w) => w.m >= 1440).pop();
+    out[sub] = {
+      t: last.t, windows, bands,
+      resets: (from, to) => {
+        if (!longW) return [];
+        const len = longW.m * 60e3, res = [];
+        for (let r = longW.r - Math.ceil((longW.r - from) / len) * len; r <= to; r += len) if (r >= from) res.push(r);
+        return res;
+      },
+    };
+  }
+  return out;
 }
 
 // Several origins can share a nickname (a rebuilt box); show them as one machine.

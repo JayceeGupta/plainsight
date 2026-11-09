@@ -273,6 +273,7 @@ If the Worker's daily limit is ever exceeded on the free plan, nothing is billed
 - **What Cloudflare sees.** TLS ends at Cloudflare, so Cloudflare can see the dashboard's contents: usage numbers, machine nicknames, operator names, subscription labels and announcements. Never prompts, code or paths; those never leave the machine that wrote them.
 - **The tunnel token** can run connectors for this one tunnel and nothing else in your Cloudflare account. Anyone holding it could add a connector and answer some of your visitors' requests, so give it only to machines you already trust in the pool. Keep it in its file (mode 600); plainsight never prints it or puts it on a command line.
 - **The API token and the Google client secret** are never stored by plainsight. The Google secret lives in Cloudflare.
+- **Plan limits.** Every 5 minutes, a machine logged into a tracked Claude subscription asks `api.anthropic.com/api/oauth/usage` for its 5-hour and weekly limits, using the login Claude Code already saved (`<config dir>/.credentials.json`). The token is sent only to Anthropic, never refreshed, stored or shared by plainsight. Only the window length, the % used and the reset time go to the pool. Codex limits come from its own session logs, with no network call. On macOS the Claude login is in the keychain, so those machines report no limits. The endpoint is undocumented and may change; the limit meters and lanes then disappear and everything else keeps working.
 
 ---
 

@@ -46,6 +46,12 @@ function parseCodex(lines, ctx) {
     if (o.type === 'turn_context') { if (p.model) ctx.model = String(p.model).slice(0, 80); continue; }
     const t = Date.parse(o.timestamp);
     if (!Number.isFinite(t)) continue;
+    if (o.type === 'event_msg' && p.type === 'token_count' && p.rate_limits) {
+      const lim = codexLimits(p.rate_limits, t);
+      const key = JSON.stringify(lim);
+      // k 'hb' so peers on older versions accept it; only emitted when the numbers change
+      if (lim.length && key !== ctx.limKey) { ctx.limKey = key; out.push({ k: 'hb', p: 'codex', t, id: hash(`xl:${ctx.sid}:${t}:${key}`, 20), acctSub: ctx.acctSub || null, lim }); }
+    }
     if (o.type === 'token_usage_record' && p.usage) {
       out.push(codexEvent(p.usage, t, ctx, hash(`x:${p.response_id || ''}:${p.response_id ? '' : line}`, 20)));
     } else if (!ctx.hasRecords && o.type === 'event_msg' && p.type === 'token_count' && p.info && p.info.total_token_usage) {
@@ -71,6 +77,17 @@ function codexEvent(u, t, ctx, id) {
     in: Math.max(0, num(u.input_tokens) - cached), // OpenAI input_tokens includes cached
     cr: cached, cw: num(u.cache_write_input_tokens), out: num(u.output_tokens), rs: num(u.reasoning_output_tokens),
   };
+}
+
+// rate_limits.primary/secondary: { used_percent, window_minutes, resets_at (s) | resets_in_seconds }
+function codexLimits(rl, t) {
+  const out = [];
+  for (const w of [rl.primary, rl.secondary]) {
+    if (!w || !(w.window_minutes > 0)) continue;
+    const r = w.resets_at > 0 ? w.resets_at * 1000 : w.resets_in_seconds > 0 ? t + w.resets_in_seconds * 1000 : 0;
+    if (r) out.push({ m: Math.round(w.window_minutes), u: Math.max(0, Math.min(100, Math.round(num(w.used_percent)))), r: Math.round(r) });
+  }
+  return out;
 }
 
 function num(v) {
