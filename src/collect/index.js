@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseClaude, parseCodex } = require('./parsers');
 const { currentSub } = require('../discover');
-const { readJSON, writeJSON, paths, log } = require('../util');
+const { readJSON, writeJSON, paths, log, hash } = require('../util');
 
 const CHUNK = 8 * 1024 * 1024;
 
@@ -107,6 +107,20 @@ class Collector {
     return added;
   }
 
+  // sid = the hashed session id used in events. Claude files are named <sessionId>.jsonl; Codex
+  // rollout files end in the session uuid.
+  sessionInfo(sid) {
+    for (let i = 0; i < this.cfg.tracked.length; i++) {
+      const t = this.cfg.tracked[i];
+      for (const file of this.files(i, t)) {
+        const base = path.basename(file, '.jsonl');
+        const id = t.provider === 'claude' ? base : (base.match(/[0-9a-f]{8}-[0-9a-f-]{27}$/) || [])[0];
+        if (id && hash(id, 12) === sid) return readSession(file, t.provider, id);
+      }
+    }
+    return null;
+  }
+
   // Strict account guard: never attribute usage to the wrong subscription.
   belongs(t, ev, since, liveSub) {
     if (ev.t < since) return false;
@@ -125,4 +139,39 @@ class Collector {
   }
 }
 
-module.exports = { Collector, listFiles };
+// The head and tail of a transcript are enough: the start, and the newest title, effort and place.
+function readSession(file, provider, id) {
+  const size = fs.statSync(file).size, HEAD = 256 * 1024, TAIL = 2 * 1024 * 1024;
+  const fd = fs.openSync(file, 'r');
+  const part = (off, len) => { const b = Buffer.alloc(len); fs.readSync(fd, b, 0, len, off); return b.toString('utf8'); };
+  let text;
+  try { text = size <= HEAD + TAIL ? part(0, size) : part(0, HEAD) + '\n' + part(size - TAIL, TAIL); } finally { fs.closeSync(fd); }
+  const info = { id, provider };
+  const str = (v, n = 200) => (typeof v === 'string' && v ? v.slice(0, n) : undefined);
+  for (const line of text.split('\n')) {
+    let o;
+    try { o = JSON.parse(line); } catch { continue; }
+    const ts = Date.parse(o.timestamp);
+    if (Number.isFinite(ts) && !info.start) info.start = ts;
+    if (provider === 'claude') {
+      if (o.type === 'custom-title') info.title = str(o.customTitle);
+      else if (o.type === 'ai-title' && !info.custom) info.aiTitle = str(o.aiTitle);
+      if (o.type === 'custom-title') info.custom = true;
+      if (str(o.effort)) info.effort = o.effort;
+      if (o.type === 'user' || o.type === 'assistant') {
+        info.cwd = str(o.cwd, 400) || info.cwd; info.branch = str(o.gitBranch, 100) || info.branch;
+        info.via = str(o.entrypoint, 40) || info.via; info.ver = str(o.version, 40) || info.ver;
+      }
+    } else {
+      const p = o.payload || {};
+      if (o.type === 'session_meta') { info.cwd = str(p.cwd, 400); info.via = str(p.originator, 40); info.ver = str(p.cli_version, 40); }
+      if (o.type === 'turn_context') { info.effort = str(p.effort) || str(p.reasoning_effort) || info.effort; info.cwd = str(p.cwd, 400) || info.cwd; }
+    }
+  }
+  info.title = info.title || info.aiTitle;
+  delete info.aiTitle; delete info.custom;
+  info.project = info.cwd ? path.basename(info.cwd) : undefined;
+  return info;
+}
+
+module.exports = { Collector, listFiles, readSession };

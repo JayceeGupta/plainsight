@@ -88,6 +88,19 @@ test('aggregate: subscriptions are never summed together', () => {
   assert.deepStrictEqual(only.subscriptions.map((x) => x.label), ['Max two']);
 });
 
+test('session details: newest custom title, effort, place and start from a transcript', () => {
+  const { readSession } = require('../src/collect');
+  const f = path.join(tmp(), 'S1.jsonl');
+  fs.writeFileSync(f, [
+    { type: 'ai-title', aiTitle: 'auto' },
+    { type: 'user', timestamp: '2026-11-01T10:00:00Z', cwd: '/x/proj', gitBranch: 'main', entrypoint: 'cli', message: { role: 'user', content: 'hi' } },
+    { type: 'custom-title', customTitle: 'mine' },
+    { type: 'assistant', timestamp: '2026-11-01T10:01:00Z', effort: 'high', message: {} },
+  ].map((o) => JSON.stringify(o)).join('\n') + '\n');
+  const i = readSession(f, 'claude', 'S1');
+  assert.deepStrictEqual([i.title, i.effort, i.project, i.branch, i.via, i.start], ['mine', 'high', 'proj', 'main', 'cli', Date.parse('2026-11-01T10:00:00Z')]);
+});
+
 test('live: a prompt shows the session at once; end_turn ends the turn', () => {
   const now = Date.now();
   const P = (t) => JSON.stringify({ type: 'user', uuid: 'u' + t, sessionId: 'S1', timestamp: new Date(t).toISOString(), message: { role: 'user', content: 'write an essay' } });

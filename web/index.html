@@ -132,6 +132,17 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .stw { display: flex; align-items: center; gap: 6px; width: 100%; }
 .stw .stl { flex: 1; }
 .mtip { min-width: 0; }
+.mtip .ttl { display: block; max-width: 300px; white-space: normal; line-height: 1.35; }
+.mtab .lvm[data-mtip="ses"] { cursor: pointer; }
+.mtab .lvm[data-mtip="ses"]:hover span:nth-child(2) { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 9px 14px 9px 11px; border-radius: 10px; background: #000; border: 1px solid var(--line2); color: var(--text); font-size: 13.5px; box-shadow: 0 12px 32px rgba(0,0,0,.7); pointer-events: none; opacity: 0; translate: -50% 10px; transition-property: opacity, translate; transition-duration: .2s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
+.toast.on { opacity: 1; translate: -50% 0; }
+.toast svg { width: 15px; height: 15px; color: var(--ok); }
+.dd > button { touch-action: pan-y; transition-property: background-color, scale, box-shadow; transition-duration: .15s; }
+.dd.drag { position: relative; z-index: 5; }
+.dd.drag > button { background: var(--pill); scale: 1.04; box-shadow: 0 10px 28px rgba(0,0,0,.7), 0 0 0 1px var(--line2); cursor: grabbing; }
+body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+@media (prefers-reduced-motion: reduce) { .toast { transition-duration: 0s; } }
 .stog .chev { display: inline-grid; width: 14px; height: 14px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
 .stog .chev svg { width: 14px; height: 14px; }
 .stog:not(.run):not(.idle)[aria-expanded="true"] { color: var(--text); }
@@ -553,6 +564,70 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.menu')) closeMenus();
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(); });
+
+// Header filters can be dragged into any order (kept per browser). Alt+Left/Right moves the focused one.
+(() => {
+  const nav = document.querySelector('.crumbs'), ids = ['dd-subs', 'dd-machines', 'dd-providers'];
+  const place = (order) => { const seps = [...nav.querySelectorAll(':scope > .sep')]; order.forEach((id, i) => seps[i].after($(id))); };
+  const cur = () => [...nav.querySelectorAll(':scope > .dd')].map((d) => d.id);
+  const ease = { duration: 220, easing: 'cubic-bezier(.2, 0, 0, 1)' };
+  const tx = (el) => parseFloat(el.style.translate) || 0;
+  // move others smoothly from where they were to where they now are
+  const flip = (order, skip) => {
+    const was = new Map(ids.map((id) => [id, $(id).getBoundingClientRect().left]));
+    place(order);
+    for (const id of ids) {
+      if (id === skip) continue;
+      const dx = was.get(id) - $(id).getBoundingClientRect().left;
+      if (dx) $(id).animate([{ translate: `${dx}px 0` }, { translate: '0 0' }], ease);
+    }
+  };
+  const saved = ls.get('ddorder', ids);
+  if (saved.length === 3 && ids.every((i) => saved.includes(i))) place(saved);
+  let drag = null, swallow = false;
+  nav.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('.dd > button');
+    if (!btn || e.button !== 0) return;
+    drag = { dd: btn.parentElement, x0: e.clientX, grab: e.clientX - btn.parentElement.getBoundingClientRect().left, on: false, id: e.pointerId };
+  });
+  addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const el = drag.dd;
+    if (!drag.on) {
+      if (Math.abs(e.clientX - drag.x0) < 6) return;
+      drag.on = true; closeMenus(); el.classList.add('drag'); document.body.classList.add('dragging');
+    }
+    const follow = () => { const base = el.getBoundingClientRect().left - tx(el); el.style.translate = `${e.clientX - drag.grab - base}px 0`; };
+    follow();
+    const order = cur(), i = order.indexOf(el.id);
+    const mid = (id) => { const r = $(id).getBoundingClientRect(); return r.left + r.width / 2; };
+    const j = i > 0 && e.clientX < mid(order[i - 1]) ? i - 1 : i < order.length - 1 && e.clientX > mid(order[i + 1]) ? i + 1 : i;
+    if (j !== i) { order.splice(i, 1); order.splice(j, 0, el.id); flip(order, el.id); follow(); }
+  });
+  const end = () => {
+    if (!drag) return;
+    const { dd: el, on } = drag;
+    drag = null;
+    if (!on) return;
+    swallow = true; setTimeout(() => { swallow = false; }, 0);
+    el.animate([{ translate: el.style.translate || '0 0' }, { translate: '0 0' }], ease);
+    el.style.translate = '';
+    el.classList.remove('drag'); document.body.classList.remove('dragging');
+    ls.set('ddorder', cur());
+  };
+  addEventListener('pointerup', end);
+  addEventListener('pointercancel', end);
+  nav.addEventListener('click', (e) => { if (swallow) { e.stopPropagation(); e.preventDefault(); } }, true);
+  nav.addEventListener('keydown', (e) => {
+    const btn = e.target.closest('.dd > button');
+    if (!btn || !e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    const order = cur(), i = order.indexOf(btn.parentElement.id), j = Math.max(0, Math.min(order.length - 1, i + (e.key === 'ArrowLeft' ? -1 : 1)));
+    if (j === i) return;
+    order.splice(i, 1); order.splice(j, 0, btn.parentElement.id);
+    flip(order); ls.set('ddorder', order); btn.focus();
+  });
+})();
 
 // Answers are kept per query so switching filters back and forth is instant; new data clears them.
 const qcache = new Map();
@@ -1224,8 +1299,7 @@ function renderMachines() {
         const el = Math.min(1.5, (l - pl) / 2, l), er = Math.min(1.5, (nr - r) / 2, 100 - r);
         return `<u data-mtip="blk" data-a="${k.a}" data-b="${k.b}" data-c="${k.c}" data-k="${k.k}" data-nm="${k.n}" data-model="${esc(x.model || '')}" style="left:${l - el}%;width:${r - l + el + er}%"></u><i style="left:${l}%;width:${Math.max(0, r - l)}%"></i>`;
       }).join('');
-      const tip = `${x.model ? pretty(x.model) : 'Working'}: ${f ? 'active' : 'idle'} · started ${new Date(x.start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · this stretch ${dur(now - x.streak)} · last message ${ago(now - x.last)}${multi || data.options.subscriptions.length > 1 ? ' · ' + x.label : ''}`;
-      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})"><td title="${esc(tip)}"><span class="lvm">${glyph(x.provider)}<span>${x.model ? esc(pretty(x.model)) : 'Working…'}</span><span class="lvt lvt-s num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stw"><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span><span class="stl">${blk}<b class="${f ? 'on' : ''}" style="left:${a2}%"></b></span><span class="stsc num">${sc}</span></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
+      return `<tr class="nest lv" style="--mc:${mcol(m.nick)};--pc:var(--${x.provider === 'codex' ? 'codex' : 'claude'})"><td><span class="lvm" data-mtip="ses" data-sid="${esc(x.sid)}" data-n="${esc(m.nick)}" data-start="${x.start}">${glyph(x.provider)}<span>${x.model ? esc(pretty(x.model)) : 'Working…'}</span><span class="lvt lvt-s num" data-since="${x.streak}">${dur(now - x.streak)}</span></span></td><td class="hide-s scell"><span class="stw"><span class="lvt num" data-since="${x.streak}">${dur(now - x.streak)}</span><span class="stl">${blk}<b class="${f ? 'on' : ''}" style="left:${a2}%"></b></span><span class="stsc num">${sc}</span></span></td><td class="r num">${S.metric === 'cost' ? fmtC(x.totals.cost) : fmtN(x.totals.tokens)}</td><td class="r num hide-s faint">${(Math.min(1, val(x.totals) / (val(best(m.nick).totals) || 1)) * 100).toFixed(1)}%</td><td class="r num hide-s">${S.metric === 'cost' ? fmtN(x.totals.tokens) : fmtC(x.totals.cost)}</td></tr>`;
     }) : [];
     const rows = [...subRows, ...liveRows];
     if (rows.length) rows[rows.length - 1] = rows[rows.length - 1].replace('<tr class="nest', '<tr class="nest last');
@@ -1236,7 +1310,28 @@ function renderMachines() {
 // On a strip part: whose part and how big.
 // The same card on a row and on a strip part (a part adds its share line).
 const isActive = (x) => (x.active != null ? x.active : Date.now() - x.last < 3 * 60e3);
+// a session's own details (title, project, effort…) are read from its transcript by the machine that ran it,
+// only for a page opened on that machine; nothing about them is stored or shared
+const sesInfo = new Map();
+const sesLocal = (el) => LOCAL && el.dataset.n === data.self.nick;
+function sesFetch(sid) {
+  if (!sesInfo.has(sid)) sesInfo.set(sid, fetch('/api/session?sid=' + sid).then((r) => (r.ok ? r.json() : null)).catch(() => null).then((v) => { sesInfo.set(sid, v); return v; }));
+  return Promise.resolve(sesInfo.get(sid));
+}
+const VIA = { cli: 'Terminal', 'claude-vscode': 'VS Code', 'claude-desktop': 'Desktop app', 't3-code': 'T3 Code', sdk: 'SDK', 'sdk-cli': 'SDK', codex_cli_rs: 'Terminal', codex_vscode: 'VS Code' };
+function sessTip(el) {
+  const sid = el.dataset.sid, info = sesInfo.get(sid);
+  const when = (t) => new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  if (!sesLocal(el)) return `<b>Session</b><div class="r"><span class="muted">Started</span><span>${esc(when(+el.dataset.start))}</span></div><div class="tnote">Title and details stay on ${esc(el.dataset.n)}</div>`;
+  if (!info || info instanceof Promise) {
+    sesFetch(sid).then(() => { if (mtipEl === el && mtip.style.display === 'block') mtip.innerHTML = sessTip(el); });
+    return `<b class="muted">Loading…</b>`;
+  }
+  const rows = [['Project', info.project], ['Branch', info.branch], ['Effort', info.effort && info.effort[0].toUpperCase() + info.effort.slice(1)], ['Started', when(info.start || +el.dataset.start)], ['Via', info.via && (VIA[info.via] || info.via)], ['Session', info.id.slice(0, 8)]].filter((r) => r[1]);
+  return `<b class="ttl">${esc(info.title || 'Untitled session')}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span class="${k === 'Session' ? 'num faint' : ''}">${esc(v)}</span></div>`).join('') + '<div class="tnote">Click to copy the session ID</div>';
+}
 function machineTip(el) {
+  if (el.dataset.mtip === 'ses') return sessTip(el);
   if (el.dataset.mtip === 'blk') {
     const d = el.dataset, a = +d.a, b = +d.b, n = +d.nm;
     const tm = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -1267,20 +1362,41 @@ function machineTip(el) {
     return `<b>${mdot(n)} ${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${k === 'Status' ? stHtml : esc(v)}</span></div>`).join('') + (notes.length ? `<div class="tnote">${notes.map(esc).join(' · ')}</div>` : '');
   }
 }
+// toast: one short line at the bottom, replaced by the next
+const toastEl = document.createElement('div');
+toastEl.className = 'toast'; toastEl.setAttribute('role', 'status'); toastEl.setAttribute('aria-live', 'polite');
+document.body.appendChild(toastEl);
+let toastT = null;
+function toast(msg, ok = true) {
+  toastEl.innerHTML = (ok ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : '') + esc(msg);
+  toastEl.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => toastEl.classList.remove('on'), 1800);
+}
+let mtipEl = null;
 const mtip = document.createElement('div');
 mtip.className = 'mtip';
 document.body.appendChild(mtip);
 $('machines').addEventListener('pointermove', (e) => {
   if (e.target.closest('button') || $('pop').classList.contains('open')) { mtip.style.display = 'none'; return; }
-  const el = e.target.closest('[data-mtip="blk"]') || e.target.closest('[data-mtip="seg"]') || e.target.closest('[data-mtip="row"]');
+  const el = e.target.closest('[data-mtip="ses"]') || e.target.closest('[data-mtip="blk"]') || e.target.closest('[data-mtip="seg"]') || e.target.closest('[data-mtip="row"]');
   if (!el || e.pointerType !== 'mouse') { mtip.style.display = 'none'; return; }
+  mtipEl = el;
   mtip.innerHTML = machineTip(el);
   mtip.style.display = 'block';
   const x = Math.min(innerWidth - mtip.offsetWidth - 12, e.clientX + 14), y = e.clientY + 18 + mtip.offsetHeight > innerHeight ? e.clientY - mtip.offsetHeight - 12 : e.clientY + 18;
   mtip.style.left = x + 'px'; mtip.style.top = y + 'px';
 });
 $('machines').addEventListener('pointerleave', () => { mtip.style.display = 'none'; });
-$('machines').addEventListener('click', (e) => {
+$('machines').addEventListener('click', async (e) => {
+  const ses = e.target.closest('[data-mtip="ses"]');
+  if (ses) {
+    if (!sesLocal(ses)) return toast(`Session details stay on ${ses.dataset.n}`);
+    const info = await sesFetch(ses.dataset.sid);
+    if (!info) return toast('Session not found on this machine', false);
+    try { await navigator.clipboard.writeText(info.id); toast('Session ID copied'); } catch { toast('Could not copy', false); }
+    return;
+  }
   // the chevron, or anywhere on a row with sessions that is not another control
   const b = e.target.closest('[data-mopen]') || (!e.target.closest('button, a') && e.target.closest('[data-mrow]'));
   if (!b) return;

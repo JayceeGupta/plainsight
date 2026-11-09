@@ -106,6 +106,13 @@ async function main() {
   const web = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     try {
+      if (req.method === 'GET' && url.pathname === '/api/session') {
+        if (!isLocal(req)) return send(res, 403, { error: 'local only' });
+        const sid = String(url.searchParams.get('sid') || '');
+        if (!/^[0-9a-f]{12}$/.test(sid)) return send(res, 400, { error: 'need sid' });
+        const info = collector.sessionInfo(sid);
+        return info ? send(res, 200, info) : send(res, 404, { error: 'not on this machine' });
+      }
       if (req.method === 'GET' || req.method === 'HEAD') { if (view(req, res, url)) return; return send(res, 404, { error: 'not found' }); }
       if (req.method === 'POST' && url.pathname === '/api/color') {
         if (!isLocal(req)) return send(res, 403, { error: 'local only' });
