@@ -89,6 +89,20 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .chips span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* machines list: one row per machine, its live sessions grouped underneath */
+.mtab tr.mr td { padding-top: 12px; padding-bottom: 12px; }
+.mtab tr.mr.off .n, .mtab tr.mr.off .mstate, .mtab tr.mr.off td.v { opacity: .55; }
+.mtab .n .sw-btn { width: 18px; height: 18px; margin-left: -2px; }
+.mtab .n .sw-btn i { width: 9px; height: 9px; }
+.mtab .mlink { font-size: 16px; font-weight: 500; }
+.mtab .mlink:hover { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
+.mtab .sub2 { overflow: hidden; text-overflow: ellipsis; }
+.mtab .sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); display: inline-block; }
+.mtab .sdot.on { background: var(--ok); }
+.mtab tr.nest td:first-child { padding-left: 30px; }
+.mtab tr.nest td:nth-child(2) { padding-left: 8px; }
+.mtab tr.sess td { color: var(--muted); }
+.mtab tr.sess .pulse { display: inline-block; width: 6px; height: 6px; margin-right: 8px; vertical-align: 2px; }
+.mtab tr.sess b { color: var(--text); font-weight: 600; }
 .mlist { border-top: 1px solid var(--line); }
 .mrow { border-bottom: 1px solid var(--line); padding: 16px 0; }
 .mrow.off { opacity: .55; }
@@ -381,7 +395,7 @@ footer b { color: var(--muted); font-weight: 500; }
   </div>
   <section>
     <div class="head2"><h2>Machines</h2><span class="muted" id="liveNote" style="font-size:14px"></span></div>
-    <div class="mlist" id="machines"></div>
+    <table class="mtab" id="machines"></table>
   </section>
   <section>
     <h2>Totals</h2>
@@ -966,9 +980,11 @@ $('dlgBody').addEventListener('click', (e) => {
 $('dlgClose').onclick = () => $('dlg').close();
 $('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
 
+// Machines: same table language as Breakdown. One row per machine, live sessions nested under it.
 function renderMachines() {
   const now = Date.now();
   const subs = data.subscriptions;
+  const multi = subs.length > 1;
   const bySub = Object.fromEntries(subs.map((x) => [x.sub, val(x.totals)]));
   const live = {};
   data.live.forEach((x) => { (live[x.machine] = live[x.machine] || []).push(x); });
@@ -976,30 +992,24 @@ function renderMachines() {
   const ms = data.machines.slice().sort((x, y) => rank(x) - rank(y) || y.lastSeen - x.lastSeen);
   const nActive = Object.keys(live).length;
   $('liveNote').textContent = nActive ? `${nActive} in use right now` : 'nobody in the last 10 minutes';
-  $('machines').innerHTML = ms.map((m) => {
+  if (!ms.length) { $('machines').innerHTML = '<tbody><tr><td class="muted" style="padding-left:0">No machines yet.</td></tr></tbody>'; return; }
+  const cells = (u) => u ? `<td class="r v num">${fmtV(val(u.totals))}</td><td class="r v num hide-s">${bySub[u.sub] ? (val(u.totals) / bySub[u.sub] * 100).toFixed(1) : '0.0'}%</td><td class="r v num">${S.metric === 'cost' ? fmtN(u.totals.tokens) : fmtC(u.totals.cost)}</td>`
+    : '<td class="r muted">–</td><td class="r muted hide-s">–</td><td class="r muted">–</td>';
+  $('machines').innerHTML = `<thead><tr><th>Machine</th><th class="hide-s">Status</th><th class="r">${S.metric === 'cost' ? 'Cost' : 'Tokens'}</th><th class="r hide-s">Share${multi ? ' of sub' : ''}</th><th class="r">${S.metric === 'cost' ? 'Tokens' : 'Cost'}</th></tr></thead><tbody>` + ms.map((m) => {
     const sess = (live[m.nick] || []).sort((x, y) => y.last - x.last);
-    const use = data.machineUsage.filter((u) => u.machine === m.nick);
-    const one = subs.length === 1 ? use.find((u) => u.sub === subs[0].sub) : null;
+    const use = data.machineUsage.filter((u) => u.machine === m.nick).sort((x, y) => val(y.totals) - val(x.totals));
+    const one = use.length <= 1 ? use[0] : null;
     const share = one && bySub[one.sub] ? val(one.totals) / bySub[one.sub] : 0;
-    const state = sess.length ? `<span class="mstate act"><span class="pulse"></span>${sess.length === 1 ? 'in use' : sess.length + ' sessions'}</span>`
-      : m.online ? '<span class="mstate">online</span>' : `<span class="mstate">offline · ${ago(now - m.lastSeen)}</span>`;
-    const value = subs.length === 1
-      ? `<b class="num">${one ? fmtV(val(one.totals)) : '–'}</b><span class="num">${one ? (share * 100).toFixed(1) + '% · ' + (S.metric === 'cost' ? fmtN(one.totals.tokens) : fmtC(one.totals.cost)) : 'no usage'}</span>`
-      : use.length ? use.map((u) => `<span class="num" style="display:block">${esc(subInfo(u.sub).label)} <b style="display:inline;font-size:14px">${fmtV(val(u.totals))}</b></span>`).join('') : '<span>no usage</span>';
-    return `<div class="mrow${!m.online && !sess.length ? ' off' : ''}" style="--mc:${mcol(m.nick)}">
-      <div class="mhead">
-        <button class="sw-btn" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"><i></i></button>
-        <div class="mname"><b>${esc(m.nick)}</b>${state}</div>
-        <div class="mval">${value}</div>
-        <div class="mmeta">${[m.op, m.os, m.ver ? 'v' + m.ver : '', m.nick === data.self.nick ? 'serving this page' : ''].filter(Boolean).map(esc).join(' · ')}</div>
-        ${subs.length === 1 ? `<div class="mbar"><i style="width:${(share * 100).toFixed(2)}%"></i></div>` : ''}
-      </div>
-      ${sess.length ? `<div class="sess">${sess.map((x) => `<div class="srow2${now - x.last < 3 * 60e3 ? '' : ' idle'}">
-        <span class="m">${glyph(x.provider)}${esc(pretty(x.model))}${subs.length > 1 || data.options.subscriptions.length > 1 ? ` <span class="faint">· ${esc(x.label)}</span>` : ''}</span>
-        <span class="t">running <b class="num" data-since="${x.streak}">${dur(now - x.streak)}</b> · last <span data-ago="${x.last}">${ago(now - x.last)}</span></span>
-        <span class="r num">${fmtN(x.totals.tokens)} · <b>${fmtC(x.totals.cost)}</b></span></div>`).join('')}</div>` : ''}
-    </div>`;
-  }).join('') || '<div class="empty">No machines yet.</div>';
+    const off = !m.online && !sess.length;
+    const status = sess.length ? `<span class="mstate act"><span class="pulse"></span>${sess.length === 1 ? 'in use' : sess.length + ' sessions'}</span>`
+      : m.online ? '<span class="mstate"><i class="sdot on"></i>online</span>' : `<span class="mstate"><i class="sdot"></i>${ago(now - m.lastSeen)}</span>`;
+    const meta = [m.op, m.os, m.ver ? 'v' + m.ver : '', m.nick === data.self.nick ? 'serving this page' : ''].filter(Boolean).map(esc).join(' · ');
+    const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}"><td style="width:46%"><span class="nm" style="width:100%"><span class="n"><button class="sw-btn" data-color="${esc(m.nick)}" aria-label="Change colour of ${esc(m.nick)}" title="Change colour"><i></i></button><button class="l mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button><span class="sub2 hide-s">${meta}</span></span>${one ? `<span class="track" style="width:min(100%, ${Math.max(1, share * 100).toFixed(2)}%)"><i style="flex:1;background:var(--mc)"></i></span>` : ''}</span></td><td class="hide-s">${status}</td>${use.length > 1 ? '<td></td><td class="hide-s"></td><td></td>' : cells(one)}</tr>`;
+    const nestSubs = use.length > 1 ? use.map((u) => `<tr class="nest"><td>${glyph(subInfo(u.sub).provider)} ${esc(subInfo(u.sub).label)}</td><td class="hide-s"></td>${cells(u)}</tr>`).join('') : '';
+    const nestSess = sess.map((x) => `<tr class="nest sess${now - x.last < 3 * 60e3 ? '' : ' idle'}"><td><span class="pulse${now - x.last < 3 * 60e3 ? '' : ' idle'}"></span>${glyph(x.provider)} ${esc(pretty(x.model))}${multi || data.options.subscriptions.length > 1 ? ` <span class="faint">· ${esc(x.label)}</span>` : ''}</td><td class="hide-s">running <b class="num" data-since="${x.streak}">${dur(now - x.streak)}</b> · <span data-ago="${x.last}">${ago(now - x.last)}</span></td><td class="r num">${fmtC(x.totals.cost)}</td><td class="hide-s"></td><td class="r num">${fmtN(x.totals.tokens)}</td></tr>`).join('');
+    const rows = nestSubs + nestSess;
+    return head + (rows ? rows.replace(/<tr class="nest([^"]*)"(?![\s\S]*<tr class="nest)/, '<tr class="nest$1 last"') : '');
+  }).join('') + '</tbody>';
 }
 
 // colour popover
