@@ -51,6 +51,10 @@ header { position: sticky; top: 0; z-index: 20; background: rgba(0,0,0,.86); bac
 .menu label:has(input:checked) { background: var(--pill); color: var(--text); font-weight: 560; }
 .menu label:has(input:checked)::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--text); margin-left: 12px; flex: none; }
 .menu label:has(input:checked):not(:has(.note))::after { margin-left: auto; }
+.menu input.msrch { position: static; opacity: 1; width: 100%; height: 34px; margin: 0 0 4px; padding: 0 10px; pointer-events: auto; border: 1px solid var(--line2); border-radius: 8px; background: #050505; color: var(--text); font: inherit; font-size: 14px; outline: none; }
+.menu input.msrch:focus { border-color: #3a3a3a; }
+.menu input.msrch::placeholder { color: var(--faint); }
+.menu label[hidden] { display: none; }
 .menu hr { border: 0; border-top: 1px solid var(--line2); margin: 4px 8px; }
 .menu .note { color: var(--muted); font-size: 12px; margin-left: auto; padding-left: 12px; }
 .tools { display: flex; align-items: center; gap: 10px; }
@@ -323,6 +327,8 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .chips2.focus .chip[aria-pressed="false"]:not(.ghost) { opacity: .45; }
 .chip.ghost { color: var(--faint); }
 .chip.ghost:hover { color: var(--text); }
+.chips2 .dd > button { font-weight: 400; padding: 0 9px; }
+.chips2 .dd > button::after { display: none; }
 tr.click { cursor: pointer; }
 tr.click:hover td, tr.click:focus-visible td { background: #0b0b0b; }
 tr.click:focus-visible { outline: none; }
@@ -350,10 +356,10 @@ tr.nest td.v { font-size: 14.5px; color: var(--text); }
 .dm button .who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .dm button .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dm button .dbar { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--mc); }
-.dm button[aria-pressed="true"] { background: #101010; box-shadow: inset 2px 0 0 var(--mc); }
+.dm button[aria-pressed="true"] .who span { color: var(--text); font-weight: 600; }
 .dm button.ex { opacity: .32; }
 .dm button.ex .who span { text-decoration: line-through; text-decoration-color: var(--faint); }
-.dm.hi button[aria-pressed="false"]:not(.ex) { opacity: .55; }
+.dm.hi button[aria-pressed="false"]:not(.ex) { opacity: .4; }
 
 footer { margin-top: 48px; color: var(--faint); font-size: 13px; line-height: 1.6; }
 footer b { color: var(--muted); font-weight: 500; }
@@ -508,13 +514,22 @@ function seg(id, key, onChange) {
   paint();
 }
 
-function dropdown(id, key, items, allLabel, noun) {
+function dropdown(id, key, items, allLabel, noun, btnText) {
   const dd = $(id), btn = dd.querySelector('button'), menu = dd.querySelector('.menu');
   const sel = new Set(S[key].filter((v) => items.some((i) => i.v === v)));
-  btn.textContent = !sel.size ? allLabel : sel.size === 1 ? items.find((i) => sel.has(i.v)).label : `${sel.size} ${noun}`;
-  menu.innerHTML = `<label><input type="checkbox" data-all ${sel.size ? '' : 'checked'}> ${esc(allLabel)}</label><hr>` +
+  btn.textContent = btnText || (!sel.size ? allLabel : sel.size === 1 ? items.find((i) => sel.has(i.v)).label : `${sel.size} ${noun}`);
+  const old = menu.querySelector('.msrch'), q = old ? old.value : '', typing = old && document.activeElement === old;
+  menu.innerHTML = (items.length > 8 ? `<input class="msrch" type="search" placeholder="Find ${esc(noun.replace(/s$/, ''))}" aria-label="Find ${esc(noun)}">` : '') +
+    `<label><input type="checkbox" data-all ${sel.size ? '' : 'checked'}> ${esc(allLabel)}</label><hr>` +
     items.map((i) => `<label><input type="checkbox" value="${esc(i.v)}" ${sel.has(i.v) ? 'checked' : ''}> ${i.html || esc(i.label)}${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}</label>`).join('');
+  const find = menu.querySelector('.msrch');
+  if (find) {
+    const filter = () => { const t = find.value.trim().toLowerCase(); menu.querySelectorAll('label:has(input[value])').forEach((l) => { l.hidden = !!t && !l.textContent.toLowerCase().includes(t); }); };
+    find.value = q; filter(); find.oninput = filter;
+    if (typing) find.focus();
+  }
   menu.onchange = (e) => {
+    if (e.target === find) return;
     if (e.target.dataset.all !== undefined) S[key] = [];
     else S[key] = [...menu.querySelectorAll('input[value]:checked')].map((x) => x.value);
     ls.set(key, S[key]);
@@ -524,7 +539,7 @@ function dropdown(id, key, items, allLabel, noun) {
 function closeMenus() { document.querySelectorAll('.dd').forEach((d) => { d.classList.remove('open'); d.querySelector('button').setAttribute('aria-expanded', 'false'); }); }
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.dd > button');
-  if (btn) { const dd = btn.parentElement, open = !dd.classList.contains('open'); closeMenus(); dd.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); if (open && matchMedia('(max-width:640px)').matches) dd.querySelector('.menu').style.top = btn.getBoundingClientRect().bottom + 'px'; return; }
+  if (btn) { const dd = btn.parentElement, open = !dd.classList.contains('open'); closeMenus(); dd.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); if (open && matchMedia('(pointer: fine)').matches) dd.querySelector('.msrch')?.focus(); if (open && matchMedia('(max-width:640px)').matches) dd.querySelector('.menu').style.top = btn.getBoundingClientRect().bottom + 'px'; return; }
   if (!e.target.closest('.menu')) closeMenus();
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(); });
@@ -926,7 +941,6 @@ function renderTypes() {
 const TF = ['in', 'cr', 'cw', 'out', 'rs', 'tokens', 'cost', 'costInput', 'costCacheRead', 'costCacheWrite', 'costOutput', 'savings', 'unpricedTokens', 'requests'];
 const sumT = (list) => { const o = {}; for (const f of TF) o[f] = 0; for (const t of list) for (const f of TF) o[f] += t[f] || 0; return o; };
 const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
-let chipsAll = false;
 function renderChips() {
   const all = data.options.machineOrder || data.options.machines;
   if (all.length < 2) { $('mchips').innerHTML = ''; return; }
@@ -934,15 +948,17 @@ function renderChips() {
   data.machineUsage.forEach((u) => { use[u.machine] = (use[u.machine] || 0) + u.totals.tokens; }); // order only, never shown
   const sel = new Set(S.machines);
   const ranked = all.slice().sort((a, b) => (sel.has(b) - sel.has(a)) || (use[b] || 0) - (use[a] || 0));
-  const LIMIT = 6, vis = chipsAll || ranked.length <= LIMIT + 1 ? ranked : ranked.slice(0, LIMIT);
+  const LIMIT = 5, vis = ranked.length <= LIMIT + 1 ? ranked : ranked.slice(0, LIMIT);
   $('mchips').className = 'chips2' + (sel.size ? ' focus' : '');
+  const more = ranked.length - vis.length, prevMore = $('dd-more'); // kept so an open menu and its search survive a redraw
   $('mchips').innerHTML = vis.map((m) => `<button class="chip" data-mfilter="${esc(m)}" aria-pressed="${sel.has(m)}" title="${sel.has(m) ? 'Remove from filter' : 'Filter to this machine'}">${mdot(m)}${esc(m)}</button>`).join('') +
-    (vis.length < ranked.length || chipsAll ? `<button class="chip ghost" data-more>${chipsAll ? 'Fewer' : `+${ranked.length - vis.length} more`}</button>` : '') +
+    (more ? '<div class="dd" id="dd-more"><button type="button" class="chip ghost" aria-haspopup="true" aria-expanded="false"></button><div class="menu" role="menu"></div></div>' : '') +
     (sel.size ? '<button class="chip ghost" data-mclear>Clear</button>' : '');
+  if (more && prevMore) { const dd = $('dd-more'); dd.replaceChild(prevMore.querySelector('.menu'), dd.querySelector('.menu')); if (prevMore.classList.contains('open')) { dd.classList.add('open'); dd.querySelector('button').setAttribute('aria-expanded', 'true'); } }
+  if (more) dropdown('dd-more', 'machines', ranked.map((m) => ({ v: m, label: m, html: `${mdot(m)}${esc(m)}` })), 'All machines', 'machines', `+${more} more`);
 }
 $('mchips').addEventListener('click', (e) => {
-  if (e.target.closest('[data-more]')) { chipsAll = !chipsAll; renderChips(); }
-  else if (e.target.closest('[data-mclear]')) { S.machines = []; ls.set('machines', []); load(); }
+  if (e.target.closest('[data-mclear]')) { S.machines = []; ls.set('machines', []); load(); }
 });
 
 let bdGroups = [];
