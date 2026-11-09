@@ -126,6 +126,9 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005e
 .dstrip.hatch { background: repeating-linear-gradient(135deg, #1d1d1d 0 2px, #0b0b0b 2px 6px); box-shadow: inset 0 0 0 1px var(--line2); }
 .dstrip i { display: block; height: 100%; flex: none; min-width: 3px; border-radius: 5px; background: var(--c); opacity: .35; transition-property: opacity; transition-duration: .12s; }
 .dstrip i.me { opacity: 1; }
+.dstrip i:not(.me):not(.rest) { background: var(--lf, #333); opacity: 1; }
+.dstrip.claude { --lf: #4b2a20; } .dstrip.codex { --lf: #333; }
+.dstrip i:not(.me):not(.rest):hover { background: color-mix(in srgb, var(--c) 45%, var(--lf, #333)); }
 .dstrip i.rest { background: none; min-width: 0; }
 .dstrip i:hover { opacity: .8; } .dstrip i.me:hover { opacity: 1; }
 .mtip { position: fixed; z-index: 50; display: none; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 9px 11px; font-size: 12.5px; min-width: 230px; box-shadow: 0 12px 32px rgba(0,0,0,.8); }
@@ -1105,7 +1108,7 @@ function renderMachines() {
   const strip = (sub, me) => {
     const st = strips[sub];
     if (!st) return '';
-    return `<span class="dstrip${st.used < 100 ? ' hatch' : ''}">${st.segs.map(([n, p]) => `<i class="${n === me ? 'me' : ''}" style="flex:${p.toFixed(3)} 1 0;--c:${mcol(n)}" data-mtip="seg" data-n="${esc(n)}" data-sub="${esc(sub)}" data-p="${p.toFixed(1)}"></i>`).join('')}${st.used < 100 ? `<i class="rest" style="flex:${100 - st.used} 1 0"></i>` : ''}</span>`;
+    return `<span class="dstrip ${subInfo(sub).provider}${st.used < 100 ? ' hatch' : ''}">${st.segs.map(([n, p]) => `<i class="${n === me ? 'me' : ''}" style="flex:${p.toFixed(3)} 1 0;--c:${mcol(n)}" data-mtip="seg" data-n="${esc(n)}" data-sub="${esc(sub)}" data-p="${p.toFixed(1)}"></i>`).join('')}${st.used < 100 ? `<i class="rest" style="flex:${100 - st.used} 1 0"></i>` : ''}</span>`;
   };
   const sw = Object.values(strips)[0];
   const stripHead = sw ? sw.what : '';
@@ -1123,7 +1126,7 @@ function renderMachines() {
     const toggle = sess.length ? `<button class="stog" data-mopen="${esc(m.nick)}" aria-expanded="${!!open}" title="${open ? 'Hide' : 'Show'} sessions">${sess.length} ${fresh(m.nick) ? 'active' : 'idle'} session${sess.length > 1 ? 's' : ''}<span class="chev">${chevD}</span></button>` : '';
     const old = m.ver && cmpVer(m.ver, newest) < 0;
     const head = `<tr class="mr${off ? ' off' : ''}" style="--mc:${mcol(m.nick)}" data-mtip="row" data-n="${esc(m.nick)}">
-      <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" title="Change colour"></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${toggle}${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? `<span class="upd" title="Update available: v${esc(m.ver)}, newest v${esc(newest)}" aria-label="Update available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>` : ''}${m.nick === viewer ? '<span class="you">this machine</span>' : ''}</span>
+      <td><span class="mn"><button class="mk ${tone}" data-color="${esc(m.nick)}" aria-label="${esc(m.nick)}: ${tone === 'run' ? 'in use' : tone === 'idle' ? 'idle' : tone === 'on' ? 'online' : 'offline'}. Change colour" ></button><button class="mlink" data-mfilter="${esc(m.nick)}" title="Filter the page to this machine">${esc(m.nick)}</button>${toggle}${word ? `<span class="mw ${tone}">${word}</span>` : ''}${old ? `<span class="upd" title="Update available: v${esc(m.ver)}, newest v${esc(newest)}" aria-label="Update available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>` : ''}${m.nick === viewer ? '<span class="you">this machine</span>' : ''}</span>
         <span class="show-s">${one ? strip(one.sub, m.nick) : ''}</span></td>
       <td class="hide-s scell">${use.length === 1 ? strip(use[0].sub, m.nick) : ''}</td>
       ${use.length > 1 ? '<td></td><td class="hide-s"></td><td class="hide-s"></td>' : cells(one, m)}
@@ -1159,6 +1162,7 @@ const mtip = document.createElement('div');
 mtip.className = 'mtip';
 document.body.appendChild(mtip);
 $('machines').addEventListener('pointermove', (e) => {
+  if (e.target.closest('button') || $('pop').classList.contains('open')) { mtip.style.display = 'none'; return; }
   const el = e.target.closest('[data-mtip="seg"]') || e.target.closest('[data-mtip="row"]');
   if (!el || e.pointerType !== 'mouse') { mtip.style.display = 'none'; return; }
   mtip.innerHTML = machineTip(el);
@@ -1179,6 +1183,7 @@ $('machines').addEventListener('click', (e) => {
 // colour popover
 let popFor = null;
 function openPop(btn, nick) {
+  mtip.style.display = 'none';
   const pop = $('pop'), cur = mcol(nick);
   popFor = nick;
   pop.innerHTML = `<div class="g">${MPAL.map((c) => `<button style="--c:${c}" data-c="${c}" aria-label="${c}" aria-pressed="${c === cur}"></button>`).join('')}</div>
