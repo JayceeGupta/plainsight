@@ -1236,7 +1236,8 @@ function machineTip(el) {
     }
     const notes = [n === (LOCAL ? data.self.nick : null) ? 'This machine' : '', n === data.self.nick ? 'Serving this page' : '', m.ver && cmpVer(m.ver, newest) < 0 ? 'Update with: plainsight update' : ''].filter(Boolean);
     const st = sess.length ? [active ? 'In use' : 'Idle', active ? 'ok' : 'warn', ago(now - Math.max(...sess.map((x) => x.last)))] : m.online ? ['Online', '', ''] : ['Offline', 'faint', ago(now - m.lastSeen)];
-    const stHtml = `<span${st[1] ? ` style="color:var(--${st[1]})"` : ''}>${st[0]}</span>${st[2] && !active ? `<span class="faint"> · seen ${esc(st[2])}</span>` : ''}`;
+    // in use / online by name; idle and offline only as when it was last seen
+    const stHtml = st[2] && !active ? `<span style="color:var(--${st[1]})">Seen ${esc(st[2])}</span>` : `<span${st[1] ? ` style="color:var(--${st[1]})"` : ''}>${st[0]}</span>`;
     return `<b>${mdot(n)} ${esc(n)}</b>` + rows.map(([k, v]) => `<div class="r"><span class="muted">${esc(k)}</span><span>${k === 'Status' ? stHtml : esc(v)}</span></div>`).join('') + (notes.length ? `<div class="tnote">${notes.map(esc).join(' · ')}</div>` : '');
   }
 }
