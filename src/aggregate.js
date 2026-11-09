@@ -9,6 +9,8 @@ const LIMIT_RANGES = { win: 900e3, week: 3600e3 };
 const ONLINE_MS = 5 * 60e3;
 const LIVE_MS = 10 * 60e3;
 const STREAK_GAP = 30 * 60e3;
+const BURST_GAP = 10 * 60e3;
+const MAX_BLOCKS = 300;
 
 function bucketSize(range, res) {
   if (range === '7d' && res === 'day') return 864e5;
@@ -173,6 +175,23 @@ function summarize(events, q = {}, now = Date.now()) {
     .filter((s) => now - s.last < LIVE_MS)
     .map((s) => ({ ...s, label: subInfo(s.sub, s.provider).label }))
     .sort((a, b) => b.last - a.last);
+  // second pass, only for live sessions: their messages grouped into blocks of work
+  // { a: first message, b: last message, c: cost, k: tokens, n: messages }
+  const msgs = new Map(live.map((s) => [`${s.origin}|${s.sub}|${s.sid}`, []]));
+  if (msgs.size) for (const ev of usage) {
+    const list = msgs.get(`${ev.o}|${ev.sub}|${ev.sid}`);
+    if (!list || !pass(ev)) continue;
+    const c = prices.cost(ev);
+    list.push([ev.t, c ? c.input + c.cacheRead + c.cacheWrite + c.output : 0, (ev.in || 0) + (ev.cr || 0) + (ev.cw || 0) + (ev.out || 0)]);
+  }
+  for (const s of live) {
+    const blocks = [];
+    for (const [t, c, k] of msgs.get(`${s.origin}|${s.sub}|${s.sid}`).sort((x, y) => x[0] - y[0])) {
+      const l = blocks[blocks.length - 1];
+      if (l && t - l.b <= BURST_GAP) { l.b = t; l.c += c; l.k += k; l.n++; } else blocks.push({ a: t, b: t, c, k, n: 1 });
+    }
+    s.blocks = blocks.slice(-MAX_BLOCKS);
+  }
 
   const announcements = anns
     .filter((a) => a.until > now && (!machF || machF.has(machineName(nodes, a.o))))

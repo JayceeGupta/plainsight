@@ -88,6 +88,15 @@ test('aggregate: subscriptions are never summed together', () => {
   assert.deepStrictEqual(only.subscriptions.map((x) => x.label), ['Max two']);
 });
 
+test('aggregate: live sessions carry blocks of work split by 10 min pauses', () => {
+  const s = new Store(tmp());
+  const now = Date.now(), M = 60e3;
+  const u = (id, ago) => ({ k: 'u', p: 'claude', sub: 'sub1', sid: 's', m: 'x', in: 1, cr: 0, cw: 0, out: 1, id, t: now - ago * M });
+  s.appendLocal(A, [{ k: 'hello', nick: 'box-a' }, { k: 'sub', sub: 'sub1', p: 'claude', label: 'Max' }, u('a', 60), u('b', 55), u('c', 30), u('d', 2), u('e', 1)]);
+  const b = summarize(s.all(), { range: '24h' }, now).live[0].blocks;
+  assert.deepStrictEqual(b.map((x) => [x.n, x.k, (now - x.a) / M, (now - x.b) / M]), [[2, 4, 60, 55], [1, 2, 30, 30], [2, 4, 2, 1]]);
+});
+
 test('aggregate: first machine names a subscription; limits give bands, resets and the window range', () => {
   const s = new Store(tmp());
   const now = Date.parse('2026-11-09T12:00:00Z');
