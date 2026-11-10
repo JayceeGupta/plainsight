@@ -5,8 +5,8 @@ const path = require('path');
 const { EventEmitter } = require('events');
 
 const KINDS = new Set(['hello', 'sub', 'u', 'hb', 'ann', 'bye', 'color']);
-const NUM_FIELDS = ['in', 'cr', 'cw', 'out', 'rs', 'until', 'hours'];
-const STR_FIELDS = ['o', 'k', 'sub', 'p', 'sid', 'm', 'id', 'nick', 'host', 'os', 'op', 'ver', 'label', 'msg', 'mach', 'c'];
+const NUM_FIELDS = ['in', 'cr', 'cw', 'out', 'rs', 'until', 'hours', 'ra'];
+const STR_FIELDS = ['o', 'k', 'sub', 'p', 'sid', 'm', 'id', 'nick', 'host', 'os', 'op', 'ver', 'label', 'msg', 'mach', 'c', 'le'];
 const MAX_LINE = 2048;
 const ORIGIN_RE = /^[a-f0-9]{8,32}$/;
 

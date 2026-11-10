@@ -7,6 +7,7 @@ const RANGES = { '1h': 3600e3, '5h': 5 * 3600e3, '24h': 24 * 3600e3, '7d': 7 * 8
 // 'win' / 'week': from the start of the current short / long limit window of one subscription
 const LIMIT_RANGES = { win: 900e3, week: 3600e3 };
 const ONLINE_MS = 5 * 60e3;
+const CHECKS = 12; // limit checks listed per subscription
 const LIVE_MS = 10 * 60e3;
 const STREAK_GAP = 30 * 60e3;
 const BURST_GAP = 10 * 60e3;
@@ -39,6 +40,7 @@ function index(events) {
   const anns = [];
   const usage = [];
   const lims = []; // hb events carrying plan limits
+  const limErrs = []; // hb events for a limit check that failed
   const prompts = []; // hb events marking a prompt sent (a turn started)
   const subFirst = new Map(); // sub -> origin that announced it first (its label wins)
   const subLabels = new Map(); // sub|origin -> newest sub event
@@ -56,13 +58,14 @@ function index(events) {
       const lk = `${ev.sub}|${ev.o}`, l = subLabels.get(lk);
       if (!l || ev.t >= l.t) subLabels.set(lk, ev);
     } else if (ev.k === 'hb' && ev.sub && ev.turn === 1 && ev.sid) prompts.push(ev);
-    else if (ev.k === 'hb' && ev.sub && Array.isArray(ev.lim)) lims.push(ev); else if (ev.k === 'ann') anns.push(ev);
+    else if (ev.k === 'hb' && ev.sub && Array.isArray(ev.lim)) lims.push(ev);
+    else if (ev.k === 'hb' && ev.sub && typeof ev.le === 'string') limErrs.push(ev); else if (ev.k === 'ann') anns.push(ev);
     else if (ev.k === 'color') { const x = colors.get(ev.mach); if (!x || ev.t >= x.t) colors.set(ev.mach, { c: ev.c, t: ev.t }); }
     else if (ev.k === 'u') usage.push(ev);
   }
   // Every machine on a subscription announces its own label; the first machine to announce it names it.
   for (const [sub, f] of subFirst) { const ev = subLabels.get(`${sub}|${f.o}`); subs.set(sub, { sub, label: ev.label, provider: ev.p, t: ev.t }); }
-  return { nodes, subs, anns, usage, colors, lims, prompts };
+  return { nodes, subs, anns, usage, colors, lims, limErrs, prompts };
 }
 
 function machineName(nodes, origin) {
@@ -78,9 +81,9 @@ function parseList(v) {
 
 // q: { range, subs, machines, providers, tz (minutes, as Date#getTimezoneOffset) }
 function summarize(events, q = {}, now = Date.now()) {
-  const { nodes, subs, anns, usage, colors, lims, prompts } = index(events);
+  const { nodes, subs, anns, usage, colors, lims, limErrs, prompts } = index(events);
   const subsF = parseList(q.subs);
-  const limits = limitInfo(lims, now);
+  const limits = limitInfo(lims, now, limErrs);
   let range = RANGES[q.range] || LIMIT_RANGES[q.range] ? q.range : '7d';
   let from = now - (RANGES[range] || 0);
   let limitSub = null;
@@ -239,8 +242,10 @@ function summarize(events, q = {}, now = Date.now()) {
       }
       return { ...w, split };
     });
+    const nick = (o) => machineName(nodes, o);
     limitsOut[s] = {
-      t: L.t, windows,
+      t: L.t, windows, by: nick(L.o),
+      checks: L.checks.map(({ o, ...c }) => ({ ...c, mach: nick(o) })),
       // short windows only up to 7 days, as their own bands
       bands: now - from <= RANGES['7d'] + 3600e3 ? L.bands.filter(([a, b]) => b > from && a < now) : [],
       resets: L.resets(from, now),
@@ -270,7 +275,8 @@ function summarize(events, q = {}, now = Date.now()) {
 
 // Latest plan limits per subscription, plus past short windows and long-window reset times.
 // lims: hb events { sub, t, lim: [{ m: minutes, u: % used, r: reset ms }] }
-function limitInfo(lims, now) {
+// errs: hb events { sub, t, le: why a check failed, ra: next try ms }
+function limitInfo(lims, now, errs = []) {
   const by = {};
   for (const ev of lims) (by[ev.sub] = by[ev.sub] || []).push(ev);
   const out = {};
@@ -300,8 +306,13 @@ function limitInfo(lims, now) {
       }
     }
     const longW = windows.filter((w) => w.m >= 1440).pop();
+    // the latest checks by any machine, newest first: readings and failures
+    const fails = errs.filter((e) => e.sub === sub).sort((a, b) => a.t - b.t);
+    const checks = [...evs.slice(-CHECKS), ...fails.slice(-CHECKS)]
+      .sort((a, b) => b.t - a.t).slice(0, CHECKS)
+      .map((e) => e.lim ? { t: e.t, o: e.o, lim: e.lim.map(({ m, u }) => ({ m, u })) } : { t: e.t, o: e.o, le: e.le, ...(e.ra ? { ra: e.ra } : {}) });
     out[sub] = {
-      t: last.t, windows, bands,
+      t: last.t, o: last.o, windows, bands, checks,
       resets: (from, to) => {
         if (!longW) return [];
         const len = longW.m * 60e3, res = [];

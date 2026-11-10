@@ -208,3 +208,32 @@ test('gate worker shows the offline page when the tunnel has no connector', asyn
     assert.strictEqual(await (await mod.default.fetch(new Request('https://u.example/'))).text(), 'ok');
   } finally { globalThis.fetch = real; }
 });
+
+test('limits: machines take turns, faster while someone works, backoff wins', () => {
+  const { nextCheck, BUSY_MS, IDLE_MS } = require('../src/limits');
+  const now = Date.parse('2026-11-10T20:00:00Z');
+  // a peer checked 30s ago while someone is working: wait for the rest of the minute
+  assert.strictEqual(nextCheck({ act: now - 10e3, chk: now - 30e3 }, {}, now, 0), now - 30e3 + BUSY_MS);
+  // nobody working: every 5 minutes
+  assert.strictEqual(nextCheck({ act: now - 3600e3, chk: now - 30e3 }, {}, now, 0), now - 30e3 + IDLE_MS);
+  // jitter lets one machine go first; a 429 backoff pushes past both
+  assert.strictEqual(nextCheck({ act: now, chk: now }, {}, now, 7e3), now + BUSY_MS + 7e3);
+  assert.strictEqual(nextCheck({ act: now, chk: now - 600e3 }, { until: now + 120e3 }, now, 0), now + 120e3);
+});
+
+test('aggregate: limit checks list readings and failures from every machine, newest first', () => {
+  const s = new Store(tmp());
+  const now = Date.parse('2026-11-10T20:00:00Z');
+  const lim = (u) => [{ m: 300, u, r: now + 3600e3 }, { m: 10080, u: 70, r: now + 3 * 864e5 }];
+  s.appendLocal(A, [{ k: 'hello', nick: 'laptop' }, { k: 'hb', sub: 'x', p: 'claude', t: now - 120e3, lim: lim(40) }]);
+  s.appendLocal(B, [{ k: 'hello', nick: 'box' }, { k: 'hb', sub: 'x', p: 'claude', t: now - 60e3, lim: lim(45) },
+    { k: 'hb', sub: 'x', p: 'claude', t: now - 5e3, le: '429', ra: now + 115e3 }]);
+  const L = summarize(s.all(), { range: '24h' }, now).limits.x;
+  assert.strictEqual(L.by, 'box');
+  assert.strictEqual(L.t, now - 60e3);
+  assert.deepStrictEqual(L.windows.map((w) => w.u), [45, 70]);
+  assert.deepStrictEqual(L.checks.map((c) => [c.mach, c.le || c.lim[0].u]), [['box', '429'], ['box', 45], ['laptop', 40]]);
+  assert.strictEqual(L.checks[0].ra, now + 115e3);
+  // a failed check is a valid event; a malformed one is refused
+  assert.throws(() => s.appendLocal(A, [{ k: 'hb', sub: 'x', le: 5 }]), /bad le/);
+});

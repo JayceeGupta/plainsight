@@ -300,6 +300,22 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .lm .who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; } .lm .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lm .lmbar { height: 6px; background: var(--line2); border-radius: 3px; overflow: hidden; } .lm .lmbar i { display: block; height: 100%; border-radius: 3px; }
 .lm b, .lm .muted { text-align: right; }
+/* limit freshness: when the numbers were read, by which machine, and the recent checks */
+.lfresh { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; font-size: 13px; margin-top: -2px; min-width: 0; }
+.lfresh .mst { font-size: 13px; }
+.lfresh .lby { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); min-width: 0; white-space: nowrap; }
+.lfresh .lfail { color: var(--warn); }
+.lfresh .disc { margin-left: auto; height: 24px; font-size: 12.5px; }
+.lchk { margin-top: -4px; border: 1px solid var(--line2); border-radius: 10px; padding: 2px 12px 10px; background: #050505; }
+.lc { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 12px; align-items: center; font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.lc.h { color: var(--faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 9px 0 6px; }
+.lc .who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.lc .who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc .res { display: inline-flex; gap: 12px; justify-content: flex-end; color: var(--muted); white-space: nowrap; }
+.lc .res b { color: var(--text); font-weight: 600; margin-left: 3px; }
+.lc .lwarn { color: var(--warn); } .lc .lbad { color: var(--bad); } .lc .lnone { color: var(--faint); }
+.lc.h .res { color: var(--faint); }
+.lnote { color: var(--faint); font-size: 12px; padding-top: 9px; line-height: 1.45; }
 .meter .k, .msplit .k { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .meter .k b { color: var(--text); font-weight: 600; }
 .meter .mtrack { height: 8px; border-radius: 4px; background: var(--line2); margin-top: 6px; overflow: hidden; }
@@ -759,12 +775,48 @@ function limitRows(sub) {
     return `<div class="lim${tone}"><button class="lbar ${prov}" data-lexp="${esc(key)}" aria-expanded="${open}" aria-label="${winName(w.m)} limit: ${rem}% left, resets in ${left(w.r - now)}, ${pace}" title="${rem}% of the limit left · ${Math.round(timeLeft)}% of the window's time left · ${pace}${stale}">
       <i class="lfill" style="width:${rem}%"></i><i class="lpace" style="left:${timeLeft}%"></i>
       <span class="ltxt"><b>${winName(w.m)}</b> <span class="num">${rem}%</span></span><span class="lreset num">↻ ${left(w.r - now)}</span></button>${rows}</div>`;
+  }).join('') + freshRow(sub);
+}
+const openChk = new Set(); // subscriptions whose check list is open
+const agoS = (ms) => ms < 10e3 ? 'just now' : ms < 60e3 ? Math.floor(ms / 1e3) + 's ago' : ago(ms);
+const clockT = (t, sec) => {
+  const d = new Date(t), o = { hour: 'numeric', minute: '2-digit', ...(sec ? { second: '2-digit' } : {}) };
+  return Math.abs(Date.now() - t) > 20 * 3600e3 ? d.toLocaleString([], { weekday: 'short', ...o }) : d.toLocaleTimeString([], o);
+};
+const LE = { 429: 'Rate limited', login: 'Not signed in', auth: 'Login rejected', net: 'No connection' };
+const leText = (c) => LE[c] || (/^http /.test(c) ? c.toUpperCase() : 'Failed');
+// how fresh the limit numbers are, who read them, and (opened) the latest checks by any machine
+function freshRow(sub) {
+  const L = (data.limits || {})[sub];
+  if (!L || !L.checks || !L.checks.length) return '';
+  const now = Date.now(), age = now - L.t, open = openChk.has(sub);
+  const tone = age < 3 * 60e3 ? 'on' : age < 15 * 60e3 ? 'idle' : 'off';
+  const last = L.checks[0];
+  const failing = last.le && last.le !== 'login' && last.t > L.t;
+  const note = failing ? `<span class="lfail">${esc(leText(last.le))} on ${esc(last.mach)}${last.ra > now ? ` · retrying ${clockT(last.ra)}` : ''}</span>` : '';
+  return `<div class="lfresh"><span class="mst ${tone}"><span class="sd"></span><span>Updated <span class="num" data-agos="${L.t}">${agoS(age)}</span></span></span><span class="lby"><span class="faint">by</span>${mdot(L.by)}${esc(L.by)}</span>${note}<button class="disc" data-lchk="${esc(sub)}" aria-expanded="${open}" aria-label="${open ? 'Hide' : 'Show'} recent limit checks">Checks<span class="chev">${chev}</span></button></div>${open ? checkList(sub, L) : ''}`;
+}
+function checkList(sub, L) {
+  const codex = subInfo(sub).provider === 'codex';
+  const rows = L.checks.map((c) => {
+    const res = c.lim ? c.lim.slice().sort((a, b) => a.m - b.m).map((w) => `<span>${winName(w.m)}<b class="num">${100 - w.u}%</b></span>`).join('')
+      : `<span class="${c.le === 'login' ? 'lnone' : c.le === '429' ? 'lwarn' : 'lbad'}">${esc(leText(c.le))}${c.le === 'login' ? ' · not checking' : c.ra ? ` · next ${clockT(c.ra)}` : ''}</span>`;
+    return `<div class="lc"><span class="num muted">${clockT(c.t, true)}</span><span class="who">${mdot(c.mach)}<span>${esc(c.mach)}</span></span><span class="res">${res}</span></div>`;
   }).join('');
+  const how = codex ? 'Read from Codex as you work, whenever the numbers change.'
+    : 'Checked every minute while anyone is working on this subscription, every 5 minutes otherwise. Machines take turns, so one check covers everyone.';
+  return `<div class="lchk"><div class="lc h"><span>Checked</span><span>By</span><span class="res">Left</span></div>${rows}<div class="lnote">${how}</div></div>`;
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-lexp]');
   if (!b) return;
   openLim.has(b.dataset.lexp) ? openLim.delete(b.dataset.lexp) : openLim.add(b.dataset.lexp);
+  renderHero();
+});
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-lchk]');
+  if (!b) return;
+  openChk.has(b.dataset.lchk) ? openChk.delete(b.dataset.lchk) : openChk.add(b.dataset.lchk);
   renderHero();
 });
 function splitBar(sub) {
@@ -1475,6 +1527,7 @@ setInterval(() => {
   const now = Date.now();
   document.querySelectorAll('[data-since]').forEach((el) => { el.textContent = dur(now - Number(el.dataset.since)); });
   document.querySelectorAll('[data-ago]').forEach((el) => { el.textContent = ago(now - Number(el.dataset.ago)); });
+  document.querySelectorAll('[data-agos]').forEach((el) => { el.textContent = agoS(now - Number(el.dataset.agos)); });
 }, 1000);
 setInterval(() => { qcache.clear(); load(); }, 30e3); // also a safety net if the live stream stalls
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.live) { qcache.clear(); load(); } });
