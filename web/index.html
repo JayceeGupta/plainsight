@@ -407,7 +407,11 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .cleg button:hover { background: var(--pill); color: var(--text); }
 .cleg button[aria-pressed="false"] { opacity: .4; text-decoration: line-through; text-decoration-color: var(--faint); }
 .cleg .static { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; font-size: 13px; color: var(--faint); }
-.cpop { width: 330px; }
+.cpop { width: 350px; }
+.cpop .eye { width: 26px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); }
+.cpop .eye:hover { background: var(--pill); color: var(--text); }
+.cpop .eye svg { width: 15px; height: 15px; }
+.cpop .srow3.hid > :not(.eye) { opacity: .4; }
 .cpop .cleg { margin: -2px 0 10px; justify-content: flex-start; }
 .cpop .cleg button { font-size: 12.5px; padding: 2px 8px; }
 .cpop .srow3 .l { display: flex; align-items: center; gap: 7px; }
@@ -417,7 +421,7 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .cpop h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .cpop .opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 8px; }
 .cpop .seg button { padding: 3px 9px; font-size: 12.5px; }
-.cpop .srow3 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--line2); }
+.cpop .srow3 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--line2); }
 .cpop .srow3 .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cpop .dashes { display: inline-flex; gap: 2px; }
 .cpop .dashes button { width: 30px; height: 22px; border-radius: 6px; display: grid; place-items: center; }
@@ -622,6 +626,7 @@ const mcol = (nick) => {
   return i < 0 ? '#8e8e8e' : MPAL[i % MPAL.length];
 };
 const mdot = (nick) => `<span class="dot" style="background:${mcol(nick)}"></span>`;
+const subsByProv = () => data.options.subscriptions.slice().sort((a, b) => (a.provider < b.provider ? -1 : a.provider > b.provider ? 1 : 0));
 const subInfo = (sub) => data.options.subscriptions.find((s) => s.sub === sub) || { label: sub.slice(0, 6), provider: '' };
 
 function seg(id, key, onChange) {
@@ -784,7 +789,7 @@ function prefetch() {
 
 function render() {
   const o = data.options;
-  dropdown('dd-subs', 'subs', o.subscriptions.filter((s) => !S.providers.length || S.providers.includes(s.provider)).map((s) => ({ v: s.sub, label: s.label, html: `${glyph(s.provider)}${esc(s.label)}`, note: PROV(s.provider) })), 'All subscriptions', 'subscriptions');
+  dropdown('dd-subs', 'subs', subsByProv().filter((s) => !S.providers.length || S.providers.includes(s.provider)).map((s) => ({ v: s.sub, label: s.label, html: `${glyph(s.provider)}${esc(s.label)}`, note: PROV(s.provider) })), 'All subscriptions', 'subscriptions');
   const online = new Set(data.machines.filter((m) => m.online).map((m) => m.nick));
   dropdown('dd-machines', 'machines', (o.machineOrder || o.machines).map((m) => ({ v: m, label: m, html: `${mdot(m)}${esc(m)}`, note: online.has(m) ? 'online' : '' })), 'All machines', 'machines');
   dropdown('dd-providers', 'providers', o.providers.map((p) => ({ v: p, label: PROV(p), html: `${glyph(p)}${esc(PROV(p))}` })), 'All providers', 'providers');
@@ -1082,7 +1087,9 @@ function drawHero() {
   $('subs').className = 'led';
   // an empty limit window still shows how much of the limit is left
   if (!subs.length && data.limitSub) { $('subs').className = 'led one'; $('subs').innerHTML = `<div class="lrow">${limitRows(data.limitSub)}</div>`; return; }
-  $('subs').innerHTML = subs.map((s) => {
+  const hid = subs.filter((s) => (S.chart.hidden || []).includes(s.sub)).length;
+  if (hid) $('heroSub').querySelector('span').append(` · ${hid} hidden`);
+  $('subs').innerHTML = subs.filter((s) => !(S.chart.hidden || []).includes(s.sub)).map((s) => {
     const t = s.totals;
     return `<div class="lrow"><div class="top"><button class="who" data-sfilter="${esc(s.sub)}" title="Show only this subscription">${glyph(s.provider)}<span class="l">${esc(s.label)}</span></button><span class="val num">${fmtV(val(t))}</span></div>
       <div class="det num"><span>${t.sessions} sessions · ${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}</span>${bankPill(s.sub)}</div>
@@ -1315,6 +1322,8 @@ $('heroSub').addEventListener('click', (e) => {
   if (ob) { e.stopPropagation(); $('cpop').classList.contains('open') && cpopKind === 'subs' ? $('cpop').classList.remove('open') : openChartPop(ob, 'subs'); }
 });
 function segHtml(k, opts) { return `<div class="seg">${opts.map(([v, l]) => `<button data-ck="${k}" data-v="${v}" aria-pressed="${String(S.chart[k]) === String(v)}">${l}</button>`).join('')}</div>`; }
+const eyeOn = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const eyeOff = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.5 6.6C3.6 8.5 2 12 2 12s3.6 7 10 7a10.6 10.6 0 0 0 5.4-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg>';
 let cpopKind = 'chart';
 function chartPopHtml() {
   const subs = data.subscriptions;
@@ -1324,7 +1333,7 @@ function chartPopHtml() {
   if (cpopKind === 'subs') return `<h4>Limit bars</h4>
     <div class="opt"><span>Used part</span>${segHtml('limc', [['mach', 'By machine'], ['sub', 'One colour']])}</div>
     <h4 style="margin-top:14px">Subscriptions: colour, name, line</h4>
-    ${data.options.subscriptions.map((s) => { const st = subStyle(s.sub); return `<div class="srow3"><input type="color" data-sc="${esc(s.sub)}" value="${st.c}" aria-label="Colour for ${esc(s.label)}"><span class="l">${glyph(s.provider)}<input class="nick" data-nick="${esc(s.sub)}" value="${esc(s.label)}" placeholder="${esc(s.plan || s.label)}" maxlength="24" spellcheck="false" aria-label="Your name for ${esc(s.plan || s.label)}" title="Your own name for it, on this device"></span><span class="dashes">${DASHES.map((d) => `<button data-sd="${esc(s.sub)}" data-dash="${d}" aria-pressed="${st.dash === d}" aria-label="Line style">${dashSwatch(st.c, d)}</button>`).join('')}</span></div>`; }).join('')}
+    ${subsByProv().map((s) => { const st = subStyle(s.sub), hid = (S.chart.hidden || []).includes(s.sub); return `<div class="srow3${hid ? " hid" : ""}"><input type="color" data-sc="${esc(s.sub)}" value="${st.c}" aria-label="Colour for ${esc(s.label)}"><span class="l">${glyph(s.provider)}<input class="nick" data-nick="${esc(s.sub)}" value="${esc(s.label)}" placeholder="${esc(s.plan || s.label)}" maxlength="24" spellcheck="false" aria-label="Your name for ${esc(s.plan || s.label)}" title="Your own name for it, on this device"></span><span class="dashes">${DASHES.map((d) => `<button data-sd="${esc(s.sub)}" data-dash="${d}" aria-pressed="${st.dash === d}" aria-label="Line style">${dashSwatch(st.c, d)}</button>`).join('')}</span><button class="eye" data-eye="${esc(s.sub)}" aria-pressed="${!hid}" aria-label="${hid ? "Show" : "Hide"} ${esc(s.label)}" title="${hid ? "Show" : "Hide"}: its numbers still count, it is only not drawn">${hid ? eyeOff : eyeOn}</button></div>`; }).join('')}
     <div class="row"><span class="faint" style="font-size:12px">Saved on this device</span></div>`;
   return `<h4>Chart</h4>
     <div class="opt"><span>Limit windows</span>${segHtml('lanes', [[true, 'On'], [false, 'Off']])}</div>${S.chart.lanes ? chips('laneOff') : ''}
@@ -1350,6 +1359,7 @@ $('cpop').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.dataset.ck) { const v = b.dataset.v; S.chart[b.dataset.ck] = v === 'true' ? true : v === 'false' ? false : v; }
+  else if (b.dataset.eye) { const h = new Set(S.chart.hidden || []); h.has(b.dataset.eye) ? h.delete(b.dataset.eye) : h.add(b.dataset.eye); S.chart.hidden = [...h]; }
   else if (b.dataset.tg) { const set = new Set(S.chart[b.dataset.tg] || []); set.has(b.dataset.sub) ? set.delete(b.dataset.sub) : set.add(b.dataset.sub); S.chart[b.dataset.tg] = [...set]; }
   else if (b.dataset.sd) { S.chart.styles = S.chart.styles || {}; S.chart.styles[b.dataset.sd] = { ...S.chart.styles[b.dataset.sd], dash: b.dataset.dash }; }
   else if (b.dataset.creset !== undefined) S.chart = { ...CHART0, limc: S.chart.limc, styles: S.chart.styles };
