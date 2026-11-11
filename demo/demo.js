@@ -277,7 +277,19 @@
   addEventListener('DOMContentLoaded', () => {
     const el = document.createElement('div');
     el.className = 'demo-note';
-    el.innerHTML = '<b>Demo</b><span>Made-up team and numbers, moving on their own</span>/*REPO*/';
+    el.innerHTML = '<b>Demo</b><span>Mock events and data</span><div class="seg" role="group" aria-label="Demo view"><button data-v="many">Several subscriptions</button><button data-v="one">One</button></div>/*REPO*/';
     document.body.appendChild(el);
+    // the two screens of the dashboard: several subscriptions side by side, or one on its own
+    // (S, ls, data and load are the page's own; this only sets its subscription filter)
+    const paint = () => el.querySelectorAll('.seg button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'one') === (S.subs.length === 1))));
+    el.querySelector('.seg').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || !data) return;
+      S.subs = b.dataset.v === 'one' ? [data.options.subscriptions[0].sub] : [];
+      S.providers = []; ls.set('providers', []); ls.set('subs', S.subs);
+      load();
+    });
+    addEventListener('click', () => setTimeout(paint, 0));
+    setTimeout(paint, 0);
   });
 })();

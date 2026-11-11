@@ -244,13 +244,20 @@ th.r .sortb { flex-direction: row-reverse; }
 .chart text.lnt.w { fill: var(--warn); } .chart text.lnt.b { fill: var(--bad); } .chart text.lnt.z { fill: var(--faint); }
 .chart text.lrs { fill: var(--muted); font-size: 10.5px; pointer-events: none; }
 .charts { display: grid; gap: 28px; }
-.tip { position: absolute; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 9px 11px; font-size: 13px; display: none; min-width: 180px; box-shadow: 0 12px 32px rgba(0,0,0,.8); z-index: 5; }
-.tip .r { display: flex; gap: 14px; align-items: center; justify-content: space-between; padding: 1px 0; }
-.tip .r span { display: inline-flex; align-items: center; gap: 7px; }
-.tip .tot { border-top: 1px solid var(--line2); margin-top: 5px; padding-top: 5px; }
-.tip .lw { color: var(--muted); border-bottom: 1px solid var(--line2); margin-bottom: 6px; padding-bottom: 6px; white-space: nowrap; }
+.tip { position: absolute; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 6px 9px; font-size: 12px; line-height: 1.4; white-space: nowrap; display: none; box-shadow: 0 12px 32px rgba(0,0,0,.8); z-index: 5; }
+.tip .r { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.tip .r span { display: inline-flex; align-items: center; gap: 6px; }
+.tip .r b { text-align: right; }
+.tip .glyph { font-size: 13px; }
+.tip i { font-style: normal; color: var(--faint); }
+.tip .pc { margin-left: auto; min-width: 30px; text-align: right; color: var(--muted); }
+.tip .hd { font-size: 10.5px; color: var(--faint); }
+.tip .hd .pc { color: var(--faint); }
+.tip .tot { border-top: 1px solid var(--line2); margin-top: 3px; padding-top: 3px; }
+.tip .lw { color: var(--muted); border-bottom: 1px solid var(--line2); margin-bottom: 4px; padding-bottom: 4px; }
 .tip .lw b { color: var(--text); font-weight: 600; }
-.tip .lw .when { color: var(--faint); font-size: 12px; }
+.chart .curd rect { fill: var(--pill); }
+.chart .curd text { fill: var(--text); }
 
 /* stats + types */
 .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px 24px; }
@@ -395,13 +402,13 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .chartHead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .chartHead .chartTitle { margin: 0; margin-right: auto; }
 .charts { align-content: start; }
-.cleg { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 8px; }
+.cleg { align-items: flex-start; justify-content: center; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 8px; }
 .cleg button { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; border-radius: 99px; font-size: 13px; color: var(--muted); transition: opacity .15s; }
 .cleg button:hover { background: var(--pill); color: var(--text); }
 .cleg button[aria-pressed="false"] { opacity: .4; text-decoration: line-through; text-decoration-color: var(--faint); }
 .cleg .static { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; font-size: 13px; color: var(--faint); }
 .cpop { width: 330px; }
-.cpop .cleg { margin: -2px 0 10px; }
+.cpop .cleg { margin: -2px 0 10px; justify-content: flex-start; }
 .cpop .cleg button { font-size: 12.5px; padding: 2px 8px; }
 .cpop .srow3 .l { display: flex; align-items: center; gap: 7px; }
 .cpop .nick { width: 100%; min-width: 0; padding: 2px 0; background: none; border: 0; border-bottom: 1px solid transparent; color: var(--text); font: inherit; outline: none; text-overflow: ellipsis; }
@@ -1232,7 +1239,10 @@ function drawChart(el, spec) {
   svg.style.height = H + 'px';
   svg.setAttribute('aria-label', spec.label || '');
   const cp = 'cp' + (++clipN);
-  svg.innerHTML = g + `<defs><clipPath id="${cp}"><rect x="${L}" y="${T - 2}" width="${W - L - R}" height="${H - T - B + 3}"/></clipPath></defs><g clip-path="url(#${cp})">${paths}</g>` + `<line class="cur" y1="${T}" y2="${H - B}" stroke="#3a3a3a" visibility="hidden"/>`;
+  svg.innerHTML = g + `<defs><clipPath id="${cp}"><rect x="${L}" y="${T - 2}" width="${W - L - R}" height="${H - T - B + 3}"/></clipPath></defs><g clip-path="url(#${cp})">${paths}</g>` + `<line class="cur" y1="${T}" y2="${H - B}" stroke="#3a3a3a" visibility="hidden"/><g class="curd" visibility="hidden"><rect y="${H - B + 5}" height="18" rx="5"/><text y="${H - 7}" text-anchor="middle"></text></g>`;
+  // the names under a chart are centred on its plot, not on the plot plus its axis labels
+  const lg = el.nextElementSibling;
+  if (lg && lg.classList.contains('cleg')) lg.style.paddingLeft = L + 'px';
   paintHl();
   const shown = spec.lines.filter((l) => !l.dim);
   const show = (clientX) => {
@@ -1250,19 +1260,30 @@ function drawChart(el, spec) {
     cur.setAttribute('y1', snap ? snap.y1 : T); // on a reset: one line from its mark down to the axis
     cur.setAttribute('stroke', snap ? snap.ln.c : '#3a3a3a');
     const tot = shown.reduce((a, l) => a + l.vals[i], 0);
-    // the point's date first; a reset is one line under it with its own day and time
-    const dayT = (t) => new Date(t).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+    // the point's date sits on the axis under the line, over whatever tick label is there
+    const dl = tickLabel(series[i].t, step, true), dw = dl.length * 6.3 + 14, dx = Math.max(0, Math.min(W - dw, cx - dw / 2));
+    const cd = svg.querySelector('.curd');
+    cd.setAttribute('visibility', 'visible');
+    cd.firstChild.setAttribute('x', dx); cd.firstChild.setAttribute('width', dw);
+    cd.lastChild.setAttribute('x', dx + dw / 2); cd.lastChild.textContent = dl;
+    const dayT = (t) => new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' });
+    const hm = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const tq = snap ? snap.r - 1 : series[i].t + step / 2;
-    tip.innerHTML = `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
-      (snap ? `<div class="lw"><div class="r"><span style="color:${snap.ln.c}">↻ ${manyLanes ? esc(snap.ln.name) + ' ' + esc(snap.ln.long.toLowerCase()) : esc(snap.ln.long)} limit reset</span><b class="num">${esc(fmtT(snap.r))}</b></div></div>` : '') +
-      spec.lanes.filter((ln) => ln.row).map((ln) => { const bd = ln.bands.find(([a, b]) => tq >= a && tq < b); return bd ? `<div class="lw"><div class="r"><span>${manyLanes ? esc(ln.name) + ' · ' : ''}${ln.short} limit</span><b class="num">${bd[2]}% used</b></div><div class="when">${bd[1] - bd[0] > 864e5 ? esc(dayT(bd[0])) + ' – ' + esc(dayT(bd[1])) : esc(fmtT(bd[0])) + ' – ' + esc(new Date(bd[1]).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))}${bd[1] > now ? ' · current' : ''}</div></div>` : ''; }).join('') +
-      (shown.length ? shown.map((l) => `<div class="r"><span>${l.html}</span><b class="num">${fmtV(l.vals[i])}</b></div>`).join('') + (spec.total && shown.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
+    // limit use: beside its subscription's value when the lines are subscriptions, on a line of its own otherwise
+    const on = spec.lanes.filter((ln) => ln.row).map((ln) => ({ ln, bd: ln.bands.find(([a, b]) => tq >= a && tq < b) })).filter((o) => o.bd);
+    const pc = new Map(on.map((o) => [o.ln.sub, o.bd[2]]));
+    const merged = shown.some((l) => l.sub && pc.has(l.sub));
+    const vw = Math.max(0, ...shown.map((l) => fmtV(l.vals[i]).length));
+    tip.innerHTML = (snap ? `<div class="r lw"><span style="color:${snap.ln.c}">↻ ${manyLanes ? esc(snap.ln.name) + ' ' + esc(snap.ln.long.toLowerCase()) : esc(snap.ln.long)} reset</span><b class="num">${esc(fmtT(snap.r))}</b></div>` : '') +
+      (merged ? `<div class="r hd"><span></span><i class="pc">${on.every((o) => o.ln.short === on[0].ln.short) ? esc(on[0].ln.short) : 'Limit'} used</i><b style="min-width:${vw}ch"></b></div>`
+        : on.map(({ ln, bd }) => `<div class="r lw"><span>${manyLanes ? esc(ln.name) + ' · ' : ''}${ln.short} limit <i>${bd[1] - bd[0] > 864e5 ? esc(dayT(bd[0])) + ' – ' + esc(dayT(bd[1])) : esc(hm(bd[0])) + ' – ' + esc(hm(bd[1]))}</i></span><b class="num">${bd[2]}% used</b></div>`).join('')) +
+      (shown.length ? shown.map((l) => `<div class="r"><span>${l.html}</span>${merged ? `<i class="pc num">${pc.has(l.sub) ? pc.get(l.sub) + '%' : ''}</i>` : ''}<b class="num" style="min-width:${vw}ch">${fmtV(l.vals[i])}</b></div>`).join('') + (spec.total && shown.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
     tip.style.display = 'block';
     const left = (cx / W) * rect.width;
     tip.style.left = (left + 14 + tip.offsetWidth > rect.width ? Math.max(0, left - 14 - tip.offsetWidth) : left + 14) + 'px';
     tip.style.top = '4px';
   };
-  const hide = () => { tip.style.display = 'none'; const c = svg.querySelector('.cur'); if (c) c.setAttribute('visibility', 'hidden'); };
+  const hide = () => { tip.style.display = 'none'; svg.querySelectorAll('.cur, .curd').forEach((c) => c.setAttribute('visibility', 'hidden')); };
   svg.onpointermove = (e) => show(e.clientX);
   svg.onpointerdown = (e) => show(e.clientX);
   svg.onpointerleave = (e) => { if (e.pointerType === 'mouse') hide(); };

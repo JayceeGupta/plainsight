@@ -20,6 +20,8 @@ const css = `
 .demo-note b { color: var(--text); font-weight: 600; }
 .demo-note a { color: var(--text); text-decoration: none; border-left: 1px solid var(--line2); padding-left: 10px; }
 .demo-note a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.demo-note .seg { padding: 2px; border-radius: 99px; }
+.demo-note .seg button { padding: 2px 9px; border-radius: 99px; font-size: 12px; }
 @media (max-width: 640px) { .demo-note span { display: none; } }
 `;
 const head = `<meta name="description" content="A live demo of plainsight: shared AI coding usage across machines and subscriptions, with made-up data.">
