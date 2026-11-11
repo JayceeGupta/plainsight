@@ -401,6 +401,8 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .cleg button[aria-pressed="false"] { opacity: .4; text-decoration: line-through; text-decoration-color: var(--faint); }
 .cleg .static { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; font-size: 13px; color: var(--faint); }
 .cpop { width: 330px; }
+.cpop .cleg { margin: -2px 0 10px; }
+.cpop .cleg button { font-size: 12.5px; padding: 2px 8px; }
 .cpop .srow3 .l { display: flex; align-items: center; gap: 7px; }
 .cpop .nick { width: 100%; min-width: 0; padding: 2px 0; background: none; border: 0; border-bottom: 1px solid transparent; color: var(--text); font: inherit; outline: none; text-overflow: ellipsis; }
 .cpop .nick:hover { border-bottom-color: var(--line2); }
@@ -833,6 +835,8 @@ function laneOf(sub) {
   const long = lw ? winName(lw.m) : 'Limit', b0 = L.bands[0];
   return { sub, name: label, label: clash ? label.split(/\s+/)[0].slice(0, 8) : short, c: st.c, dash: st.dash, bands: L.bands, resets: L.resets, short: b0 && b0[1] - b0[0] > 864e5 ? long : winName((L.windows[0] || {}).m || 300), long };
 }
+// what a subscription shows on a chart: its limit row (row) and its reset marks (mark), each with its own switch
+const laneFor = (sub) => { const ln = laneOf(sub), c = S.chart; return ln && { ...ln, row: c.lanes && !(c.laneOff || []).includes(sub), mark: c.rline !== 'off' && !(c.resetOff || []).includes(sub) }; };
 // one filter for the whole page: header menus, chips, split bars and rows all edit the same list
 function toggleFilter(key, v) {
   const set = new Set(S[key]);
@@ -1120,7 +1124,7 @@ function renderCharts() {
     drawChart($('charts').querySelector('.chart'), {
       label: `${what} by subscription`,
       lines: vis.map((s) => { const st = subStyle(s.sub); return { sub: s.sub, html: `${dashSwatch(st.c, st.dash)}${glyph(s.provider)}${esc(s.label)}`, c: st.c, dash: st.dash, fill: S.chart.fill, vals: data.series.map((b) => (b.v[s.sub] ? val(b.v[s.sub]) : 0)) }; }),
-      lanes: S.chart.lanes ? vis.map((s) => laneOf(s.sub)).filter(Boolean) : [],
+      lanes: vis.map((s) => laneFor(s.sub)).filter(Boolean),
     });
     return;
   }
@@ -1130,7 +1134,7 @@ function renderCharts() {
     const order = data.options.machineOrder || data.options.machines;
     const present = new Set(); data.series.forEach((b) => Object.keys((b.m || {})[sub] || {}).forEach((k) => present.add(k)));
     const mv = (b, k) => { const c = ((b.m || {})[sub] || {})[k]; return c ? (S.metric === 'cost' ? c.cost : c.tokens) : 0; };
-    const lane = S.chart.lanes && laneOf(sub);
+    const lane = laneFor(sub);
     drawChart(el, {
       label: `${what} for ${subInfo(sub).label} by machine`, total: true, stack: true,
       lines: order.filter((k) => present.has(k)).map((k) => ({ html: `${mdot(k)}${esc(k)}`, c: mcol(k), fill: S.chart.fill, vals: data.series.map((b) => mv(b, k)) })),
@@ -1147,10 +1151,10 @@ function drawChart(el, spec) {
   // subscription that has a window in view (daily ranges carry none)
   const series = data.series, step = data.step, n = series.length;
   const t0 = series[0].t, tN = series[n - 1].t;
-  const rows = spec.lanes.filter((ln) => ln.bands.some(([a, b]) => b > t0 && a < tN + step));
+  const rows = spec.lanes.filter((ln) => ln.row && ln.bands.some(([a, b]) => b > t0 && a < tN + step));
   // only resets inside the plotted time: xt() pins any other time to an edge, where it would read
   // as a reset that happened there (one inside the last point's own hour or day belongs at the right edge)
-  const resets = spec.lanes.flatMap((ln) => ln.resets.filter((r) => r >= t0 && r < tN + step).map((r) => ({ ln, r })));
+  const resets = spec.lanes.filter((ln) => ln.mark).flatMap((ln) => ln.resets.filter((r) => r >= t0 && r < tN + step).map((r) => ({ ln, r })));
   const anyReset = resets.length > 0;
   const LH = 24, laneTop = anyReset ? 20 : 6, laneBlock = rows.length || anyReset ? laneTop + rows.length * LH : 0;
   const W = svg.clientWidth || 800, L = rows.length && spec.lanes.length > 1 ? (small ? 72 : 114) : small ? 50 : 66, R = 6, T = (rows.length ? 18 : 8) + laneBlock, B = 26;
@@ -1189,11 +1193,13 @@ function drawChart(el, spec) {
   // long-window (weekly) resets: a fine dotted line through the plot in the subscription's colour,
   // named above the limit rows when there is room and left unnamed when there is not
   // (the colour and the hover card still say whose). They fade with their subscription.
-  const marks = resets.map((m) => ({ ...m, x: xt(m.r) })).sort((a, b) => a.x - b.x);
-  const roomy = marks.every((m, i) => !i || m.x - marks[i - 1].x > (manyLanes ? 150 : 96));
   const full = S.chart.rline === 'full';
-  for (const { ln, x: rx } of marks) {
-    const li = rows.indexOf(ln), y1 = full || li < 0 ? 16 : laneTop + li * LH + 3, y2 = full ? H - B : li < 0 ? T - 4 : laneTop + (li + 1) * LH;
+  const marks = resets.map((m) => {
+    const li = rows.indexOf(m.ln); // short: inside its own limit row, or just above the plot when that row is off
+    return { ...m, x: xt(m.r), y1: full ? 16 : li < 0 ? T - 14 : laneTop + li * LH + 3, y2: full ? H - B : li < 0 ? T - 2 : laneTop + (li + 1) * LH };
+  }).sort((a, b) => a.x - b.x);
+  const roomy = marks.every((m, i) => !i || m.x - marks[i - 1].x > (manyLanes ? 150 : 96));
+  for (const { ln, x: rx, y1, y2 } of marks) {
     const name = roomy ? `↻ ${manyLanes ? (ln.name.length > 14 ? ln.label : ln.name) + ' ' + ln.long.toLowerCase() : ln.long} reset` : '';
     const anchor = !roomy ? 'middle' : rx < L + 60 ? 'start' : rx > W - R - 60 ? 'end' : 'middle';
     g += `<g class="lt" data-s="${esc(ln.sub)}"><line x1="${rx}" x2="${rx}" y1="${y1}" y2="${y2}" stroke="${ln.c}" stroke-opacity="${full ? '.55' : '.9'}" stroke-dasharray="1.5 3.5" stroke-linecap="round"/><text x="${rx}" y="11" text-anchor="${anchor}" class="lrs"${manyLanes ? ` style="fill:${ln.c}"` : ''}>${esc(name)}</text></g>`;
@@ -1235,19 +1241,21 @@ function drawChart(el, spec) {
     let i = Math.max(0, Math.min(n - 1, Math.round(((px - X0) / XW) * (n - 1))));
     // within 10px of a weekly reset: snap to it and name it
     let snap = null;
-    for (const m of marks) { const d = Math.abs(m.x - px); if (d < 10 && (!snap || d < snap.d)) snap = { d, r: m.r, ln: m.ln }; }
+    for (const m of marks) { const d = Math.abs(m.x - px); if (d < 10 && (!snap || d < snap.d)) snap = { d, r: m.r, ln: m.ln, y1: m.y1 }; }
     // on a reset the card is about the hour or day the reset fell in, whichever side of it the pointer is
     if (snap) { i = 0; while (i < n - 1 && series[i + 1].t <= snap.r) i++; }
     const cx = snap ? xt(snap.r) : x(i);
     const cur = svg.querySelector('.cur');
     cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.setAttribute('visibility', 'visible');
+    cur.setAttribute('y1', snap ? snap.y1 : T); // on a reset: one line from its mark down to the axis
     cur.setAttribute('stroke', snap ? snap.ln.c : '#3a3a3a');
     const tot = shown.reduce((a, l) => a + l.vals[i], 0);
     // the point's date first; a reset is one line under it with its own day and time
     const dayT = (t) => new Date(t).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+    const tq = snap ? snap.r - 1 : series[i].t + step / 2;
     tip.innerHTML = `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
-      (snap ? `<div class="lw"><div class="r"><span style="color:${snap.ln.c}">↻ ${manyLanes ? esc(snap.ln.name) + ' ' : ''}${esc(snap.ln.long.toLowerCase())} limit reset</span><b class="num">${esc(fmtT(snap.r))}</b></div></div>` : '') +
-      spec.lanes.map((ln) => { const bd = ln.bands.find(([a, b]) => series[i].t + step / 2 >= a && series[i].t + step / 2 < b); return bd ? `<div class="lw"><div class="r"><span>${manyLanes ? esc(ln.name) + ' · ' : ''}${ln.short} limit</span><b class="num">${bd[2]}% used</b></div><div class="when">${bd[1] - bd[0] > 864e5 ? esc(dayT(bd[0])) + ' – ' + esc(dayT(bd[1])) : esc(fmtT(bd[0])) + ' – ' + esc(new Date(bd[1]).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))}${bd[1] > now ? ' · current' : ''}</div></div>` : ''; }).join('') +
+      (snap ? `<div class="lw"><div class="r"><span style="color:${snap.ln.c}">↻ ${manyLanes ? esc(snap.ln.name) + ' ' + esc(snap.ln.long.toLowerCase()) : esc(snap.ln.long)} limit reset</span><b class="num">${esc(fmtT(snap.r))}</b></div></div>` : '') +
+      spec.lanes.filter((ln) => ln.row).map((ln) => { const bd = ln.bands.find(([a, b]) => tq >= a && tq < b); return bd ? `<div class="lw"><div class="r"><span>${manyLanes ? esc(ln.name) + ' · ' : ''}${ln.short} limit</span><b class="num">${bd[2]}% used</b></div><div class="when">${bd[1] - bd[0] > 864e5 ? esc(dayT(bd[0])) + ' – ' + esc(dayT(bd[1])) : esc(fmtT(bd[0])) + ' – ' + esc(new Date(bd[1]).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))}${bd[1] > now ? ' · current' : ''}</div></div>` : ''; }).join('') +
       (shown.length ? shown.map((l) => `<div class="r"><span>${l.html}</span><b class="num">${fmtV(l.vals[i])}</b></div>`).join('') + (spec.total && shown.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
     tip.style.display = 'block';
     const left = (cx / W) * rect.width;
@@ -1289,6 +1297,8 @@ function segHtml(k, opts) { return `<div class="seg">${opts.map(([v, l]) => `<bu
 let cpopKind = 'chart';
 function chartPopHtml() {
   const subs = data.subscriptions;
+  // one switch per subscription, when more than one in view reports limits
+  const chips = (key) => { const off = S.chart[key] || [], ls = subs.filter((x) => (data.limits || {})[x.sub]); return ls.length > 1 ? `<div class="cleg">${ls.map((x) => `<button data-tg="${key}" data-sub="${esc(x.sub)}" aria-pressed="${!off.includes(x.sub)}">${glyph(x.provider)}${esc(x.label)}</button>`).join('')}</div>` : ''; };
   // every subscription can be renamed here, also one that is filtered out of view
   if (cpopKind === 'subs') return `<h4>Limit bars</h4>
     <div class="opt"><span>Used part</span>${segHtml('limc', [['mach', 'By machine'], ['sub', 'One colour']])}</div>
@@ -1296,8 +1306,8 @@ function chartPopHtml() {
     ${data.options.subscriptions.map((s) => { const st = subStyle(s.sub); return `<div class="srow3"><input type="color" data-sc="${esc(s.sub)}" value="${st.c}" aria-label="Colour for ${esc(s.label)}"><span class="l">${glyph(s.provider)}<input class="nick" data-nick="${esc(s.sub)}" value="${esc(s.label)}" placeholder="${esc(s.plan || s.label)}" maxlength="24" spellcheck="false" aria-label="Your name for ${esc(s.plan || s.label)}" title="Your own name for it, on this device"></span><span class="dashes">${DASHES.map((d) => `<button data-sd="${esc(s.sub)}" data-dash="${d}" aria-pressed="${st.dash === d}" aria-label="Line style">${dashSwatch(st.c, d)}</button>`).join('')}</span></div>`; }).join('')}
     <div class="row"><span class="faint" style="font-size:12px">Saved on this device</span></div>`;
   return `<h4>Chart</h4>
-    <div class="opt"><span>Limit windows</span>${segHtml('lanes', [[true, 'On'], [false, 'Off']])}</div>
-    <div class="opt"><span>Reset lines</span>${segHtml('rline', [['short', 'Short'], ['full', 'Full height']])}</div>
+    <div class="opt"><span>Limit windows</span>${segHtml('lanes', [[true, 'On'], [false, 'Off']])}</div>${S.chart.lanes ? chips('laneOff') : ''}
+    <div class="opt"><span>Reset lines</span>${segHtml('rline', [['short', 'Short'], ['full', 'Full'], ['off', 'Off']])}</div>${S.chart.rline !== 'off' ? chips('resetOff') : ''}
     <div class="opt"><span>Area fill</span>${segHtml('fill', [[true, 'On'], [false, 'Off']])}</div>
     <div class="opt"><span>Type</span>${segHtml('type', [['lines', 'Lines'], ['bars', 'Stacked bars']])}</div>
     ${S.chart.type === 'bars' && subs.length > 1 && S.chart.mode === 'comb' ? '<div class="faint" style="font-size:12px;margin:-4px 0 8px">Bars stack machines, so they show per subscription and in the model view. One chart keeps lines: subscriptions are never added.</div>' : ''}
@@ -1319,6 +1329,7 @@ $('cpop').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.dataset.ck) { const v = b.dataset.v; S.chart[b.dataset.ck] = v === 'true' ? true : v === 'false' ? false : v; }
+  else if (b.dataset.tg) { const set = new Set(S.chart[b.dataset.tg] || []); set.has(b.dataset.sub) ? set.delete(b.dataset.sub) : set.add(b.dataset.sub); S.chart[b.dataset.tg] = [...set]; }
   else if (b.dataset.sd) { S.chart.styles = S.chart.styles || {}; S.chart.styles[b.dataset.sd] = { ...S.chart.styles[b.dataset.sd], dash: b.dataset.dash }; }
   else if (b.dataset.creset !== undefined) S.chart = { ...CHART0, limc: S.chart.limc, styles: S.chart.styles };
   else return;
@@ -1499,7 +1510,7 @@ function renderModal() {
       const off = MD.ex.has(m), dimmed = MD.hi && MD.hi !== m;
       return { html: `${mdot(m)}${esc(m)}`, c: off ? '#3a3a3a' : mcol(m), dim: off, o: off ? 0.35 : dimmed ? 0.3 : 1, w: MD.hi === m ? 2.4 : 1.8, fill: S.chart.fill && !off && !dimmed, vals: series(m) };
     }),
-    lanes: S.chart.lanes ? subs.map(laneOf).filter(Boolean) : [],
+    lanes: subs.map(laneFor).filter(Boolean),
   });
 }
 $('dlgBody').addEventListener('input', (e) => {
