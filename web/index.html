@@ -1182,7 +1182,7 @@ function drawChart(el, spec) {
     let free = L; // where the next % may start, so two never overlap
     for (const [a, b, u = 0] of ln.bands.slice().sort((p, q) => p[0] - q[0])) {
       if (b <= t0 || a >= tN + step) continue;
-      const x0 = xt(a), x1 = Math.max(x0 + 2, xt(b) - 2), w = x1 - x0;
+      const x0 = xt(a) + (a > t0 ? 2 : 0), x1 = Math.max(x0 + 2, xt(b) - 2), w = x1 - x0; // a 4px gap at each reset, where its mark sits
       const tone = u >= 90 ? 'b' : u >= 75 ? 'w' : u ? '' : 'z';
       row += `<rect x="${x0}" y="${by}" width="${w}" height="${bh}" rx="${Math.min(3, w / 2)}" fill="${ln.c}" fill-opacity="${(0.16 + 0.74 * (Math.min(100, u) / 100)).toFixed(2)}"/>`;
       const txt = u + '%', tw = txt.length * 6.4, end = x0 + tw > W - R, tx = end ? W - R : x0;
@@ -1196,7 +1196,7 @@ function drawChart(el, spec) {
   const full = S.chart.rline === 'full';
   const marks = resets.map((m) => {
     const li = rows.indexOf(m.ln); // short: inside its own limit row, or just above the plot when that row is off
-    return { ...m, x: xt(m.r), y1: full ? 16 : li < 0 ? T - 14 : laneTop + li * LH + 3, y2: full ? H - B : li < 0 ? T - 2 : laneTop + (li + 1) * LH };
+    return { ...m, x: xt(m.r), y1: full ? 16 : li < 0 ? T - 14 : laneTop + li * LH + 9, y2: full ? H - B : li < 0 ? T - 2 : laneTop + li * LH + 21 } // short: just past the bar, clear of the % above and the row below;
   }).sort((a, b) => a.x - b.x);
   const roomy = marks.every((m, i) => !i || m.x - marks[i - 1].x > (manyLanes ? 150 : 96));
   for (const { ln, x: rx, y1, y2 } of marks) {
