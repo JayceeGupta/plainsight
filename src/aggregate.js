@@ -246,8 +246,8 @@ function summarize(events, q = {}, now = Date.now()) {
     limitsOut[s] = {
       t: L.t, windows, by: nick(L.o), bank: L.bank,
       checks: L.checks.map(({ o, ...c }) => ({ ...c, mach: nick(o) })),
-      // bands of hours only up to 7 days in view; bands that are whole weeks at any length
-      bands: L.bands.filter(([a, b]) => b > from && a < now && (b - a >= 864e5 || now - from <= RANGES['7d'] + 3600e3)),
+      // the short (5h) windows up to 7 days in view, the whole weeks beyond that
+      bands: (now - from <= RANGES['7d'] + 3600e3 ? L.bands : L.wbands).filter(([a, b]) => b > from && a < now),
       resets: L.resets(from, now),
     };
   }
@@ -296,26 +296,29 @@ function limitInfo(lims, now, errs = []) {
     });
     // every window of the shortest length ever seen = one band: the 5-hour windows, or the weeks
     // themselves on a plan that has no shorter limit
-    const bands = [];
-    const shortM = ms[0];
-    if (shortM && (shortM >= 1440 || ms.length > 1)) {
+    // wbands: the same for the long (weekly) window, shown when the range is too long for 5h windows
+    const bandsOf = (m) => {
       // [start, end, highest % used seen in that window]
-      const seen = new Map();
+      const seen = new Map(), list = [];
       for (const ev of evs) for (const w of ev.lim) {
-        if (w.m !== shortM || w.k) continue;
+        if (w.m !== m || w.k) continue;
         const r = Math.round(w.r / 60e3) * 60e3; // events stored before rounding was added
         const b = seen.get(r);
-        if (b) b[2] = Math.max(b[2], w.u); else { const nb = [r - shortM * 60e3, r, w.u]; seen.set(r, nb); bands.push(nb); }
+        if (b) b[2] = Math.max(b[2], w.u); else { const nb = [r - m * 60e3, r, w.u]; seen.set(r, nb); list.push(nb); }
       }
-    }
+      return list;
+    };
+    const shortM = ms[0];
+    const bands = shortM && (shortM >= 1440 || ms.length > 1) ? bandsOf(shortM) : [];
     const longW = windows.filter((w) => w.m >= 1440).pop();
+    const wbands = !longW ? [] : longW.m === shortM ? bands : bandsOf(longW.m);
     // the latest checks by any machine, newest first: readings and failures
     const fails = errs.filter((e) => e.sub === sub).sort((a, b) => a.t - b.t);
     const checks = [...evs.slice(-CHECKS), ...fails.slice(-CHECKS)]
       .sort((a, b) => b.t - a.t).slice(0, CHECKS)
       .map((e) => e.lim ? { t: e.t, o: e.o, lim: e.lim.map(({ m, u, k }) => (k ? { m, u, k } : { m, u })) } : { t: e.t, o: e.o, le: e.le, ...(e.ra ? { ra: e.ra } : {}) });
     out[sub] = {
-      t: last.t, o: last.o, windows, bands, checks,
+      t: last.t, o: last.o, windows, bands, wbands, checks,
       // resets the provider gave to keep and use later: { n, until }, when a check reports them
       bank: last.bank && last.bank.n > 0 ? { n: last.bank.n, until: last.bank.until || null } : null,
       resets: (from, to) => {

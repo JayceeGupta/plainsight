@@ -315,17 +315,16 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .lim .lreset { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .lim .k .lreset { margin-left: auto; }
 .lbt { position: relative; display: flex; gap: 2px; height: 16px; min-width: 0; }
-.lbt i { display: block; height: 100%; min-width: 3px; border-radius: 2px; }
+.lbt i { display: block; height: 100%; min-width: 3px; border-radius: 3px; }
 .lbt .lfill { background: var(--lc); }
 /* every hatch on the page is the same: its colour at one strength for the lines, one for the gaps */
 .lbt .lu { --c: var(--lc); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 58%, transparent) 0 2px, color-mix(in srgb, var(--c) 13%, transparent) 2px 6px); }
 .lbt .lgap { background: repeating-linear-gradient(135deg, var(--warn) 0 2px, color-mix(in srgb, var(--warn) 24%, transparent) 2px 6px); }
 .lbt .lpace { position: absolute; top: -3px; bottom: -3px; height: auto; width: 2px; min-width: 0; margin-left: -1px; border-radius: 1px; background: var(--text); box-shadow: 0 0 0 2px #000; }
-/* a limit inside a limit (one model's own share of the week): right under its parent, as wide, thinner */
+/* a limit inside a limit (one model's own share of the week): right under its parent, as wide and as thick */
 .lim.part { margin-top: -8px; gap: 5px; }
 .lim.part .w { min-width: 0; margin-right: 4px; color: var(--muted); font-weight: 500; }
 .lim.part b { font-size: 13px; font-weight: 600; }
-.lim.part .lbt { height: 8px; }
 /* several subscriptions in view: the same bars at the same width, a little closer together */
 .lims.cmp { gap: 13px; }
 /* a reset saved for later */
@@ -593,7 +592,7 @@ const GLYPH = {
 const glyph = (p) => GLYPH[p] || '<span class="glyph faint">•</span>';
 const PROV = (p) => p === 'claude' ? 'Claude Code' : p === 'codex' ? 'Codex' : p;
 const ls = { get(k, d) { try { const v = localStorage.getItem('ps:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('ps:' + k, JSON.stringify(v)); } catch {} } };
-const CHART0 = { res: 'hour', mode: 'comb', type: 'lines', lanes: true, limc: 'mach', fill: true, curve: 'smooth', styles: {}, hidden: [] };
+const CHART0 = { res: 'hour', mode: 'comb', type: 'lines', lanes: true, rline: 'short', limc: 'mach', fill: true, curve: 'smooth', styles: {}, hidden: [] };
 const S = { range: ls.get('range', '24h'), metric: ls.get('metric', 'cost'), bd: ['time', 'machine'].includes(ls.get('bd', 'model')) ? ls.get('bd') : 'model', merge: ls.get('merge', 'split') === 'merge' ? 'merge' : 'split', chart: { ...CHART0, ...ls.get('chart', {}) }, subs: ls.get('subs', []), machines: ls.get('machines', []), providers: ls.get('providers', []), live: ls.get('live', true) };
 let data = null, es = null;
 S.nicks = ls.get('nicks', {}); // subscription -> your own name for it, on this device
@@ -831,7 +830,8 @@ function laneOf(sub) {
   // two subscriptions that shorten to the same name (Claude Pro, ChatGPT Pro) go by their first word instead
   const short = shortLabel(label), clash = data.options.subscriptions.some((s) => s.sub !== sub && shortLabel(s.label) === short);
   const lw = L.windows.filter((w) => w.m >= 1440).pop();
-  return { sub, name: label, label: clash ? label.split(/\s+/)[0].slice(0, 8) : short, c: st.c, dash: st.dash, bands: L.bands, resets: L.resets, short: winName((L.windows[0] || {}).m || 300), long: lw ? winName(lw.m) : 'Limit' };
+  const long = lw ? winName(lw.m) : 'Limit', b0 = L.bands[0];
+  return { sub, name: label, label: clash ? label.split(/\s+/)[0].slice(0, 8) : short, c: st.c, dash: st.dash, bands: L.bands, resets: L.resets, short: b0 && b0[1] - b0[0] > 864e5 ? long : winName((L.windows[0] || {}).m || 300), long };
 }
 // one filter for the whole page: header menus, chips, split bars and rows all edit the same list
 function toggleFilter(key, v) {
@@ -1160,8 +1160,9 @@ function drawChart(el, spec) {
   const live = spec.lines.filter((l) => !l.dim);
   const max = Math.max(1e-9, ...(bars ? data.series.map((_, i) => live.reduce((a, l) => a + l.vals[i], 0)) : live.flatMap((l) => l.vals)));
   const nice = niceMax(max);
-  const x = (i) => L + (n <= 1 ? 0 : (i * (W - L - R)) / (n - 1));
-  const xt = (t) => L + (tN === t0 ? 0 : Math.max(0, Math.min(1, (t - t0) / (tN - t0)))) * (W - L - R);
+  const bw = Math.max(1, Math.min(28, ((W - L - R) / n) * 0.7)), pad = bars ? bw / 2 : 0, X0 = L + pad, XW = W - L - R - 2 * pad;
+  const x = (i) => X0 + (n <= 1 ? 0 : (i * XW) / (n - 1));
+  const xt = (t) => X0 + (tN === t0 ? 0 : Math.max(0, Math.min(1, (t - t0) / (tN - t0)))) * XW;
   const y = (v) => T + (H - T - B) * (1 - v / nice);
   const fmtT = (t) => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   let g = '';
@@ -1190,17 +1191,18 @@ function drawChart(el, spec) {
   // (the colour and the hover card still say whose). They fade with their subscription.
   const marks = resets.map((m) => ({ ...m, x: xt(m.r) })).sort((a, b) => a.x - b.x);
   const roomy = marks.every((m, i) => !i || m.x - marks[i - 1].x > (manyLanes ? 150 : 96));
+  const full = S.chart.rline === 'full';
   for (const { ln, x: rx } of marks) {
+    const li = rows.indexOf(ln), y1 = full || li < 0 ? 16 : laneTop + li * LH + 3, y2 = full ? H - B : li < 0 ? T - 4 : laneTop + (li + 1) * LH;
     const name = roomy ? `↻ ${manyLanes ? (ln.name.length > 14 ? ln.label : ln.name) + ' ' + ln.long.toLowerCase() : ln.long} reset` : '';
     const anchor = !roomy ? 'middle' : rx < L + 60 ? 'start' : rx > W - R - 60 ? 'end' : 'middle';
-    g += `<g class="lt" data-s="${esc(ln.sub)}"><line x1="${rx}" x2="${rx}" y1="16" y2="${roomy ? H - B : T - 4}" stroke="${ln.c}" stroke-opacity="${roomy ? '.55' : '.9'}" stroke-dasharray="1.5 3.5" stroke-linecap="round"/><text x="${rx}" y="11" text-anchor="${anchor}" class="lrs"${manyLanes ? ` style="fill:${ln.c}"` : ''}>${esc(name)}</text></g>`;
+    g += `<g class="lt" data-s="${esc(ln.sub)}"><line x1="${rx}" x2="${rx}" y1="${y1}" y2="${y2}" stroke="${ln.c}" stroke-opacity="${full ? '.55' : '.9'}" stroke-dasharray="1.5 3.5" stroke-linecap="round"/><text x="${rx}" y="11" text-anchor="${anchor}" class="lrs"${manyLanes ? ` style="fill:${ln.c}"` : ''}>${esc(name)}</text></g>`;
   }
   for (let i = 0; i <= 2; i++) { const v = (nice * i) / 2; g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : fmtV(v)}</text>`; }
   const ticks = [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i && v >= 0);
   for (const i of ticks) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${esc(tickLabel(series[i].t, step))}</text>`;
   let paths = '';
   if (bars) {
-    const bw = Math.max(1, Math.min(28, ((W - L - R) / n) * 0.7));
     for (let i = 0; i < n; i++) {
       let acc = 0;
       const segs = live.filter((l) => l.vals[i] > 0);
@@ -1230,10 +1232,12 @@ function drawChart(el, spec) {
   const show = (clientX) => {
     const rect = svg.getBoundingClientRect();
     const px = ((clientX - rect.left) / rect.width) * W;
-    const i = Math.max(0, Math.min(n - 1, Math.round(((px - L) / (W - L - R)) * (n - 1))));
+    let i = Math.max(0, Math.min(n - 1, Math.round(((px - X0) / XW) * (n - 1))));
     // within 10px of a weekly reset: snap to it and name it
     let snap = null;
     for (const m of marks) { const d = Math.abs(m.x - px); if (d < 10 && (!snap || d < snap.d)) snap = { d, r: m.r, ln: m.ln }; }
+    // on a reset the card is about the hour or day the reset fell in, whichever side of it the pointer is
+    if (snap) { i = 0; while (i < n - 1 && series[i + 1].t <= snap.r) i++; }
     const cx = snap ? xt(snap.r) : x(i);
     const cur = svg.querySelector('.cur');
     cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.setAttribute('visibility', 'visible');
@@ -1293,6 +1297,7 @@ function chartPopHtml() {
     <div class="row"><span class="faint" style="font-size:12px">Saved on this device</span></div>`;
   return `<h4>Chart</h4>
     <div class="opt"><span>Limit windows</span>${segHtml('lanes', [[true, 'On'], [false, 'Off']])}</div>
+    <div class="opt"><span>Reset lines</span>${segHtml('rline', [['short', 'Short'], ['full', 'Full height']])}</div>
     <div class="opt"><span>Area fill</span>${segHtml('fill', [[true, 'On'], [false, 'Off']])}</div>
     <div class="opt"><span>Type</span>${segHtml('type', [['lines', 'Lines'], ['bars', 'Stacked bars']])}</div>
     ${S.chart.type === 'bars' && subs.length > 1 && S.chart.mode === 'comb' ? '<div class="faint" style="font-size:12px;margin:-4px 0 8px">Bars stack machines, so they show per subscription and in the model view. One chart keeps lines: subscriptions are never added.</div>' : ''}
