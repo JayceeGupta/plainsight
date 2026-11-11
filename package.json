@@ -1,6 +1,6 @@
 {
   "name": "plainsight",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Peer-to-peer, privacy-first AI coding usage sharing (Claude Code, Codex) across your machines. Data syncs peer to peer over Tailscale; the dashboard is served by any online machine through a Cloudflare Tunnel behind a login. No server, no content, just numbers.",
   "license": "MIT",
   "bin": {
@@ -10,7 +10,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "demo": "node demo/build.js"
   },
   "files": [
     "assets",

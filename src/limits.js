@@ -29,15 +29,18 @@ function token(dir) {
   } catch { return null; } // macOS keeps it in the keychain: no limits there
 }
 
-// Turns the endpoint's answer into [{ m: window minutes, u: % used, r: reset ms }].
+// Turns the endpoint's answer into [{ m: window minutes, u: % used, r: reset ms }]. A plan without
+// a window (no 5-hour limit) simply has no entry for it. A model's own weekly limit inside the
+// weekly one (seven_day_<model>) becomes an entry of the same length with k: the model's name.
 function parseUsage(j) {
   const out = [];
-  for (const [k, m] of Object.entries(WINDOWS)) {
-    const w = j && j[k];
+  const add = (w, m, k) => {
     // reset times jitter by a fraction of a second between calls; minute precision keeps one window one window
     const r = w && Math.round(Date.parse(w.resets_at) / 60e3) * 60e3;
-    if (w && Number.isFinite(r) && typeof w.utilization === 'number') out.push({ m, u: Math.max(0, Math.min(100, Math.round(w.utilization))), r });
-  }
+    if (w && Number.isFinite(r) && typeof w.utilization === 'number') out.push({ m, u: Math.max(0, Math.min(100, Math.round(w.utilization))), r, ...(k ? { k } : {}) });
+  };
+  for (const [k, m] of Object.entries(WINDOWS)) add(j && j[k], m);
+  for (const [k, w] of Object.entries(j || {})) { const model = /^seven_day_([a-z0-9]+)$/.exec(k); if (model && out.some((x) => x.m === WINDOWS.seven_day && !x.k)) add(w, WINDOWS.seven_day, model[1]); }
   return out;
 }
 

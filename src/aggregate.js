@@ -244,10 +244,10 @@ function summarize(events, q = {}, now = Date.now()) {
     });
     const nick = (o) => machineName(nodes, o);
     limitsOut[s] = {
-      t: L.t, windows, by: nick(L.o),
+      t: L.t, windows, by: nick(L.o), bank: L.bank,
       checks: L.checks.map(({ o, ...c }) => ({ ...c, mach: nick(o) })),
-      // short windows only up to 7 days, as their own bands
-      bands: now - from <= RANGES['7d'] + 3600e3 ? L.bands.filter(([a, b]) => b > from && a < now) : [],
+      // bands of hours only up to 7 days in view; bands that are whole weeks at any length
+      bands: L.bands.filter(([a, b]) => b > from && a < now && (b - a >= 864e5 || now - from <= RANGES['7d'] + 3600e3)),
       resets: L.resets(from, now),
     };
   }
@@ -283,23 +283,26 @@ function limitInfo(lims, now, errs = []) {
   for (const [sub, evs] of Object.entries(by)) {
     evs.sort((a, b) => a.t - b.t);
     const last = evs[evs.length - 1];
-    const ms = [...new Set(last.lim.map((w) => w.m))].sort((a, b) => a - b);
+    // an entry with k is one model's own limit inside the window of the same length (weekly Fable)
+    const ms = [...new Set(last.lim.filter((w) => !w.k).map((w) => w.m))].sort((a, b) => a - b);
     const windows = ms.map((m) => {
-      const w = last.lim.find((x) => x.m === m);
+      const w = last.lim.find((x) => x.m === m && !x.k);
       let r = w.r, u = w.u;
       const len = m * 60e3;
       // a fixed-period window (weekly/monthly) rolls over on its own; a lapsed 5h window is just empty
       if (r <= now) { u = 0; if (m >= 1440) r += Math.ceil((now - r) / len) * len; }
-      return { m, u, r, start: r > now ? r - len : now, asOf: last.t };
+      const parts = last.lim.filter((x) => x.m === m && x.k).map((p) => (p.r <= now ? { k: p.k, u: 0, r } : { k: p.k, u: p.u, r: p.r }));
+      return { m, u, r, start: r > now ? r - len : now, asOf: last.t, ...(parts.length ? { parts } : {}) };
     });
-    // every short window ever seen = one band
+    // every window of the shortest length ever seen = one band: the 5-hour windows, or the weeks
+    // themselves on a plan that has no shorter limit
     const bands = [];
     const shortM = ms[0];
-    if (shortM && shortM < 1440 && ms.length > 1) {
+    if (shortM && (shortM >= 1440 || ms.length > 1)) {
       // [start, end, highest % used seen in that window]
       const seen = new Map();
       for (const ev of evs) for (const w of ev.lim) {
-        if (w.m !== shortM) continue;
+        if (w.m !== shortM || w.k) continue;
         const r = Math.round(w.r / 60e3) * 60e3; // events stored before rounding was added
         const b = seen.get(r);
         if (b) b[2] = Math.max(b[2], w.u); else { const nb = [r - shortM * 60e3, r, w.u]; seen.set(r, nb); bands.push(nb); }
@@ -310,9 +313,11 @@ function limitInfo(lims, now, errs = []) {
     const fails = errs.filter((e) => e.sub === sub).sort((a, b) => a.t - b.t);
     const checks = [...evs.slice(-CHECKS), ...fails.slice(-CHECKS)]
       .sort((a, b) => b.t - a.t).slice(0, CHECKS)
-      .map((e) => e.lim ? { t: e.t, o: e.o, lim: e.lim.map(({ m, u }) => ({ m, u })) } : { t: e.t, o: e.o, le: e.le, ...(e.ra ? { ra: e.ra } : {}) });
+      .map((e) => e.lim ? { t: e.t, o: e.o, lim: e.lim.map(({ m, u, k }) => (k ? { m, u, k } : { m, u })) } : { t: e.t, o: e.o, le: e.le, ...(e.ra ? { ra: e.ra } : {}) });
     out[sub] = {
       t: last.t, o: last.o, windows, bands, checks,
+      // resets the provider gave to keep and use later: { n, until }, when a check reports them
+      bank: last.bank && last.bank.n > 0 ? { n: last.bank.n, until: last.bank.until || null } : null,
       resets: (from, to) => {
         if (!longW) return [];
         const len = longW.m * 60e3, res = [];

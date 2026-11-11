@@ -163,8 +163,8 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .dstrip.hatch { background: repeating-linear-gradient(135deg, #1d1d1d 0 2px, #0b0b0b 2px 6px); box-shadow: inset 0 0 0 1px var(--line2); }
 .dstrip i { display: block; height: 100%; flex: none; min-width: 3px; border-radius: 5px; background: var(--c); opacity: .35; transition-property: opacity; transition-duration: .12s; }
 .dstrip i.me { opacity: 1; }
-.dstrip i:not(.me):not(.rest) { opacity: 1; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #000) 0 1.2px, color-mix(in srgb, var(--c) 12%, #000) 1.2px 5px); }
-.dstrip i:not(.me):not(.rest):hover { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #000) 0 1.2px, color-mix(in srgb, var(--c) 25%, #000) 1.2px 5px); }
+.dstrip i:not(.me):not(.rest) { opacity: 1; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 58%, transparent) 0 2px, color-mix(in srgb, var(--c) 13%, transparent) 2px 6px); }
+.dstrip i:not(.me):not(.rest):hover { background: repeating-linear-gradient(135deg, var(--c) 0 2px, color-mix(in srgb, var(--c) 30%, transparent) 2px 6px); }
 .dstrip i.rest { background: none; min-width: 0; }
 .dstrip i:hover { opacity: .8; } .dstrip i.me:hover { opacity: 1; }
 .mtip { position: fixed; z-index: 50; display: none; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 9px 11px; font-size: 12.5px; min-width: 230px; box-shadow: 0 12px 32px rgba(0,0,0,.8); }
@@ -213,9 +213,16 @@ th.r .sortb { flex-direction: row-reverse; }
 .pop .reset:hover { color: var(--text); }
 
 /* announcements + live */
-.anns { display: grid; gap: 8px; margin-top: 18px; }
-.ann { border: 1px solid rgba(245,176,65,.35); background: rgba(245,176,65,.06); border-radius: 12px; padding: 11px 14px; display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: baseline; }
-.ann b.k { color: var(--warn); font-weight: 600; }
+/* notices from machines: one quiet line each (what kind, who, the message, until when) */
+.anns { display: grid; gap: 6px; margin-top: 18px; }
+.ann { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; padding: 9px 14px; border-radius: 10px; background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); font-size: 14px; }
+.ann .ak { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.ann.heavy .ak { color: var(--warn); }
+.ann .ak svg { width: 13px; height: 13px; }
+.ann .aw { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ann .aw b { font-weight: 600; }
+.ann .am { min-width: 0; }
+.ann .au { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
 .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: p 1.6s infinite; flex: none; }
 .pulse.idle { background: var(--warn); animation: none; }
 @keyframes p { 50% { opacity: .35; } }
@@ -224,14 +231,20 @@ th.r .sortb { flex-direction: row-reverse; }
 /* chart */
 .chartTitle { font-size: 17px; font-weight: 600; margin: 0 0 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .chart { position: relative; touch-action: pan-y; }
-.chart svg { width: 100%; height: 300px; display: block; overflow: visible; }
+.chart > svg { width: 100%; height: 300px; display: block; overflow: visible; }
 .chart text { fill: var(--faint); font-size: 11px; font-family: var(--font); }
 .chart .gl { stroke: var(--line); }
+.chart text.lnt { fill: var(--muted); font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }
+.chart text.lnt.w { fill: var(--warn); } .chart text.lnt.b { fill: var(--bad); } .chart text.lnt.z { fill: var(--faint); }
+.chart text.lrs { fill: var(--muted); font-size: 10.5px; pointer-events: none; }
 .charts { display: grid; gap: 28px; }
 .tip { position: absolute; pointer-events: none; background: #0b0b0b; border: 1px solid var(--line2); border-radius: 10px; padding: 9px 11px; font-size: 13px; display: none; min-width: 180px; box-shadow: 0 12px 32px rgba(0,0,0,.8); z-index: 5; }
 .tip .r { display: flex; gap: 14px; align-items: center; justify-content: space-between; padding: 1px 0; }
 .tip .r span { display: inline-flex; align-items: center; gap: 7px; }
 .tip .tot { border-top: 1px solid var(--line2); margin-top: 5px; padding-top: 5px; }
+.tip .lw { color: var(--muted); border-bottom: 1px solid var(--line2); margin-bottom: 6px; padding-bottom: 6px; white-space: nowrap; }
+.tip .lw b { color: var(--text); font-weight: 600; }
+.tip .lw .when { color: var(--faint); font-size: 12px; }
 
 /* stats + types */
 .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px 24px; }
@@ -276,55 +289,102 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .led { margin-top: 26px; border-top: 1px solid var(--line); }
 .led.one { margin-top: 22px; border-top: 0; }
 .lrow { padding: 14px 0 16px; border-bottom: 1px solid var(--line); display: grid; gap: 12px; }
+.led.one .lrow { gap: 18px; }
 .led.one .lrow { padding-top: 0; border-bottom: 0; }
-.lrow .top { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+.lrow .top { display: flex; align-items: baseline; gap: 9px; min-width: 0; margin-top: 0; }
 .lrow .top .who { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; min-width: 0; }
 .lrow .top .who .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lrow .top button.who:hover .l { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
 .lrow .top .val { margin-left: auto; font-size: 17px; font-weight: 650; white-space: nowrap; }
-.lrow .det { color: var(--muted); font-size: 13px; margin-top: -8px; }
-.lim { display: grid; gap: 0; }
-.lbar { position: relative; height: 34px; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px; width: 100%; text-align: left;
-  background: repeating-linear-gradient(135deg, #1b1b1b 0 2px, #0c0c0c 2px 7px); border: 1px solid var(--line2); }
-.lbar .lfill { position: absolute; inset: 0 auto 0 0; background: var(--lf, #3a3a3a); border-radius: 7px; }
-.lbar.claude { --lf: #4b2a20; } .lbar.codex { --lf: #333; }
-.lim.warn .lbar { --lf: #5a4313; } .lim.bad .lbar { --lf: #5c1f1f; }
-.lbar .lpace { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--text); border-radius: 1px; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
-.lbar .ltxt, .lbar .lreset { position: relative; font-size: 13px; white-space: nowrap; }
-.lbar .ltxt b { font-weight: 600; margin-right: 4px; }
-.lbar .ltxt .num { font-weight: 600; }
-.lbar .lreset { color: var(--text); background: #000; box-shadow: inset 0 0 0 1px var(--line2); padding: 2px 7px; border-radius: 6px; font-size: 12px; font-weight: 600; }
-.lbar:hover { border-color: #3a3a3a; }
-.lsub { padding: 8px 2px 4px; display: grid; gap: 6px; }
-.lm { display: grid; grid-template-columns: minmax(0, 1fr) 90px 48px 64px; gap: 10px; align-items: center; font-size: 13px; }
-.lm .who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; } .lm .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lm .lmbar { height: 6px; background: var(--line2); border-radius: 3px; overflow: hidden; } .lm .lmbar i { display: block; height: 100%; border-radius: 3px; }
-.lm b, .lm .muted { text-align: right; }
-/* limit freshness: when the numbers were read, by which machine, and the recent checks */
-.lfresh { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; font-size: 13px; margin-top: -2px; min-width: 0; }
-.lfresh .mst { font-size: 13px; }
-.lfresh .lby { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); min-width: 0; white-space: nowrap; }
-.lfresh .lfail { color: var(--warn); }
-.lfresh .disc { margin-left: auto; height: 24px; font-size: 12.5px; }
-.lchk { margin-top: -4px; border: 1px solid var(--line2); border-radius: 10px; padding: 2px 12px 10px; background: #050505; }
-.lc { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 12px; align-items: center; font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--line); }
-.lc.h { color: var(--faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 9px 0 6px; }
-.lc .who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
-.lc .who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lc .res { display: inline-flex; gap: 12px; justify-content: flex-end; color: var(--muted); white-space: nowrap; }
-.lc .res b { color: var(--text); font-weight: 600; margin-left: 3px; }
-.lc .lwarn { color: var(--warn); } .lc .lbad { color: var(--bad); } .lc .lnone { color: var(--faint); }
-.lc.h .res { color: var(--faint); }
-.lnote { color: var(--faint); font-size: 12px; padding-top: 9px; line-height: 1.45; }
-.meter .k, .msplit .k { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.lrow .det { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; margin-top: -8px; }
+/* a limit: one caption line (what is left, when it resets) over one bar, in the subscription's
+   colour. The solid part is what is left. The rest was used: hatched, by default in the colour of
+   the machine that used it, so the bar is never blank. The white line is an even pace. */
+.lims { display: grid; gap: 16px; }
+.lim { display: grid; gap: 7px; --lc: var(--text); }
+.lim .k { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.lim .w { min-width: 38px; color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.lim b { font-size: 15px; font-weight: 650; color: var(--text); }
+.lim.bad b { color: var(--bad); }
+.lim .lreset { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.lim .k .lreset { margin-left: auto; }
+.lbt { position: relative; display: flex; gap: 2px; height: 16px; min-width: 0; }
+.lbt i { display: block; height: 100%; min-width: 3px; border-radius: 2px; }
+.lbt .lfill { background: var(--lc); }
+/* every hatch on the page is the same: its colour at one strength for the lines, one for the gaps */
+.lbt .lu { --c: var(--lc); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 58%, transparent) 0 2px, color-mix(in srgb, var(--c) 13%, transparent) 2px 6px); }
+.lbt .lgap { background: repeating-linear-gradient(135deg, var(--warn) 0 2px, color-mix(in srgb, var(--warn) 24%, transparent) 2px 6px); }
+.lbt .lpace { position: absolute; top: -3px; bottom: -3px; height: auto; width: 2px; min-width: 0; margin-left: -1px; border-radius: 1px; background: var(--text); box-shadow: 0 0 0 2px #000; }
+/* a limit inside a limit (one model's own share of the week): right under its parent, as wide, thinner */
+.lim.part { margin-top: -8px; gap: 5px; }
+.lim.part .w { min-width: 0; margin-right: 4px; color: var(--muted); font-weight: 500; }
+.lim.part b { font-size: 13px; font-weight: 600; }
+.lim.part .lbt { height: 8px; }
+/* several subscriptions in view: the same bars at the same width, a little closer together */
+.lims.cmp { gap: 13px; }
+/* a reset saved for later */
+.lbank { display: inline-flex; align-items: center; flex: none; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 12px; font-weight: 550; color: var(--text); white-space: nowrap; box-shadow: inset 0 0 0 1px var(--line2); cursor: default; }
+.mtip .sect { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line2); }
+.mtip .sect .r > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+.mtip .tnote.wrap { max-width: 270px; white-space: normal; line-height: 1.4; }
+/* the bar again inside its card, with the white line named and any overspend marked in amber */
+.mtip .pg { margin: 9px 0 8px; }
+.mtip .pg .lbt { height: 10px; }
+.mtip .pgl { position: relative; height: 15px; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+.mtip .pgl span { position: absolute; top: 0; white-space: nowrap; }
+/* limit freshness: one quiet line (when the numbers were read, by which machine) that opens the recent checks */
+.lfw { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: -6px; min-width: 0; }
+.lfw > .lbank:first-child { margin-left: auto; }
+.lfresh { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; max-width: 100%; min-width: 0; padding: 3px 0; font-size: 12.5px; color: var(--faint); text-align: left; transition-property: color; transition-duration: .15s; }
+.lfresh:hover, .lfresh[aria-expanded="true"] { color: var(--muted); }
+.lfresh .lfa { flex-basis: 100%; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--warn); font-weight: 550; }
+.lfresh .lfa.bad { color: var(--bad); }
+.lfresh .lfa svg { width: 13px; height: 13px; flex: none; }
+.lfresh .lfa .more { color: var(--muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lfresh .lf { display: inline-flex; align-items: center; gap: 7px; min-width: 0; white-space: nowrap; }
+.lfresh .lf .stale { color: var(--warn); }
+.lfresh .lf .lby { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.lfresh .lf .lby span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.lfresh .lf .dot { width: 6px; height: 6px; }
+.lfresh .lmore { display: inline-grid; flex: none; margin-left: -4px; }
+.lfresh .lmore svg { width: 14px; height: 14px; transition-property: rotate; transition-duration: .15s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
+.lfresh[aria-expanded="true"] .lmore svg { rotate: 180deg; }
+.lpop { position: absolute; z-index: 15; top: calc(100% + 6px); left: 0; width: min(380px, 100%); background: #0b0b0b; border: 1px solid var(--line2); border-radius: 12px; padding: 14px 14px 11px; box-shadow: 0 16px 48px rgba(0,0,0,.85); font-size: 13px; scroll-margin: 12px; }
+.lpop:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+/* one lane per machine on a shared time line that ends now: a mark per check in the machine's colour,
+   a ring for a failed one. The mark under the pointer is read out below (the latest when none is). */
+.lks { display: grid; grid-template-columns: fit-content(42%) minmax(0, 1fr); gap: 6px 12px; align-items: center; }
+.lks.solo { grid-template-columns: minmax(0, 1fr); }
+.lks .who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: var(--muted); font-size: 12.5px; }
+.lks .who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lks .who .dot { width: 6px; height: 6px; }
+.ltl { position: relative; height: 20px; padding: 0 5px; }
+.ltl::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line2); }
+.ltl > span { display: block; position: relative; height: 100%; pointer-events: none; }
+.ltl i { position: absolute; top: 5px; bottom: 5px; width: 3px; margin-left: -1.5px; border-radius: 1.5px; background: var(--c); box-shadow: 0 0 0 2px #0b0b0b; transition-property: top, bottom; transition-duration: .1s; }
+.ltl i.f { top: 6px; bottom: 6px; width: 8px; margin-left: -4px; border-radius: 50%; background: #0b0b0b; box-shadow: inset 0 0 0 2px var(--c), 0 0 0 2px #0b0b0b; }
+.ltl i.sel { top: 0; bottom: 0; z-index: 1; }
+.ltl i.f.sel { top: 5px; bottom: 5px; width: 10px; margin-left: -5px; }
+.lax { grid-column: -2 / -1; display: flex; justify-content: space-between; margin-top: -3px; color: var(--faint); font-size: 11.5px; }
+.lro { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line2); color: var(--muted); }
+.lro .t { color: var(--faint); }
+.lro .v b { margin-left: 5px; color: var(--text); font-weight: 600; }
+.lro .lwarn { color: var(--warn); } .lro .lbad { color: var(--bad); }
+.meter .k { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .meter .k b { color: var(--text); font-weight: 600; }
 .meter .mtrack { height: 8px; border-radius: 4px; background: var(--line2); margin-top: 6px; overflow: hidden; }
 .meter .mtrack i { display: block; height: 100%; border-radius: 4px; background: var(--text); }
 .meter.hot .mtrack i { background: var(--warn); } .meter.hot .k b { color: var(--warn); }
-.msplit .k span:first-child { overflow: hidden; text-overflow: ellipsis; }
-.msplit .sb { display: flex; gap: 2px; height: 8px; margin-top: 6px; }
+/* the period's usage by machine: one bar, then who each part is */
+.msplit .sb { display: flex; gap: 2px; height: 12px; }
 .msplit .sb button { height: 100%; border-radius: 4px; min-width: 4px; background: var(--mc); transition: opacity .15s; }
 .msplit .sb:hover button:not(:hover) { opacity: .45; }
+.msplit .sl { display: flex; flex-wrap: wrap; gap: 3px 14px; margin-top: 9px; font-size: 12.5px; color: var(--muted); }
+.msplit .sl button { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; white-space: nowrap; transition-property: color; transition-duration: .15s; }
+.msplit .sl button:hover { color: var(--text); }
+.msplit .sl .n { overflow: hidden; text-overflow: ellipsis; }
+.msplit .sl b { font-weight: 600; color: var(--text); }
+.msplit .sl .dot { width: 6px; height: 6px; }
 
 /* chart head, legend, options */
 .chartHead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -335,7 +395,11 @@ dialog .x { position: absolute; right: 18px; top: 18px; }
 .cleg button:hover { background: var(--pill); color: var(--text); }
 .cleg button[aria-pressed="false"] { opacity: .4; text-decoration: line-through; text-decoration-color: var(--faint); }
 .cleg .static { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; font-size: 13px; color: var(--faint); }
-.cpop { width: 300px; }
+.cpop { width: 330px; }
+.cpop .srow3 .l { display: flex; align-items: center; gap: 7px; }
+.cpop .nick { width: 100%; min-width: 0; padding: 2px 0; background: none; border: 0; border-bottom: 1px solid transparent; color: var(--text); font: inherit; outline: none; text-overflow: ellipsis; }
+.cpop .nick:hover { border-bottom-color: var(--line2); }
+.cpop .nick:focus { border-bottom-color: #4a4a4a; }
 .cpop h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .cpop .opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 8px; }
 .cpop .seg button { padding: 3px 9px; font-size: 12.5px; }
@@ -429,7 +493,7 @@ footer b { color: var(--muted); font-weight: 500; }
   .hero { font-size: 46px; }
   section { margin-top: 34px; }
   .top { margin-top: 20px; }
-  .chart svg { height: 210px; }
+  .chart > svg { height: 210px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .stat .v { font-size: 21px; }
   .hide-s { display: none; }
@@ -522,9 +586,10 @@ const GLYPH = {
 const glyph = (p) => GLYPH[p] || '<span class="glyph faint">•</span>';
 const PROV = (p) => p === 'claude' ? 'Claude Code' : p === 'codex' ? 'Codex' : p;
 const ls = { get(k, d) { try { const v = localStorage.getItem('ps:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('ps:' + k, JSON.stringify(v)); } catch {} } };
-const CHART0 = { res: 'hour', mode: 'comb', type: 'lines', lanes: true, fill: true, curve: 'smooth', styles: {}, hidden: [] };
+const CHART0 = { res: 'hour', mode: 'comb', type: 'lines', lanes: true, limc: 'mach', fill: true, curve: 'smooth', styles: {}, hidden: [] };
 const S = { range: ls.get('range', '24h'), metric: ls.get('metric', 'cost'), bd: ['time', 'machine'].includes(ls.get('bd', 'model')) ? ls.get('bd') : 'model', merge: ls.get('merge', 'split') === 'merge' ? 'merge' : 'split', chart: { ...CHART0, ...ls.get('chart', {}) }, subs: ls.get('subs', []), machines: ls.get('machines', []), providers: ls.get('providers', []), live: ls.get('live', true) };
 let data = null, es = null;
+S.nicks = ls.get('nicks', {}); // subscription -> your own name for it, on this device
 
 const fmtN = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : n >= 1e7 ? 1 : 2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(n));
 const fmtC = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -533,7 +598,7 @@ const fmtV = (n) => S.metric === 'cost' ? fmtC(n) : fmtN(n);
 const dur = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`; };
 const ago = (ms) => ms < 60e3 ? 'just now' : ms < 3600e3 ? Math.round(ms / 60e3) + 'm ago' : ms < 864e5 ? Math.round(ms / 3600e3) + 'h ago' : Math.round(ms / 864e5) + 'd ago';
 // colour: this device's override > shared choice (set from a machine running plainsight) > palette
-const LOCAL = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+const LOCAL = !!window.PLAINSIGHT_DEMO || ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
 let myColors = ls.get('colors', {});
 const mcol = (nick) => {
   if (myColors[nick]) return myColors[nick];
@@ -654,11 +719,16 @@ function query(machines = S.machines) {
   if (S.providers.length) p.set('providers', S.providers.join(','));
   return p.toString();
 }
+// a subscription can go by a name of your own; the plan's name stays in .plan
+function applyNicks(d) {
+  for (const list of [d.options.subscriptions, d.subscriptions, d.models, d.machineUsage, d.live]) for (const x of list || []) { if (x.plan == null) x.plan = x.label; x.label = S.nicks[x.sub] || x.plan; }
+}
 async function fetchSummary(q) {
   const r = await fetch('/api/summary?' + q, { cache: 'no-store' });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const raw = await r.text(), d = JSON.parse(raw);
   Object.defineProperty(d, 'raw', { value: raw }); // to skip redrawing when nothing changed
+  applyNicks(d);
   qcache.set(q, d);
   return d;
 }
@@ -704,8 +774,9 @@ function render() {
   $('foot').innerHTML = `${data.machines.length} machine${data.machines.length === 1 ? '' : 's'} known, ${online.size} online · served by <b>${esc(data.self.nick)}</b>${LOCAL ? '' : ' · read-only view'}`;
 }
 
+const boltIco = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 2 4.5 13.5h6L9.5 22l9.5-12h-6.2z"/></svg>';
 function renderAnns() {
-  $('anns').innerHTML = data.announcements.map((a) => `<div class="ann"><b class="k">${a.heavy ? 'Heavy work' : 'Heads up'}</b><span>${mdot(a.machine)} <b>${esc(a.machine)}</b>${a.op ? ` (${esc(a.op)})` : ''}: ${esc(a.msg)}</span><span class="muted">until ${new Date(a.until).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${a.heavy ? ' · the 5h limit will likely be used up' : ''}</span></div>`).join('');
+  $('anns').innerHTML = data.announcements.map((a) => `<div class="ann${a.heavy ? ' heavy' : ''}"><span class="ak"${a.heavy ? ' title="Long or heavy work: the limits of its subscription will likely be used up"' : ''}>${a.heavy ? boltIco + 'Heavy work' : 'Heads up'}</span><span class="aw">${mdot(a.machine)}<b>${esc(a.machine)}</b>${a.op ? `<span class="muted">${esc(a.op)}</span>` : ''}</span><span class="am">${esc(a.msg)}</span><span class="au num">until ${esc(resetText(a.until))}</span></div>`).join('');
 }
 
 // ---- names, limits, styles
@@ -719,10 +790,14 @@ function pretty(id) {
   return words.join(' ');
 }
 const DASHES = ['', '7 4', '1.5 3.5', '9 3 2 3'];
+// every subscription has one colour, used for its chart line, its limit rows over the chart and its
+// limit bars: a shade of its provider's colour until you pick another
+const SUBPAL = { claude: ['#e8794a', '#f5b795', '#b9562f', '#fbd9c6'], codex: ['#e5e5e5', '#9aa3ad', '#6b7480', '#c5cbd3'] };
 const subStyle = (sub) => {
-  const i = data.options.subscriptions.findIndex((s) => s.sub === sub);
+  const all = data.options.subscriptions, i = all.findIndex((s) => s.sub === sub), me = all[i] || {};
   const st = (S.chart.styles || {})[sub] || {};
-  return { c: st.c || '#f5f5f5', dash: st.dash != null ? st.dash : DASHES[Math.max(0, i) % DASHES.length] };
+  const pal = SUBPAL[me.provider] || SUBPAL.codex, pi = all.filter((s) => s.provider === me.provider).findIndex((s) => s.sub === sub);
+  return { c: st.c || pal[Math.max(0, pi) % pal.length], dash: st.dash != null ? st.dash : DASHES[Math.max(0, i) % DASHES.length] };
 };
 const shortLabel = (l) => (String(l).replace(/^(claude|codex|chatgpt|openai)\s+/i, '') || String(l)).slice(0, 8);
 const winName = (m) => m === 300 ? '5h' : m === 10080 ? 'Week' : m === 43200 ? 'Month' : m % 1440 === 0 ? m / 1440 + 'd' : m % 60 === 0 ? m / 60 + 'h' : m + 'm';
@@ -737,7 +812,10 @@ function laneOf(sub) {
   const L = (data.limits || {})[sub];
   if (!L) return null;
   const st = subStyle(sub), label = subInfo(sub).label;
-  return { name: label, label: shortLabel(label), c: st.c, dash: st.dash, bands: L.bands, resets: L.resets, short: winName((L.windows[0] || {}).m || 300) };
+  // two subscriptions that shorten to the same name (Claude Pro, ChatGPT Pro) go by their first word instead
+  const short = shortLabel(label), clash = data.options.subscriptions.some((s) => s.sub !== sub && shortLabel(s.label) === short);
+  const lw = L.windows.filter((w) => w.m >= 1440).pop();
+  return { sub, name: label, label: clash ? label.split(/\s+/)[0].slice(0, 8) : short, c: st.c, dash: st.dash, bands: L.bands, resets: L.resets, short: winName((L.windows[0] || {}).m || 300), long: lw ? winName(lw.m) : 'Limit' };
 }
 // one filter for the whole page: header menus, chips, split bars and rows all edit the same list
 function toggleFilter(key, v) {
@@ -756,28 +834,68 @@ document.addEventListener('click', (e) => {
   else if (s) toggleFilter('subs', s.dataset.sfilter);
 });
 
-const openLim = new Set(); // "sub|minutes" rows expanded to per-machine
 const left = (ms) => { const m = Math.max(0, Math.round(ms / 60e3)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`; };
-function limitRows(sub) {
+// who used a limit window: [machine, % of the limit, cost], largest first (estimated from cost)
+function limSplit(w) {
+  const sp = Object.entries(w.split || {}).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  const tot = sp.reduce((a, x) => a + x[1], 0);
+  return sp.map(([m, c]) => [m, (w.u * c) / tot, c]);
+}
+const cap = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
+// The bar: solid is what is left, hatched is what was used (per machine, or plain), the white line
+// is an even pace. opt.gap (the card) also marks, in amber, how far past an even pace the use is.
+function limBar(w, opt = {}) {
+  const now = Date.now(), rem = 100 - w.u, on = w.r > now; // a short window that ran out starts again with the next message
+  const timeLeft = on ? Math.max(0, Math.min(100, ((w.r - now) / (w.m * 60e3)) * 100)) : 100;
+  const gap = opt.gap && on && rem < timeLeft ? timeLeft - rem : 0;
+  const sp = gap || opt.plain || S.chart.limc === 'sub' ? [] : limSplit(w);
+  const used = w.u - gap <= 0 ? '' : sp.length ? sp.map(([m, p]) => `<i class="lu" style="flex:${p.toFixed(3)} 1 0;--c:${mcol(m)}"></i>`).join('') : `<i class="lu" style="flex:${(w.u - gap).toFixed(3)} 1 0"></i>`;
+  return `<span class="lbt">${rem > 0 ? `<i class="lfill" style="flex:${rem} 1 0"></i>` : ''}${gap ? `<i class="lgap" style="flex:${gap.toFixed(3)} 1 0"></i>` : ''}${used}${on ? `<i class="lpace" style="left:${timeLeft}%"></i>` : ''}</span>`;
+}
+// cmp: several subscriptions share the column (the bars stay the same; only the line under them goes)
+function limitRows(sub, cmp) {
   const L = (data.limits || {})[sub];
   if (!L) return '';
-  const now = Date.now(), prov = subInfo(sub).provider;
-  const stale = now - L.t > 20 * 60e3 ? ` · as of ${ago(now - L.t)}` : '';
-  return L.windows.map((w) => {
-    const key = `${sub}|${w.m}`, open = openLim.has(key);
-    const rem = 100 - w.u, len = w.m * 60e3;
-    const timeLeft = Math.max(0, Math.min(100, ((w.r - now) / len) * 100));
-    const pace = rem >= timeLeft ? 'under pace: room to spare' : 'ahead of pace: using it faster than time passes';
-    const tone = rem <= 10 ? ' bad' : rem <= 25 ? ' warn' : '';
-    const sp = Object.entries(w.split || {}).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
-    const tot = sp.reduce((a, x) => a + x[1], 0);
-    const rows = open ? `<div class="lsub">${sp.length ? sp.map(([m, c]) => { const pct = tot ? (w.u * c) / tot : 0; return `<div class="lm"><span class="who">${mdot(m)}<span>${esc(m)}</span></span><span class="lmbar"><i style="width:${Math.min(100, pct).toFixed(2)}%;background:${mcol(m)}"></i></span><b class="num">≈${pct.toFixed(pct < 10 ? 1 : 0)}%</b><span class="num muted">${fmtC(c)}</span></div>`; }).join('') : ''}</div>` : '';
-    return `<div class="lim${tone}"><button class="lbar ${prov}" data-lexp="${esc(key)}" aria-expanded="${open}" aria-label="${winName(w.m)} limit: ${rem}% left, resets in ${left(w.r - now)}, ${pace}" title="${rem}% of the limit left · ${Math.round(timeLeft)}% of the window's time left · ${pace}${stale}">
-      <i class="lfill" style="width:${rem}%"></i><i class="lpace" style="left:${timeLeft}%"></i>
-      <span class="ltxt"><b>${winName(w.m)}</b> <span class="num">${rem}%</span></span><span class="lreset num">↻ ${left(w.r - now)}</span></button>${rows}</div>`;
-  }).join('') + freshRow(sub);
+  const now = Date.now(), c = subStyle(sub).c;
+  // part: a limit inside this window, for one model
+  const one = (w, part) => {
+    const rem = 100 - w.u, on = w.r > now, title = part ? cap(part.k) : winName(w.m);
+    const name = `<span class="w">${esc(title)}</span>`, pct = `<b class="num">${rem}%</b>`;
+    const reset = part ? '' : `<span class="lreset num">${on ? '↻ ' + left(w.r - now) : 'ready'}</span>`;
+    const bar = limBar(w, { plain: !!part });
+    return `<div class="lim${part ? ' part' : ''}${rem <= 10 ? ' bad' : ''}" style="--lc:${c}" data-ltip="lim" data-sub="${esc(sub)}" data-m="${w.m}"${part ? ` data-k="${esc(part.k)}"` : ''} role="img" aria-label="${esc(part ? `${winName(w.m)} limit for ${title}` : `${title} limit`)}: ${rem}% left${on ? `, resets in ${left(w.r - now)}` : ''}"><span class="k">${name}${pct}<span>left</span>${reset}</span>${bar}</div>`;
+  };
+  return `<div class="lims${cmp ? ' cmp' : ''}">` + L.windows.map((w) => one(w) + (w.parts || []).map((p) => one({ ...p, m: w.m }, p)).join('')).join('') + '</div>' + freshRow(sub, cmp);
 }
-const openChk = new Set(); // subscriptions whose check list is open
+// The card behind a limit bar: the bar again with its white line named, then the numbers and who used it.
+function limTip(el) {
+  const sub = el.dataset.sub, L = (data.limits || {})[sub], si = subInfo(sub), now = Date.now();
+  if (!L) return '';
+  const head = (t) => `<b>${glyph(si.provider)} ${esc(si.label)} · ${t}</b>`;
+  const row = (k, v, c) => `<div class="r"><span class="muted">${k}</span><span class="num"${c ? ` style="color:var(--${c})"` : ''}>${v}</span></div>`;
+  const day = (t) => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  if (el.dataset.ltip === 'bank') {
+    const b = L.bank || {};
+    return head(`${b.n} banked reset${b.n > 1 ? 's' : ''}`) + row('Using one', `${L.windows.map((w) => winName(w.m)).join(' and ')} back to 100%`) + (b.until ? row('Use by', esc(new Date(b.until).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))) : '') +
+      `<div class="tnote wrap">A reset the provider gave this subscription to keep. It is used from the provider's usage settings, whenever you choose.</div>`;
+  }
+  const win = L.windows.find((x) => x.m === +el.dataset.m), part = win && el.dataset.k ? (win.parts || []).find((p) => p.k === el.dataset.k) : null;
+  const w = part ? { ...part, m: win.m } : win;
+  if (!w) return '';
+  const title = head(part ? `${winName(w.m)} limit · ${esc(cap(part.k))}` : `${winName(w.m)} limit`);
+  const rem = 100 - w.u, len = w.m * 60e3;
+  if (w.r <= now) return title + row('Left', '100%') + `<div class="tnote wrap">No window is running. The next message starts one.</div>`;
+  const timeLeft = Math.max(0, Math.min(100, ((w.r - now) / len) * 100)), gone = now - (w.r - len);
+  const out = w.u > 0 && gone > 60e3 ? now + (rem / w.u) * gone : Infinity; // when it runs out if use goes on as it has
+  const at = timeLeft < 24 ? `left:${timeLeft}%` : timeLeft > 76 ? `right:${100 - timeLeft}%` : `left:${timeLeft}%;translate:-50% 0`;
+  const sp = part ? [] : limSplit(w);
+  return title + `<div class="pg" style="--lc:${subStyle(sub).c}">${limBar(w, { gap: true })}<div class="pgl"><span class="num" style="${at}">even pace ${Math.round(timeLeft)}%</span></div></div>` +
+    row('Left', `${rem}%`, rem <= 10 ? 'bad' : '') + row('Resets', `${esc(day(w.r))} · in ${left(w.r - now)}`) +
+    (rem <= 0 ? row('Used up', `back ${esc(day(w.r))}`, 'bad') : out < w.r ? row('At this rate', `runs out ${esc(day(out))}`, 'warn') : row('At this rate', 'lasts until the reset')) +
+    (!part && L.bank && L.bank.n ? row('Banked resets', String(L.bank.n)) : '') +
+    (sp.length ? `<div class="sect">${sp.slice(0, 5).map(([m, p, c]) => `<div class="r"><span>${mdot(m)}${esc(m)}</span><span class="num"><span class="muted">${fmtC(c)}</span> · ≈${p.toFixed(p < 10 ? 1 : 0)}%</span></div>`).join('')}${sp.length > 5 ? `<div class="r faint"><span>+${sp.length - 5} more</span></div>` : ''}</div>` : '');
+}
+let chkOpen = null; // subscription whose recent checks are open
 const agoS = (ms) => ms < 10e3 ? 'just now' : ms < 60e3 ? Math.floor(ms / 1e3) + 's ago' : ago(ms);
 const clockT = (t, sec) => {
   const d = new Date(t), o = { hour: 'numeric', minute: '2-digit', ...(sec ? { second: '2-digit' } : {}) };
@@ -785,48 +903,139 @@ const clockT = (t, sec) => {
 };
 const LE = { 429: 'Rate limited', login: 'Not signed in', auth: 'Login rejected', net: 'No connection' };
 const leText = (c) => LE[c] || (/^http /.test(c) ? c.toUpperCase() : 'Failed');
-// how fresh the limit numbers are, who read them, and (opened) the latest checks by any machine
-function freshRow(sub) {
+const leBad = (c) => c === 'auth' || /^http /.test(c); // needs attention; the rest pass on their own
+const warnIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2.5 20h19z"/><path d="M12 10.5v4M12 17.2v.1"/></svg>';
+const chevDown = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+// One quiet line: how fresh the limit numbers are and who read them. A failed check newer than
+// the numbers gets its own line above. The line opens the recent checks.
+const bankPill = (sub) => {
+  const b = ((data.limits || {})[sub] || {}).bank;
+  return b && b.n > 0 && !(b.until && b.until < Date.now()) ? `<span class="lbank num" data-ltip="bank" data-sub="${esc(sub)}">↻ ${b.n} banked</span>` : '';
+};
+function freshRow(sub, cmp) {
   const L = (data.limits || {})[sub];
-  if (!L || !L.checks || !L.checks.length) return '';
-  const now = Date.now(), age = now - L.t, open = openChk.has(sub);
-  const tone = age < 3 * 60e3 ? 'on' : age < 15 * 60e3 ? 'idle' : 'off';
+  if (!L) return '';
+  const pill = cmp ? '' : bankPill(sub); // with several subscriptions it sits beside the name instead
+  if (!L.checks || !L.checks.length) return pill ? `<div class="lfw">${pill}</div>` : '';
+  const now = Date.now(), age = now - L.t, open = chkOpen === sub, stale = age > 15 * 60e3;
   const last = L.checks[0];
-  const failing = last.le && last.le !== 'login' && last.t > L.t;
-  const note = failing ? `<span class="lfail">${esc(leText(last.le))} on ${esc(last.mach)}${last.ra > now ? ` · retrying ${clockT(last.ra)}` : ''}</span>` : '';
-  return `<div class="lfresh"><span class="mst ${tone}"><span class="sd"></span><span>Updated <span class="num" data-agos="${L.t}">${agoS(age)}</span></span></span><span class="lby"><span class="faint">by</span>${mdot(L.by)}${esc(L.by)}</span>${note}<button class="disc" data-lchk="${esc(sub)}" aria-expanded="${open}" aria-label="${open ? 'Hide' : 'Show'} recent limit checks">Checks<span class="chev">${chev}</span></button></div>${open ? checkList(sub, L) : ''}`;
+  // a machine that is signed out only matters when nobody else is reading the limits either
+  const fail = last.le && last.t > L.t && (last.le !== 'login' || stale) ? last : null;
+  if (cmp && !fail && !stale && !open) return ''; // several subscriptions: the line appears only when something is off
+  const alert = fail ? `<span class="lfa${leBad(fail.le) ? ' bad' : ''}">${warnIco}<span>${esc(leText(fail.le))}${['login', 'auth', 'net'].includes(fail.le) ? ` on ${esc(fail.mach)}` : ''}</span>${fail.ra > now ? `<span class="more">· next try ${clockT(fail.ra)}</span>` : ''}</span>` : '';
+  return `<div class="lfw"><button class="lfresh" data-lchk="${esc(sub)}" aria-expanded="${open}" aria-haspopup="dialog"${open ? ' aria-controls="lpop"' : ''} title="${open ? 'Hide' : 'Show'} recent limit checks">${alert}<span class="lf"><span class="${stale ? 'stale' : ''}">Updated <span class="num" data-agos="${L.t}">${agoS(age)}</span></span>${L.by ? `<span class="lby">${mdot(L.by)}<span>${esc(L.by)}</span></span>` : ''}<span class="lmore">${chevDown}</span></span></button>${pill}${open ? checkPop(sub, L) : ''}</div>`;
 }
-function checkList(sub, L) {
-  const codex = subInfo(sub).provider === 'codex';
-  const rows = L.checks.map((c) => {
-    const res = c.lim ? c.lim.slice().sort((a, b) => a.m - b.m).map((w) => `<span>${winName(w.m)}<b class="num">${100 - w.u}%</b></span>`).join('')
-      : `<span class="${c.le === 'login' ? 'lnone' : c.le === '429' ? 'lwarn' : 'lbad'}">${esc(leText(c.le))}${c.le === 'login' ? ' · not checking' : c.ra ? ` · next ${clockT(c.ra)}` : ''}</span>`;
-    return `<div class="lc"><span class="num muted">${clockT(c.t, true)}</span><span class="who">${mdot(c.mach)}<span>${esc(c.mach)}</span></span><span class="res">${res}</span></div>`;
-  }).join('');
-  const how = codex ? 'Read from Codex as you work, whenever the numbers change.'
-    : 'Checked every minute while anyone is working on this subscription, every 5 minutes otherwise. Machines take turns, so one check covers everyone.';
-  return `<div class="lchk"><div class="lc h"><span>Checked</span><span>By</span><span class="res">Left</span></div>${rows}<div class="lnote">${how}</div></div>`;
+// Recent checks, shown rather than listed: a lane per machine on one time line that ends now, so
+// who checked, how often, what failed and how old the numbers are can all be seen. One check at a
+// time is read out underneath: the one under the pointer (or stepped to with the arrow keys),
+// otherwise the latest.
+let chkSel = null; // "time|machine" of the check being read out
+const ckKey = (c) => `${c.t}|${c.mach}`;
+const ckPick = (L) => L.checks.find((c) => ckKey(c) === chkSel) || L.checks[0];
+function ckRead(c) {
+  const what = c.lim ? c.lim.slice().sort((a, b) => a.m - b.m).map((w) => `<span class="v">${w.k ? esc(cap(w.k)) : winName(w.m)}<b class="num">${100 - w.u}%</b></span>`).join('')
+    : `<span class="${leBad(c.le) ? 'lbad' : c.le === 'login' ? '' : 'lwarn'}">${esc(leText(c.le))}</span>${c.ra > Date.now() ? `<span>next try ${clockT(c.ra)}</span>` : ''}`;
+  return `<span class="t num">${clockT(c.t)}</span>${what}`;
 }
-document.addEventListener('click', (e) => {
-  const b = e.target.closest('[data-lexp]');
-  if (!b) return;
-  openLim.has(b.dataset.lexp) ? openLim.delete(b.dataset.lexp) : openLim.add(b.dataset.lexp);
-  renderHero();
+function checkPop(sub, L) {
+  const cs = L.checks, t0 = cs[cs.length - 1].t, span = Math.max(1, Date.now() - t0), sel = ckPick(L);
+  const machs = [...new Set(cs.map((c) => c.mach))];
+  const mark = (c) => `<i class="${c.le ? 'f' : ''}${c === sel ? ' sel' : ''}" data-ck="${esc(ckKey(c))}" style="left:${(Math.min(1, (c.t - t0) / span) * 100).toFixed(2)}%;--c:${c.le ? (leBad(c.le) ? 'var(--bad)' : c.le === 'login' ? 'var(--muted)' : 'var(--warn)') : mcol(c.mach)}"></i>`;
+  return `<div class="lpop" id="lpop" role="dialog" tabindex="-1" data-lpop="${esc(sub)}" aria-label="Recent limit checks. Left and right arrow keys step through them.">
+    <div class="lks${machs.length < 2 ? ' solo' : ''}">${machs.map((m) => `${machs.length > 1 ? `<span class="who">${mdot(m)}<span>${esc(m)}</span></span>` : ''}<div class="ltl"><span>${cs.filter((c) => c.mach === m).reverse().map(mark).join('')}</span></div>`).join('')}<div class="lax num"><span>${clockT(t0)}</span><span>now</span></div></div>
+    <div class="lro" aria-live="polite">${ckRead(sel)}</div></div>`;
+}
+function selCk(k) {
+  const pop = $('lpop'), L = pop && (data.limits || {})[pop.dataset.lpop];
+  if (!L || chkSel === k) return;
+  chkSel = k;
+  const c = ckPick(L), key = ckKey(c);
+  pop.querySelectorAll('[data-ck]').forEach((i) => i.classList.toggle('sel', i.dataset.ck === key));
+  pop.querySelector('.lro').innerHTML = ckRead(c);
+}
+// the mark nearest the pointer in its lane; leaving the lanes with a mouse goes back to the latest
+function ckAt(e) {
+  const tl = e.target.closest && e.target.closest('.ltl');
+  if (!tl) return;
+  let best = null, bd = Infinity;
+  for (const i of tl.querySelectorAll('[data-ck]')) { const r = i.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - e.clientX); if (d < bd) { bd = d; best = i; } }
+  if (best) selCk(best.dataset.ck);
+}
+document.addEventListener('pointermove', ckAt);
+document.addEventListener('pointerdown', ckAt);
+document.addEventListener('pointerout', (e) => { if (e.pointerType === 'mouse' && e.target.closest && e.target.closest('.lks') && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.lks'))) selCk(null); });
+// The card follows the mouse over a limit or a banked reset. A tap shows it under the bar.
+function showLtip(el, x, y) {
+  mtipEl = el;
+  mtip.innerHTML = limTip(el);
+  mtip.style.display = 'block';
+  mtip.style.left = Math.max(8, Math.min(innerWidth - mtip.offsetWidth - 12, x + 14)) + 'px';
+  mtip.style.top = (y + 18 + mtip.offsetHeight > innerHeight ? y - mtip.offsetHeight - 12 : y + 18) + 'px';
+}
+$('subs').addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  const el = !e.target.closest('.lpop') && e.target.closest('[data-ltip]');
+  if (el) showLtip(el, e.clientX, e.clientY); else mtip.style.display = 'none';
 });
+$('subs').addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') mtip.style.display = 'none'; });
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('#subs [data-ltip]');
+  if (el && e.pointerType && e.pointerType !== 'mouse') { const r = el.getBoundingClientRect(); showLtip(el, r.left - 14, r.bottom - 12); }
+  else if (!el && mtipEl && mtipEl.dataset.ltip) mtip.style.display = 'none';
+});
+const chkBtn = (sub) => [...document.querySelectorAll('[data-lchk]')].find((b) => b.dataset.lchk === sub);
+// Opening moves the focus into the popover and brings it into view. Closing hands the focus back
+// to the line that opened it (renderHero does that when the focus was inside), unless the click
+// that closed it put the focus on another control.
+function setChk(sub, show) {
+  const was = chkOpen;
+  chkOpen = sub; chkSel = null;
+  renderHero();
+  if (sub) { const pop = $('lpop'); pop?.focus({ preventScroll: true }); pop?.scrollIntoView({ block: 'nearest' }); return; }
+  const b = chkBtn(was);
+  if (!document.activeElement || document.activeElement === document.body) b?.focus({ preventScroll: true });
+  if (show) b?.scrollIntoView({ block: 'nearest' });
+}
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-lchk]');
-  if (!b) return;
-  openChk.has(b.dataset.lchk) ? openChk.delete(b.dataset.lchk) : openChk.add(b.dataset.lchk);
-  renderHero();
+  if (b) setChk(chkOpen === b.dataset.lchk ? null : b.dataset.lchk);
+  else if (chkOpen && !e.target.closest('.lpop')) setChk(null);
 });
-function splitBar(sub) {
+let byKeys = false; // the last input was the keyboard
+document.addEventListener('pointerdown', () => { byKeys = false; }, true);
+document.addEventListener('keydown', (e) => {
+  byKeys = true;
+  if (!chkOpen) return;
+  if (e.key === 'Escape') setChk(null, true);
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && $('lpop') && $('lpop').contains(document.activeElement)) {
+    const L = (data.limits || {})[chkOpen], to = L && L.checks[L.checks.indexOf(ckPick(L)) + (e.key === 'ArrowLeft' ? 1 : -1)];
+    if (to) selCk(ckKey(to));
+    e.preventDefault();
+  }
+});
+// tabbing on past the popover closes it, so it never covers the control that has the focus
+document.addEventListener('focusin', (e) => { if (chkOpen && byKeys && !$('lpop')?.parentElement.contains(e.target)) setChk(null); });
+function splitBar(sub, bare) {
   const ms = data.machineUsage.filter((m) => m.sub === sub && val(m.totals) > 0).sort((a, b) => val(b.totals) - val(a.totals));
-  if (!ms.length) return '';
-  const top = ms[0];
-  return `<div class="msplit"><div class="k"><span>${esc(top.machine)} <b class="num" style="color:var(--text);font-weight:600">${fmtV(val(top.totals))}</b>${ms.length > 1 ? ` <span class="faint">+${ms.length - 1} machine${ms.length > 2 ? 's' : ''}</span>` : ''}</span><span>by machine</span></div>
-    <div class="sb">${ms.map((m) => `<button data-mfilter="${esc(m.machine)}" style="--mc:${mcol(m.machine)};flex:${val(m.totals)}" title="${esc(m.machine)} ${fmtV(val(m.totals))} · click to filter" aria-label="Filter to ${esc(m.machine)}"></button>`).join('')}</div></div>`;
+  if (ms.length < 2) return ''; // one machine: the total above already is its number
+  const named = ms.length > 4 ? 3 : ms.length;
+  return `<div class="msplit"><div class="sb">${ms.map((m) => `<button data-mfilter="${esc(m.machine)}" style="--mc:${mcol(m.machine)};flex:${val(m.totals)}" title="${esc(m.machine)} ${fmtV(val(m.totals))} · click to filter" aria-label="Filter to ${esc(m.machine)}"></button>`).join('')}</div>
+    ${bare ? "" : `<div class="sl">${ms.slice(0, named).map((m) => `<button data-mfilter="${esc(m.machine)}" title="Filter to this machine">${mdot(m.machine)}<span class="n">${esc(m.machine)}</span><b class="num">${fmtV(val(m.totals))}</b></button>`).join('')}${ms.length > named ? `<span class="faint">+${ms.length - named} more</span>` : ''}</div>`}</div>`;
 }
+// The hero is rebuilt whenever data arrives (every few seconds while live). Whatever had the
+// keyboard focus in it is found again by its data-* attributes and keeps the focus; when the
+// checks popover is gone, its line takes it.
 function renderHero() {
+  const box = $('subs'), a = document.activeElement, ds = box.contains(a) ? Object.entries(a.dataset) : [];
+  const like = (d) => [...box.querySelectorAll('button, .lpop')].filter((el) => d.every(([k, v]) => el.dataset[k] === v));
+  const at = ds.length ? like(ds).indexOf(a) : -1;
+  drawHero();
+  if (chkOpen && !$('lpop')) chkOpen = null; // its subscription left the view
+  if (at < 0) return;
+  const again = like(ds);
+  (again[at] || again[0] || (ds[0][0] === 'lpop' ? chkBtn(ds[0][1]) : null))?.focus({ preventScroll: true });
+}
+function drawHero() {
   const subs = data.subscriptions;
   const since = data.limitSub ? ` · since ${new Date(data.from).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : '';
   if (subs.length === 1) {
@@ -834,19 +1043,21 @@ function renderHero() {
     $('hero').textContent = fmtV(val(t));
     $('heroSub').innerHTML = `${glyph(s.provider)} ${esc(s.label)} · <span class="num">${t.sessions}</span> sessions · ${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}${since}`;
     $('subs').className = 'led one';
-    $('subs').innerHTML = `<div class="lrow">${limitRows(s.sub)}${splitBar(s.sub)}</div>`;
+    $('subs').innerHTML = `<div class="lrow">${splitBar(s.sub)}${limitRows(s.sub)}</div>`;
     return;
   }
-  $('hero').textContent = subs.length ? `${subs.length} subscriptions` : 'No usage';
-  $('heroSub').textContent = subs.length ? 'Shown separately, never added together' : `Nothing recorded in this period`;
+  // several subscriptions: their sum on top, each one's own numbers underneath
+  const sum = (f) => subs.reduce((a, s) => a + f(s.totals), 0);
+  $('hero').textContent = subs.length ? fmtV(sum(val)) : 'No usage';
+  $('heroSub').textContent = subs.length ? `${subs.length} subscriptions · ${sum((t) => t.sessions)} sessions · ${S.metric === 'cost' ? fmtN(sum((t) => t.tokens)) + ' tokens' : fmtC(sum((t) => t.cost))}` : `Nothing recorded in this period`;
   $('subs').className = 'led';
   // an empty limit window still shows how much of the limit is left
   if (!subs.length && data.limitSub) { $('subs').className = 'led one'; $('subs').innerHTML = `<div class="lrow">${limitRows(data.limitSub)}</div>`; return; }
   $('subs').innerHTML = subs.map((s) => {
     const t = s.totals;
     return `<div class="lrow"><div class="top"><button class="who" data-sfilter="${esc(s.sub)}" title="Show only this subscription">${glyph(s.provider)}<span class="l">${esc(s.label)}</span></button><span class="val num">${fmtV(val(t))}</span></div>
-      <div class="det num">${t.sessions} sessions · ${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}</div>
-      ${limitRows(s.sub)}${splitBar(s.sub)}</div>`;
+      <div class="det num"><span>${t.sessions} sessions · ${S.metric === 'cost' ? fmtN(t.tokens) + ' tokens' : fmtC(t.cost)}${t.unpricedTokens ? ` · ${fmtN(t.unpricedTokens)} unpriced` : ''}</span>${bankPill(s.sub)}</div>
+      ${limitRows(s.sub, true) || splitBar(s.sub, true)}</div>`;
   }).join('');
 }
 
@@ -881,7 +1092,7 @@ function renderCharts() {
   const subs = data.subscriptions;
   const what = S.metric === 'cost' ? 'cost' : 'tokens';
   const multi = subs.length > 1, comb = multi && S.chart.mode === 'comb';
-  const head = `<div class="chartHead"><div class="chartTitle">${label} ${what}</div>${data.range === '7d' ? `<div class="seg" id="cres" role="group" aria-label="Points"><button data-v="hour" aria-pressed="${S.chart.res !== 'day'}">Hourly</button><button data-v="day" aria-pressed="${S.chart.res === 'day'}">Daily</button></div>` : ''}${multi ? `<div class="seg" id="cmode" role="group" aria-label="Chart layout"><button data-v="comb" aria-pressed="${comb}">One chart</button><button data-v="sep" aria-pressed="${!comb}">Per subscription</button></div>` : ''}<button class="ib" id="copt" title="Chart options" aria-label="Chart options">${gear}</button></div>`;
+  const head = `<div class="chartHead"><div class="chartTitle">${label} ${what}</div>${data.range === '7d' ? `<div class="seg" id="cres" role="group" aria-label="Points"><button data-v="hour" aria-pressed="${S.chart.res !== 'day'}">Hourly</button><button data-v="day" aria-pressed="${S.chart.res === 'day'}">Daily</button></div>` : ''}${multi ? `<div class="seg" id="cmode" role="group" aria-label="Chart layout"><button data-v="comb" aria-pressed="${comb}">One chart</button><button data-v="sep" aria-pressed="${!comb}">Per subscription</button></div>` : ''}<button class="ib" id="copt" title="Display options" aria-label="Display options">${gear}</button></div>`;
   if (!subs.length) { $('charts').innerHTML = head + '<div class="empty">No usage in this period.</div>'; return; }
   const hidden = new Set(S.chart.hidden || []);
   if (comb) {
@@ -890,7 +1101,7 @@ function renderCharts() {
     const vis = subs.filter((s) => !hidden.has(s.sub));
     drawChart($('charts').querySelector('.chart'), {
       label: `${what} by subscription`,
-      lines: vis.map((s) => { const st = subStyle(s.sub); return { html: `${glyph(s.provider)}${esc(s.label)}`, c: st.c, dash: st.dash, fill: S.chart.fill, vals: data.series.map((b) => (b.v[s.sub] ? val(b.v[s.sub]) : 0)) }; }),
+      lines: vis.map((s) => { const st = subStyle(s.sub); return { sub: s.sub, html: `${dashSwatch(st.c, st.dash)}${glyph(s.provider)}${esc(s.label)}`, c: st.c, dash: st.dash, fill: S.chart.fill, vals: data.series.map((b) => (b.v[s.sub] ? val(b.v[s.sub]) : 0)) }; }),
       lanes: S.chart.lanes ? vis.map((s) => laneOf(s.sub)).filter(Boolean) : [],
     });
     return;
@@ -914,35 +1125,58 @@ let clipN = 0;
 function drawChart(el, spec) {
   const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
   const small = matchMedia('(max-width:640px)').matches;
-  const LH = 18, laneBlock = spec.lanes.length ? spec.lanes.length * LH + 6 : 0;
-  const W = svg.clientWidth || 800, L = small ? 50 : 66, R = 6, T = 8 + laneBlock, B = 26;
-  const H = (spec.height || (small ? 210 : 300)) + laneBlock;
+  // rows above the plot: a line of reset names when a reset is in view, then one limit row per
+  // subscription that has a window in view (daily ranges carry none)
   const series = data.series, step = data.step, n = series.length;
+  const t0 = series[0].t, tN = series[n - 1].t;
+  const rows = spec.lanes.filter((ln) => ln.bands.some(([a, b]) => b > t0 && a < tN + step));
+  // only resets inside the plotted time: xt() pins any other time to an edge, where it would read
+  // as a reset that happened there (one inside the last point's own hour or day belongs at the right edge)
+  const resets = spec.lanes.flatMap((ln) => ln.resets.filter((r) => r >= t0 && r < tN + step).map((r) => ({ ln, r })));
+  const anyReset = resets.length > 0;
+  const LH = 24, laneTop = anyReset ? 20 : 6, laneBlock = rows.length || anyReset ? laneTop + rows.length * LH : 0;
+  const W = svg.clientWidth || 800, L = rows.length && spec.lanes.length > 1 ? (small ? 72 : 114) : small ? 50 : 66, R = 6, T = (rows.length ? 18 : 8) + laneBlock, B = 26;
+  const H = (spec.height || (small ? 210 : 300)) + laneBlock;
   // stacked bars only where adding up is valid: machines inside one subscription (never across subscriptions)
   const bars = spec.stack && S.chart.type === 'bars';
   const live = spec.lines.filter((l) => !l.dim);
   const max = Math.max(1e-9, ...(bars ? data.series.map((_, i) => live.reduce((a, l) => a + l.vals[i], 0)) : live.flatMap((l) => l.vals)));
   const nice = niceMax(max);
   const x = (i) => L + (n <= 1 ? 0 : (i * (W - L - R)) / (n - 1));
-  const t0 = series[0].t, tN = series[n - 1].t;
   const xt = (t) => L + (tN === t0 ? 0 : Math.max(0, Math.min(1, (t - t0) / (tN - t0)))) * (W - L - R);
   const y = (v) => T + (H - T - B) * (1 - v / nice);
   const fmtT = (t) => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   let g = '';
-  // limit strip: one row per subscription; each 5h window is a box filled to the % of the limit it used
-  spec.lanes.forEach((ln, li) => {
-    const top = 6 + li * LH, h = 12, mid = top + h / 2;
-    g += `<text x="${L - 10}" y="${mid + 4}" text-anchor="end">${esc(ln.label)}</text><rect x="${L}" y="${top}" width="${W - L - R}" height="${h}" rx="3" fill="#0f0f0f"/>`;
-    for (const [a, b, u = 0] of ln.bands) {
+  // limit rows above the plot, one per subscription, in the subscription's colour: each short (5h)
+  // limit window is a band over the hours it covered, stronger the more of the limit was used in
+  // it, with the % used above it. With several subscriptions a row is named and carries its line's
+  // own swatch, and pointing at a row (or at a name under the chart) fades every other subscription.
+  const now = Date.now(), manyLanes = spec.lanes.length > 1;
+  rows.forEach((ln, li) => {
+    const top = laneTop + li * LH, by = top + 12, bh = 6, cy = by + bh / 2;
+    let row = manyLanes ? `<text x="${L - 30}" y="${cy + 4}" text-anchor="end">${esc(small ? ln.label.slice(0, 6).trim() : ln.name.length > 13 ? ln.name.slice(0, 12).trim() + '…' : ln.name)}</text><line x1="${L - 24}" x2="${L - 8}" y1="${cy}" y2="${cy}" stroke="${ln.c}" stroke-width="2" stroke-dasharray="${ln.dash}"/>`
+      : `<text x="${L - 10}" y="${cy + 4}" text-anchor="end">${esc(ln.short + ' used')}</text>`;
+    let free = L; // where the next % may start, so two never overlap
+    for (const [a, b, u = 0] of ln.bands.slice().sort((p, q) => p[0] - q[0])) {
       if (b <= t0 || a >= tN + step) continue;
-      const x0 = xt(a), x1 = Math.max(x0 + 3, xt(b) - 1), xf = Math.min(x1, Math.max(x0, xt(a + ((b - a) * u) / 100)));
-      g += `<g><title>${esc(ln.name)}: ${ln.short} window ${esc(fmtT(a))} to ${esc(fmtT(b))}, used ${u}% of the limit</title><rect x="${x0}" y="${top}" width="${x1 - x0}" height="${h}" rx="3" fill="${ln.c}" fill-opacity=".16" stroke="${ln.dash ? ln.c : 'none'}" stroke-opacity=".7" stroke-dasharray="${ln.dash}"/>${xf > x0 ? `<rect x="${x0}" y="${top}" width="${xf - x0}" height="${h}" rx="3" fill="${ln.c}" fill-opacity=".6"/>` : ''}${x1 - x0 > 34 ? `<text x="${x0 + 5}" y="${mid + 3.5}" style="fill:var(--text);font-size:9.5px;font-weight:600">${u}%</text>` : ''}</g>`;
+      const x0 = xt(a), x1 = Math.max(x0 + 2, xt(b) - 2), w = x1 - x0;
+      const tone = u >= 90 ? 'b' : u >= 75 ? 'w' : u ? '' : 'z';
+      row += `<rect x="${x0}" y="${by}" width="${w}" height="${bh}" rx="${Math.min(3, w / 2)}" fill="${ln.c}" fill-opacity="${(0.16 + 0.74 * (Math.min(100, u) / 100)).toFixed(2)}"/>`;
+      const txt = u + '%', tw = txt.length * 6.4, end = x0 + tw > W - R, tx = end ? W - R : x0;
+      if ((end ? tx - tw : tx) >= free) { row += `<text x="${tx}" y="${by - 4}" text-anchor="${end ? 'end' : 'start'}" class="lnt ${tone}">${txt}</text>`; free = (end ? tx : tx + tw) + 5; }
     }
-    for (const r of ln.resets) {
-      const rx = xt(r);
-      g += `<g><title>${esc(ln.name)}: weekly limit reset ${esc(fmtT(r))}</title><line x1="${rx}" x2="${rx}" y1="${top - 2}" y2="${H - B}" stroke="${ln.c}" stroke-opacity=".75" stroke-width="1.2" stroke-dasharray="3 3"/><line x1="${rx}" x2="${rx}" y1="${top - 2}" y2="${H - B}" stroke="transparent" stroke-width="12" style="pointer-events:stroke;cursor:help"/><rect x="${rx - 1.5}" y="${top - 2}" width="3" height="${h + 4}" rx="1.5" fill="${ln.c}"/></g>`;
-    }
+    g += `<g class="lt" data-s="${esc(ln.sub)}"><rect x="0" y="${top}" width="${W}" height="${LH}" fill="transparent"/>${row}</g>`;
   });
+  // long-window (weekly) resets: a fine dotted line through the plot in the subscription's colour,
+  // named above the limit rows when there is room and left unnamed when there is not
+  // (the colour and the hover card still say whose). They fade with their subscription.
+  const marks = resets.map((m) => ({ ...m, x: xt(m.r) })).sort((a, b) => a.x - b.x);
+  const roomy = marks.every((m, i) => !i || m.x - marks[i - 1].x > (manyLanes ? 150 : 96));
+  for (const { ln, x: rx } of marks) {
+    const name = roomy ? `↻ ${manyLanes ? (ln.name.length > 14 ? ln.label : ln.name) + ' ' + ln.long.toLowerCase() : ln.long} reset` : '';
+    const anchor = !roomy ? 'middle' : rx < L + 60 ? 'start' : rx > W - R - 60 ? 'end' : 'middle';
+    g += `<g class="lt" data-s="${esc(ln.sub)}"><line x1="${rx}" x2="${rx}" y1="16" y2="${H - B}" stroke="${ln.c}" stroke-opacity=".55" stroke-dasharray="1.5 3.5" stroke-linecap="round"/><text x="${rx}" y="11" text-anchor="${anchor}" class="lrs"${manyLanes ? ` style="fill:${ln.c}"` : ''}>${esc(name)}</text></g>`;
+  }
   for (let i = 0; i <= 2; i++) { const v = (nice * i) / 2; g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : fmtV(v)}</text>`; }
   const ticks = [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i && v >= 0);
   for (const i of ticks) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${esc(tickLabel(series[i].t, step))}</text>`;
@@ -964,14 +1198,16 @@ function drawChart(el, spec) {
   for (const l of bars ? [] : spec.lines) {
     const pts = l.vals.map((v, i) => [x(i), y(v)]);
     const up = linePath(pts);
-    if (l.fill && !l.dim) paths += `<path d="${up}L${x(n - 1)},${y(0)}L${x(0)},${y(0)}Z" fill="${l.c}" fill-opacity="${l.o != null ? 0.12 * l.o : 0.1}"/>`;
-    paths += `<path d="${up}" fill="none" stroke="${l.c}" stroke-width="${l.w || 1.8}" stroke-dasharray="${l.dash || ''}" stroke-linejoin="round" opacity="${l.o != null ? l.o : 1}"/>`;
+    const ds = l.sub ? ` data-s="${esc(l.sub)}"` : '';
+    if (l.fill && !l.dim) paths += `<path${ds} d="${up}L${x(n - 1)},${y(0)}L${x(0)},${y(0)}Z" fill="${l.c}" fill-opacity="${l.o != null ? 0.12 * l.o : 0.1}"/>`;
+    paths += `<path${ds} d="${up}" fill="none" stroke="${l.c}" stroke-width="${l.w || 1.8}" stroke-dasharray="${l.dash || ''}" stroke-linejoin="round" opacity="${l.o != null ? l.o : 1}"/>`;
   }
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.style.height = H + 'px';
   svg.setAttribute('aria-label', spec.label || '');
   const cp = 'cp' + (++clipN);
   svg.innerHTML = g + `<defs><clipPath id="${cp}"><rect x="${L}" y="${T - 2}" width="${W - L - R}" height="${H - T - B + 3}"/></clipPath></defs><g clip-path="url(#${cp})">${paths}</g>` + `<line class="cur" y1="${T}" y2="${H - B}" stroke="#3a3a3a" visibility="hidden"/>`;
+  paintHl();
   const shown = spec.lines.filter((l) => !l.dim);
   const show = (clientX) => {
     const rect = svg.getBoundingClientRect();
@@ -979,14 +1215,14 @@ function drawChart(el, spec) {
     const i = Math.max(0, Math.min(n - 1, Math.round(((px - L) / (W - L - R)) * (n - 1))));
     // within 10px of a weekly reset: snap to it and name it
     let snap = null;
-    for (const ln of spec.lanes) for (const r of ln.resets) { const d = Math.abs(xt(r) - px); if (d < 10 && (!snap || d < snap.d)) snap = { d, r, ln }; }
+    for (const m of marks) { const d = Math.abs(m.x - px); if (d < 10 && (!snap || d < snap.d)) snap = { d, r: m.r, ln: m.ln }; }
     const cx = snap ? xt(snap.r) : x(i);
     const cur = svg.querySelector('.cur');
     cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.setAttribute('visibility', 'visible');
     cur.setAttribute('stroke', snap ? snap.ln.c : '#3a3a3a');
     const tot = shown.reduce((a, l) => a + l.vals[i], 0);
-    tip.innerHTML = (snap ? `<div class="r" style="margin-bottom:6px"><b>${spec.lanes.length > 1 ? esc(snap.ln.label) + ' · ' : ''}Weekly limit reset</b><span class="muted">${esc(fmtT(snap.r))}</span></div>` : '') + `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
-      spec.lanes.map((ln) => { const bd = ln.bands.find(([a, b]) => series[i].t + step / 2 >= a && series[i].t + step / 2 < b); return bd ? `<div class="r" style="color:var(--muted);font-size:12px"><span>${esc(ln.label)} · 5h window</span><span>${bd[2]}% of limit</span></div>` : ''; }).join('') +
+    tip.innerHTML = (snap ? `<div class="r" style="margin-bottom:6px"><b>${manyLanes ? esc(snap.ln.label) + ' · ' : ''}${esc(snap.ln.long === 'Week' ? 'Weekly' : snap.ln.long === 'Month' ? 'Monthly' : snap.ln.long)} limit reset</b><span class="muted">${esc(fmtT(snap.r))}</span></div>` : '') + `<div class="muted" style="margin-bottom:5px">${esc(tickLabel(series[i].t, step, true))}</div>` +
+      spec.lanes.map((ln) => { const bd = ln.bands.find(([a, b]) => series[i].t + step / 2 >= a && series[i].t + step / 2 < b); return bd ? `<div class="lw"><div class="r"><span>${manyLanes ? esc(ln.label) + ' · ' : ''}${ln.short} limit window</span><b class="num">${bd[2]}% used</b></div><div class="when">${esc(fmtT(bd[0]))} – ${esc(new Date(bd[1]).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))}${bd[1] > now ? ' · current' : ''}</div></div>` : ''; }).join('') +
       (shown.length ? shown.map((l) => `<div class="r"><span>${l.html}</span><b class="num">${fmtV(l.vals[i])}</b></div>`).join('') + (spec.total && shown.length > 1 ? `<div class="r tot"><span class="muted">Total</span><b class="num">${fmtV(tot)}</b></div>` : '') : '<span class="muted">no data</span>');
     tip.style.display = 'block';
     const left = (cx / W) * rect.width;
@@ -1000,6 +1236,14 @@ function drawChart(el, spec) {
   el.onclick = (e) => e.stopPropagation();
   document.addEventListener('click', hide, { once: true });
 }
+// pointing at a subscription's limit row, or at its name under the chart, fades the others
+let hlSub = null;
+function paintHl() { document.querySelectorAll('#charts svg [data-s]').forEach((el) => { el.style.opacity = !hlSub || el.dataset.s === hlSub ? '' : '0.14'; }); }
+$('charts').addEventListener('pointerover', (e) => {
+  const t = e.target.closest('.lt[data-s], .cleg [data-hide]'), s = t ? t.dataset.s || t.dataset.hide : null;
+  if (s !== hlSub) { hlSub = s; paintHl(); }
+});
+$('charts').addEventListener('pointerleave', () => { if (hlSub) { hlSub = null; paintHl(); } });
 function saveChart() { ls.set('chart', S.chart); }
 $('charts').addEventListener('click', (e) => {
   const res = e.target.closest('#cres button');
@@ -1015,14 +1259,16 @@ function segHtml(k, opts) { return `<div class="seg">${opts.map(([v, l]) => `<bu
 function chartPopHtml() {
   const subs = data.subscriptions;
   return `<h4>Chart</h4>
-    <div class="opt"><span>Limit lanes</span>${segHtml('lanes', [[true, 'On'], [false, 'Off']])}</div>
+    <div class="opt"><span>Limit windows</span>${segHtml('lanes', [[true, 'On'], [false, 'Off']])}</div>
     <div class="opt"><span>Area fill</span>${segHtml('fill', [[true, 'On'], [false, 'Off']])}</div>
     <div class="opt"><span>Type</span>${segHtml('type', [['lines', 'Lines'], ['bars', 'Stacked bars']])}</div>
     ${S.chart.type === 'bars' && subs.length > 1 && S.chart.mode === 'comb' ? '<div class="faint" style="font-size:12px;margin:-4px 0 8px">Bars stack machines, so they show per subscription and in the model view. One chart keeps lines: subscriptions are never added.</div>' : ''}
     <div class="opt"><span>Curve</span>${segHtml('curve', [['smooth', 'Smooth'], ['straight', 'Straight']])}</div>
     ${subs.length > 1 ? `<div class="opt"><span>Layout</span>${segHtml('mode', [['comb', 'One chart'], ['sep', 'Per sub']])}</div>` : ''}
-    <h4 style="margin-top:14px">Subscription lines and lanes</h4>
-    ${subs.map((s) => { const st = subStyle(s.sub); return `<div class="srow3"><input type="color" data-sc="${esc(s.sub)}" value="${st.c}" aria-label="Colour for ${esc(s.label)}"><span class="l">${glyph(s.provider)} ${esc(s.label)}</span><span class="dashes">${DASHES.map((d) => `<button data-sd="${esc(s.sub)}" data-dash="${d}" aria-pressed="${st.dash === d}" aria-label="Line style">${dashSwatch(st.c, d)}</button>`).join('')}</span></div>`; }).join('')}
+    <h4 style="margin-top:14px">Limit bars</h4>
+    <div class="opt"><span>Used part</span>${segHtml('limc', [['mach', 'By machine'], ['sub', 'One colour']])}</div>
+    <h4 style="margin-top:14px">Subscriptions: colour, name, line</h4>
+    ${subs.map((s) => { const st = subStyle(s.sub); return `<div class="srow3"><input type="color" data-sc="${esc(s.sub)}" value="${st.c}" aria-label="Colour for ${esc(s.label)}"><span class="l">${glyph(s.provider)}<input class="nick" data-nick="${esc(s.sub)}" value="${esc(s.label)}" placeholder="${esc(s.plan || s.label)}" maxlength="24" spellcheck="false" aria-label="Your name for ${esc(s.plan || s.label)}" title="Your own name for it, on this device"></span><span class="dashes">${DASHES.map((d) => `<button data-sd="${esc(s.sub)}" data-dash="${d}" aria-pressed="${st.dash === d}" aria-label="Line style">${dashSwatch(st.c, d)}</button>`).join('')}</span></div>`; }).join('')}
     <div class="row"><span class="faint" style="font-size:12px">Saved on this device</span><button class="reset" data-creset>Reset</button></div>`;
 }
 function openChartPop(btn) {
@@ -1041,14 +1287,25 @@ $('cpop').addEventListener('click', (e) => {
   else if (b.dataset.sd) { S.chart.styles = S.chart.styles || {}; S.chart.styles[b.dataset.sd] = { ...S.chart.styles[b.dataset.sd], dash: b.dataset.dash }; }
   else if (b.dataset.creset !== undefined) S.chart = { ...CHART0 };
   else return;
-  saveChart(); renderCharts(); $('cpop').innerHTML = chartPopHtml();
+  saveChart(); renderCharts(); renderHero(); $('cpop').innerHTML = chartPopHtml();
 });
 $('cpop').addEventListener('input', (e) => {
   const sub = e.target.dataset.sc;
   if (!sub) return;
   S.chart.styles = S.chart.styles || {};
   S.chart.styles[sub] = { ...S.chart.styles[sub], c: e.target.value.toLowerCase() };
-  saveChart(); renderCharts();
+  saveChart(); renderCharts(); renderHero();
+});
+// a name of your own for a subscription: kept on this device, used everywhere on the page
+$('cpop').addEventListener('change', (e) => {
+  const sub = e.target.dataset.nick;
+  if (!sub) return;
+  const plan = (data.options.subscriptions.find((s) => s.sub === sub) || {}).plan || '', v = e.target.value.trim();
+  if (v && v !== plan) S.nicks[sub] = v; else delete S.nicks[sub];
+  ls.set('nicks', S.nicks);
+  for (const d of new Set([data, ...qcache.values()])) applyNicks(d);
+  e.target.value = v || plan;
+  render();
 });
 document.addEventListener('click', (e) => { if (!e.target.closest('#cpop')) $('cpop').classList.remove('open'); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('cpop').classList.remove('open'); });

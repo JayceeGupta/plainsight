@@ -14,7 +14,7 @@ Every machine ends up with the full picture. The dashboard is one address, e.g. 
 - **Who is using it right now:** live sessions per machine, with running time, model and tokens. Optional live streaming.
 - **How much was used:** 5h, 24h, 7d, 30d and 90d windows, split by subscription, machine, model, day and token type. Cost is an API-equivalent estimate.
 - **Heads-up for heavy work:** a machine (or its agent) can announce "overnight run, 8h". Every dashboard then warns that the shared limit will probably run out.
-- **Many subscriptions, never mixed:** each Claude or Codex account is its own subscription. Two Claude subscriptions are never added together.
+- **Many subscriptions, never mixed:** each Claude or Codex account is its own subscription. Each keeps its own numbers, limits and chart line; the dashboard adds only a combined total on top.
 - **History from day one:** first start backfills existing logs. Claude history is filtered by start date; Codex history by the account recorded on each session.
 - **One dashboard URL, any device:** sign in with an emailed code or Google. Phones need no Tailscale. It stays up while any machine in the tunnel is on, and shows a calm "No machine is online" page when none is.
 - **MCP server** (stdio, no open sockets) so Claude Code / Codex can answer "who is using the Max plan right now?" and announce heavy work themselves.
@@ -185,6 +185,8 @@ The page is built for phones too. Open it once and use the browser's *Add to Hom
 - **Footer:** how many machines are known and online, and which machine served the page.
 
 Filters, period and metric are remembered per browser.
+
+**Demo.** `npm run demo` builds a static copy of the dashboard into `demo/dist`, fed by a made-up team (six machines, four subscriptions) instead of a daemon. It is the real page and the real aggregation code, so it always shows the current dashboard. `vercel.json` deploys that folder.
 
 ---
 
